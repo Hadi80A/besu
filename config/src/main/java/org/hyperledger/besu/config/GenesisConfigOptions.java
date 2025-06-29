@@ -51,6 +51,8 @@ public interface GenesisConfigOptions {
    */
   boolean isIbft2();
 
+  boolean isNexus();
+
   /**
    * Is qbft boolean.
    *

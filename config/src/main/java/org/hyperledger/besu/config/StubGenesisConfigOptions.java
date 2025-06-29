@@ -138,6 +138,11 @@ public class StubGenesisConfigOptions implements GenesisConfigOptions, Cloneable
   }
 
   @Override
+  public boolean isNexus() {
+    return false;
+  }
+
+  @Override
   public boolean isPoa() {
     return false;
   }
