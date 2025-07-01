@@ -25,6 +25,7 @@ target/
 tmp/
 build/
 out/
+**/build
 site/
 /kubernetes/reports/
 /kubernetes/besu-*.tar.gz
