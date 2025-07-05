@@ -5,6 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.util.List;
 
@@ -16,7 +20,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CertificatePayload {
+public class CertificatePayload implements Payload {
 
   /** The hash of the block being finalized. */
   private String blockHash;
@@ -49,5 +53,25 @@ public class CertificatePayload {
    */
   public int getQuorumSize() {
     return signerIds != null ? signerIds.size() : 0;
+  }
+
+  @Override
+  public void writeTo(RLPOutput rlpOutput) {
+
+  }
+
+  @Override
+  public int getMessageType() {
+    return 0;
+  }
+
+  @Override
+  public Hash hashForSignature() {
+    return null;
+  }
+
+  @Override
+  public ConsensusRoundIdentifier getRoundIdentifier() {
+    return null;
   }
 }
