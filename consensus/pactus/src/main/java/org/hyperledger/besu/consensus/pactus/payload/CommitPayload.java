@@ -5,6 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 /**
  * Represents the payload of a commit message in Pactus consensus.
@@ -14,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CommitPayload {
+public class CommitPayload implements Payload {
 
   /** The ID or address of the committing validator. */
   private String validatorId;
@@ -38,5 +42,25 @@ public class CommitPayload {
            !blockHash.isEmpty() &&
            signature != null &&
            !signature.isEmpty();
+  }
+
+  @Override
+  public void writeTo(RLPOutput rlpOutput) {
+
+  }
+
+  @Override
+  public int getMessageType() {
+    return 0;
+  }
+
+  @Override
+  public Hash hashForSignature() {
+    return null;
+  }
+
+  @Override
+  public ConsensusRoundIdentifier getRoundIdentifier() {
+    return null;
   }
 }

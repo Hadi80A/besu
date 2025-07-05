@@ -1,7 +1,7 @@
 // PactusRound.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.statemachine;
 
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
 import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
@@ -26,7 +26,7 @@ public class PactusRound {
   private final PactusMessageTransmitter messageTransmitter;
 
   private boolean proposalSent = false;
-  private Block proposedBlock;
+  private PactusBlock proposedPactusBlock;
 
   private final Map<String, PreCommitPayload> preCommits = new HashMap<>();
   private final Map<String, CommitPayload> commits = new HashMap<>();
@@ -48,11 +48,11 @@ public class PactusRound {
   /**
    * Called when the local node is proposer for the round.
    */
-  public void proposeBlock(Block block, String signature) {
+  public void proposeBlock(PactusBlock pactusBlock, String signature) {
     if (proposalSent) return;
 
-    this.proposedBlock = block;
-    ProposePayload payload = messageFactory.createProposePayload(block, round, signature);
+    this.proposedPactusBlock = pactusBlock;
+    ProposePayload payload = messageFactory.createProposePayload(pactusBlock, round, signature);
     messageTransmitter.multicastProposal(payload.toString()); // You may serialize to JSON
     this.proposalSent = true;
   }
@@ -91,8 +91,8 @@ public class PactusRound {
     return round;
   }
 
-  public Block getProposedBlock() {
-    return proposedBlock;
+  public PactusBlock getProposedBlock() {
+    return proposedPactusBlock;
   }
 
   public boolean isProposalSent() {

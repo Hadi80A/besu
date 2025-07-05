@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
 
 import java.util.List;
@@ -20,7 +20,7 @@ import java.util.List;
 public class PreparedRoundArtifacts {
 
   /** The block proposed and prepared in the prior round. */
-  private Block preparedBlock;
+  private PactusBlock preparedPactusBlock;
 
   /** List of pre-commit votes supporting this block from the previous round. */
   private List<PreCommitPayload> preCommits;

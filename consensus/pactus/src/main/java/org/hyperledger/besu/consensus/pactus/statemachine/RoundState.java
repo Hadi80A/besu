@@ -2,7 +2,7 @@
 package org.hyperledger.besu.consensus.pactus.statemachine;
 
 import lombok.Getter;
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
 import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
 
@@ -54,8 +54,8 @@ public class RoundState {
     return preCommits.size();
   }
 
-  public Optional<Block> getProposedBlock() {
-    return Optional.ofNullable(proposedBlockPayload).map(ProposePayload::getBlock);
+  public Optional<PactusBlock> getProposedBlock() {
+    return Optional.ofNullable(proposedBlockPayload).map(ProposePayload::getPactusBlock);
   }
 
   public boolean isProposalReceived() {

@@ -1,9 +1,13 @@
 package org.hyperledger.besu.consensus.pactus.core;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.datatypes.Address;
 
 /**
  * Represents a validator in the Pactus consensus mechanism.
@@ -16,6 +20,7 @@ public class Validator {
 
   /** Unique identifier for the validator (e.g., public key or address). */
   private String id;
+  private Address address;
 
   /** Stake information associated with this validator. */
   private StakeInfo stakeInfo;

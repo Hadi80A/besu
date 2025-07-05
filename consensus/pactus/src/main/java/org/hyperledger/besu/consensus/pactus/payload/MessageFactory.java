@@ -1,14 +1,19 @@
 // MessageFactory.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.payload;
 
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+
 import java.util.List;
 
 /**
  * Factory class for creating consensus message payloads and wrappers.
  */
-public class MessageFactory {
+public class MessageFactory implements Payload {
 
   private final String localValidatorId;
 
@@ -16,10 +21,10 @@ public class MessageFactory {
     this.localValidatorId = localValidatorId;
   }
 
-  public Proposal createProposal(Block block, int round, String signature) {
+  public Proposal createProposal(PactusBlock pactusBlock, int round, String signature) {
     return Proposal.builder()
         .proposerId(localValidatorId)
-        .proposedBlock(block)
+        .proposedPactusBlock(pactusBlock)
         .round(round)
         .signature(signature)
         .build();
@@ -63,10 +68,10 @@ public class MessageFactory {
         .build();
   }
 
-  public ProposePayload createProposePayload(Block block, int round, String signature) {
+  public ProposePayload createProposePayload(PactusBlock pactusBlock, int round, String signature) {
     return ProposePayload.builder()
         .proposerId(localValidatorId)
-        .block(block)
+        .pactusBlock(pactusBlock)
         .round(round)
         .signature(signature)
         .build();
@@ -90,5 +95,25 @@ public class MessageFactory {
         .signerIds(signerIds)
         .signatures(signatures)
         .build();
+  }
+
+  @Override
+  public void writeTo(RLPOutput rlpOutput) {
+
+  }
+
+  @Override
+  public int getMessageType() {
+    return 0;
+  }
+
+  @Override
+  public Hash hashForSignature() {
+    return null;
+  }
+
+  @Override
+  public ConsensusRoundIdentifier getRoundIdentifier() {
+    return null;
   }
 }

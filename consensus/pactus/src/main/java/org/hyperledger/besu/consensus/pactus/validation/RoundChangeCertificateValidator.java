@@ -1,7 +1,7 @@
 // RoundChangeCertificateValidator.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.validation;
 
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.core.Validator;
 import org.hyperledger.besu.consensus.pactus.core.ValidatorSet;
 import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
@@ -25,18 +25,18 @@ public class RoundChangeCertificateValidator {
   /**
    * Validates a round-change certificate based on a proposed block and its pre-commits.
    *
-   * @param block The proposed block for the new round.
+   * @param pactusBlock The proposed block for the new round.
    * @param preCommits List of pre-commits from validators supporting the block.
    * @param round The round from which the pre-commits originate.
    * @return true if the certificate is valid, false otherwise.
    */
-  public boolean validate(Block block, List<PreCommitPayload> preCommits, int round) {
-    if (block == null || preCommits == null || preCommits.isEmpty()) {
+  public boolean validate(PactusBlock pactusBlock, List<PreCommitPayload> preCommits, int round) {
+    if (pactusBlock == null || preCommits == null || preCommits.isEmpty()) {
       return false;
     }
 
     int validSignatures = 0;
-    String blockHash = block.getHash();
+    String blockHash = pactusBlock.getHash();
 
     for (PreCommitPayload payload : preCommits) {
       if (!blockHash.equals(payload.getBlockHash()) || payload.getRound() != round) {

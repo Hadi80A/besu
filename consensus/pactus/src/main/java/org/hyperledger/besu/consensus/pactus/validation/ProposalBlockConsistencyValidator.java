@@ -2,7 +2,7 @@
 package org.hyperledger.besu.consensus.pactus.validation;
 
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 
 /**
  * Validates whether a proposed block is consistent with the expected consensus round and height.
@@ -24,11 +24,11 @@ public class ProposalBlockConsistencyValidator {
    * @return true if consistent, false otherwise.
    */
   public boolean validate(final Proposal proposal) {
-    if (proposal == null || proposal.getProposedBlock() == null) {
+    if (proposal == null || proposal.getProposedPactusBlock() == null) {
       return false;
     }
 
-    Block block = proposal.getProposedBlock();
-    return block.getHeight() == expectedHeight && proposal.getRound() == expectedRound;
+    PactusBlock pactusBlock = proposal.getProposedPactusBlock();
+    return pactusBlock.getHeight() == expectedHeight && proposal.getRound() == expectedRound;
   }
 }

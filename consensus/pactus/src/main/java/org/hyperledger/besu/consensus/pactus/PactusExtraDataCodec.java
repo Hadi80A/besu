@@ -2,13 +2,15 @@
 package org.hyperledger.besu.consensus.pactus;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.consensus.common.bft.BftExtraData;
+import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.ethereum.blockcreation.ExtraDataCodec;
 
 /**
  * Handles encoding and decoding of the extraData field in block headers for Pactus consensus.
  * This typically includes validator information and round/height metadata.
  */
-public class PactusExtraDataCodec implements ExtraDataCodec {
+public class PactusExtraDataCodec extends BftExtraDataCodec {
 
   @Override
   public Bytes encode(final Object extraData) {
@@ -28,5 +30,15 @@ public class PactusExtraDataCodec implements ExtraDataCodec {
   @Override
   public String name() {
     return "Pactus";
+  }
+
+  @Override
+  protected Bytes encode(BftExtraData bftExtraData, EncodingType encodingType) {
+    return null;
+  }
+
+  @Override
+  public BftExtraData decodeRaw(Bytes bytes) {
+    return null;
   }
 }

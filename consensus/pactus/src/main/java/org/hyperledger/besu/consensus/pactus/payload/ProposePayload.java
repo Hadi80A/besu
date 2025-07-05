@@ -1,11 +1,23 @@
 // ProposePayload.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.payload;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.util.SerializeUtil;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.plugin.data.Signature;
+
+import java.io.IOException;
 
 /**
  * Payload for a block proposal in the Pactus consensus protocol.
@@ -15,28 +27,61 @@ import org.hyperledger.besu.consensus.pactus.core.Block;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProposePayload {
-
-  /** The ID (e.g., public key) of the proposer. */
-  private String proposerId;
+public class ProposePayload implements Payload {
 
   /** The proposed block for the current round. */
-  private Block block;
+  private PactusBlock pactusBlock;
 
   /** The round number in which the proposal is made. */
   private int round;
 
+  private int height;
+
   /** Proposer's signature on the proposed block and round. */
-  private String signature;
+  private Signature signature;
 
   /**
    * Checks whether the proposal payload is complete and valid.
    */
   public boolean isValid() {
-    return proposerId != null &&
-           block != null &&
+   return  pactusBlock != null &&
            signature != null &&
-           !proposerId.isEmpty() &&
            !signature.isEmpty();
+  }
+
+  public static ProposePayload readFrom(
+          final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
+    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
+    int round = rlpInput.readInt();
+    int height = rlpInput.readInt();
+    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+
+
+    return new ProposePayload(pactusBlock1,round,height,signature);
+  }
+
+  @Override
+  public void writeTo(RLPOutput rlpOutput) throws JsonProcessingException {
+    pactusBlock.writeTo(rlpOutput);
+    rlpOutput.writeInt(round);
+    rlpOutput.writeInt(height);
+    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
+  }
+
+
+
+  @Override
+  public int getMessageType() {
+    return 0;
+  }
+
+  @Override
+  public Hash hashForSignature() {
+    return null;
+  }
+
+  @Override
+  public ConsensusRoundIdentifier getRoundIdentifier() {
+    return null;
   }
 }

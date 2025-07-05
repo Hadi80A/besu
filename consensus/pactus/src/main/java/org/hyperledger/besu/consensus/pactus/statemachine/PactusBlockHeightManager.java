@@ -1,7 +1,7 @@
 // PactusBlockHeightManager.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.statemachine;
 
-import org.hyperledger.besu.consensus.pactus.core.Block;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.core.ValidatorSet;
 import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
@@ -73,7 +73,7 @@ public class PactusBlockHeightManager {
   /**
    * Attempts to retrieve the currently proposed block for this height and round.
    */
-  public Optional<Block> getProposedBlock() {
+  public Optional<PactusBlock> getProposedBlock() {
     return roundState.getProposedBlock();
   }
 
