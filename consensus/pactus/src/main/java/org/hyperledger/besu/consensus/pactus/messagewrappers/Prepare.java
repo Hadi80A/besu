@@ -1,3 +1,4 @@
+// Prepare.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.messagewrappers;
 
 import lombok.AllArgsConstructor;
@@ -7,11 +8,13 @@ import lombok.NoArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
 import org.hyperledger.besu.consensus.pactus.PactusExtraDataCodec;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
-import org.hyperledger.besu.consensus.pactus.payload.CommitPayload;
+import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
+import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
@@ -20,12 +23,13 @@ import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
- * Represents the wrapper for a commit in Pactus consensus.
+ * Represents the wrapper for a prepare in Pactus consensus.
  * This is the first message broadcast in a new round by the selected proposer.
  */
-public class Commit extends BftMessage<CommitPayload> {
+public class Prepare extends BftMessage<PreparePayload> {
 
   /**
    * The ID (or public key) of the proposer.
@@ -33,13 +37,13 @@ public class Commit extends BftMessage<CommitPayload> {
   private int proposerId = -1;
   private static final PactusBlockCodec pactusBlockCodec = new PactusBlockCodec(new PactusExtraDataCodec());
 
-  public Commit(SignedData<CommitPayload> payload, int proposerId) {
+  public Prepare(SignedData<PreparePayload> payload, int proposerId) {
     super(payload);
     this.proposerId = proposerId;
   }
 
   /**
-   * Validates that the commit message is complete and structurally correct.
+   * Validates that the prepare message is complete and structurally correct.
    */
   public boolean isValid() {
     return proposerId != -1 &&
@@ -55,20 +59,21 @@ public class Commit extends BftMessage<CommitPayload> {
     return rlpOut.encoded();
   }
 
-  public static Commit decode(final Bytes data) {
+  public static Prepare decode(final Bytes data) {
     final RLPInput rlpIn = RLP.input(data);
     int proposerId = rlpIn.readInt();
     rlpIn.enterList();
 
-    final SignedData<CommitPayload> payload = readPayload(rlpIn, rlpInput -> {
+    final SignedData<PreparePayload> payload = readPayload(rlpIn, rlpInput -> {
       try {
-        return CommitPayload.readFrom(rlpInput, pactusBlockCodec);
+        return PreparePayload.readFrom(rlpInput, pactusBlockCodec);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     });
-    return new Commit(payload, proposerId);
+    return new Prepare(payload, proposerId);
 
   }
+
 
 }

@@ -30,7 +30,7 @@ import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 /** The Pactus controller. */
 public class PactusController extends BaseBftController {
 
-  private PactusBlockHeightManager currentHeightManager;
+  private PactusBlockManager currentHeightManager;
   private final PactusBlockHeightManagerFactory PactusBlockHeightManagerFactory;
 
   /**
@@ -66,54 +66,45 @@ public class PactusController extends BaseBftController {
   @Override
   protected void handleMessage(final Message message) {
     final MessageData messageData = message.getData();
-    switch (messageData.getCode()) {
-      case  PactusMessage.PROPOSAL.getCode():
+      if (messageData.getCode() == PactusMessage.PROPOSAL.getCode()) {
         consumeMessage(
                 message,
-                ProposeMessageData.fromMessageData(messageData).decode(),
+                ProposalMessageData.fromMessageData(messageData).decode(),
                 currentHeightManager::handleProposalPayload);
-        break;
-//
-//      case PactusV2.PREPARE:
-//        consumeMessage(
-//                message,
-//                PrepareMessageData.fromMessageData(messageData).decode(),
-//                currentHeightManager::handlePreparePayload);
-//        break;
-//
-//      case PactusV2.COMMIT:
-//        consumeMessage(
-//                message,
-//                CommitMessageData.fromMessageData(messageData).decode(),
-//                currentHeightManager::handleCommitPayload);
-//        break;
-//
-//      case PactusV2.ROUND_CHANGE:
-//        consumeMessage(
-//                message,
-//                RoundChangeMessageData.fromMessageData(messageData).decode(),
-//                currentHeightManager::handleRoundChangePayload);
-//        break;
-//
-//      default:
-//        throw new IllegalArgumentException(
-//                String.format(
-//                        "Received message with messageCode=%d does not conform to any recognised Pactus message structure",
-//                        message.getData().getCode()));
+      }
+    else if (messageData.getCode() == PactusMessage.PREPARE.getCode()) {
+      consumeMessage(
+              message,
+              PrepareMessageData.fromMessageData(messageData).decode(),
+              currentHeightManager::handlePreparePayload);
+    }
+    if (messageData.getCode() == PactusMessage.PRE_COMMIT.getCode()) {
+      consumeMessage(
+              message,
+              PreCommitMessageData.fromMessageData(messageData).decode(),
+              currentHeightManager::handlePreCommitPayload);
+    }
+    else if (messageData.getCode() == PactusMessage.COMMIT.getCode()) {
+      consumeMessage(
+              message,
+              CommitMessageData.fromMessageData(messageData).decode(),
+              currentHeightManager::handleCommitPayload);
+    }else{
+      throw new IllegalArgumentException(
+        String.format(
+                "Received message with messageCode=%d does not conform to any recognised Pactus message structure",
+                message.getData().getCode()));
     }
   }
 
-  @Override
   protected void createNewHeightManager(final BlockHeader parentHeader) {
     currentHeightManager = PactusBlockHeightManagerFactory.create(parentHeader);
   }
 
-  @Override
   protected BaseBlockHeightManager getCurrentHeightManager() {
     return currentHeightManager;
   }
 
-  @Override
   protected void stopCurrentHeightManager(final BlockHeader parentHeader) {
     currentHeightManager = PactusBlockHeightManagerFactory.createNoOpBlockHeightManager(parentHeader);
   }

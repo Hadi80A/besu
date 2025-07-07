@@ -1,42 +1,66 @@
-// CommitMessageData.java - placeholder for Pactus consensus implementation
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either exss or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pactus.messagedata;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
+import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
-/**
- * Represents a commit message sent by a validator in the commit phase of Pactus consensus.
- * This message includes the validator's signature on the proposed block.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CommitMessageData {
+import org.apache.tuweni.bytes.Bytes;
 
-  /** ID or public key of the validator sending this commit message. */
-  private String validatorId;
+/** The Commit message data. */
+public class CommitMessageData extends AbstractBftMessageData {
 
-  /** The hash of the block being committed to. */
-  private String blockHash;
+  private static final int MESSAGE_CODE = PactusMessage.COMMIT.getCode();
 
-  /** The round number during which this commit is cast. */
-  private int round;
-
-  /** The digital signature of the validator for this commit. */
-  private String signature;
+  private CommitMessageData(final Bytes data) {
+    super(data);
+  }
 
   /**
-   * Validates structural integrity of the message.
+   * From message data create Commit message data.
+   *
+   * @param messageData the message data
+   * @return the Commit message data
    */
-  public boolean isValid() {
-    return validatorId != null &&
-           blockHash != null &&
-           signature != null &&
-           !validatorId.isEmpty() &&
-           !blockHash.isEmpty() &&
-           !signature.isEmpty();
+  public static CommitMessageData fromMessageData(final MessageData messageData) {
+    return fromMessageData(
+            messageData, MESSAGE_CODE, CommitMessageData.class, CommitMessageData::new);
+  }
+
+  /**
+   * Decode.
+   *
+   * @return the Commit
+   */
+  public Commit decode() {
+    return Commit.decode(data);
+  }
+
+  /**
+   * Create Commit message data from Commit.
+   *
+   * @param Commit the Commit
+   * @return the Commit message data
+   */
+  public static CommitMessageData create(final Commit Commit) {
+    return new CommitMessageData(Commit.encode());
+  }
+
+  @Override
+  public int getCode() {
+    return MESSAGE_CODE;
   }
 }

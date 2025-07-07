@@ -3,10 +3,12 @@ package org.hyperledger.besu.consensus.pactus.payload;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.plugin.data.Signature;
 
 import java.util.List;
 
@@ -15,37 +17,23 @@ import java.util.List;
  */
 public class MessageFactory implements Payload {
 
-  private final String localValidatorId;
+  private final int localValidatorId;
 
-  public MessageFactory(final String localValidatorId) {
+  public MessageFactory(final int localValidatorId) {
     this.localValidatorId = localValidatorId;
   }
 
-  public Proposal createProposal(PactusBlock pactusBlock, int round, String signature) {
-    return Proposal.builder()
-        .proposerId(localValidatorId)
-        .proposedPactusBlock(pactusBlock)
-        .round(round)
-        .signature(signature)
-        .build();
+  public Proposal createProposal(SignedData<ProposePayload> payload) {
+    return new Proposal(payload,localValidatorId);
   }
-
-  public PreCommit createPreCommit(String blockHash, int round, String signature) {
-    return PreCommit.builder()
-        .validatorId(localValidatorId)
-        .blockHash(blockHash)
-        .round(round)
-        .signature(signature)
-        .build();
+  public Prepare createPrepare(SignedData<PreparePayload> payload) {
+    return new Prepare(payload,localValidatorId);
   }
-
-  public Commit createCommit(String blockHash, int round, String signature) {
-    return Commit.builder()
-        .validatorId(localValidatorId)
-        .blockHash(blockHash)
-        .round(round)
-        .signature(signature)
-        .build();
+  public PreCommit createPreCommit(SignedData<PreCommitPayload> payload) {
+    return new PreCommit(payload,localValidatorId);
+  }
+  public Commit createCommit(SignedData<CommitPayload> payload) {
+    return new Commit(payload,localValidatorId);
   }
 
   public Certificate createCertificate(String blockHash, long height, int round,
@@ -68,11 +56,11 @@ public class MessageFactory implements Payload {
         .build();
   }
 
-  public ProposePayload createProposePayload(PactusBlock pactusBlock, int round, String signature) {
+  public ProposePayload createProposePayload(PactusBlock pactusBlock, int round,int height, Signature signature) {
     return ProposePayload.builder()
-        .proposerId(localValidatorId)
         .pactusBlock(pactusBlock)
         .round(round)
+        .height(height)
         .signature(signature)
         .build();
   }

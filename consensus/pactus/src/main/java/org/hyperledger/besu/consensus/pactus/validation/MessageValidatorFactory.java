@@ -1,33 +1,116 @@
-// MessageValidatorFactory.java - placeholder for Pactus consensus implementation
+/*
+ * Copyright 2020 ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pactus.validation;
 
-import org.hyperledger.besu.consensus.pactus.core.ValidatorSet;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.PreCommit;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.common.bft.BftHelpers;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
+import org.hyperledger.besu.consensus.pactus.validation.MessageValidator.SubsequentMessageValidator;
+import org.hyperledger.besu.datatypes.Address;
 
-import java.util.Optional;
+import java.util.Collection;
 
-/**
- * Factory for generating message validators for Pactus consensus messages.
- */
+/** The Message validator factory. */
 public class MessageValidatorFactory {
 
-  private final ValidatorSet validatorSet;
+  private final ProposerSelector proposerSelector;
+  private final PactusProtocolSchedule protocolSchedule;
+  private final PactusValidatorProvider validatorProvider;
+  private final PactusBlockInterface blockInterface;
 
-  public MessageValidatorFactory(final ValidatorSet validatorSet) {
-    this.validatorSet = validatorSet;
+  /**
+   * Instantiates a new Message validator factory.
+   *
+   * @param proposerSelector the proposer selector
+   * @param protocolSchedule the protocol schedule
+   * @param validatorProvider the validator provider
+   * @param blockInterface the block interface
+   */
+  public MessageValidatorFactory(
+      final ProposerSelector proposerSelector,
+      final PactusProtocolSchedule protocolSchedule,
+      final PactusValidatorProvider validatorProvider,
+      final PactusBlockInterface blockInterface) {
+    this.proposerSelector = proposerSelector;
+    this.protocolSchedule = protocolSchedule;
+    this.validatorProvider = validatorProvider;
+    this.blockInterface = blockInterface;
   }
 
-  public Optional<MessageValidator<Proposal>> createProposalValidator() {
-    return Optional.of(new ProposalMessageValidator(validatorSet));
+  /**
+   * Create round change message validator.
+   *
+   * @param chainHeight the chain height
+   * @param parentHeader the parent header
+   * @return the round change message validator
+   */
+  public RoundChangeMessageValidator createRoundChangeMessageValidator(
+      final long chainHeight, final PactusBlockHeader parentHeader) {
+
+    final Collection<Address> validatorsForHeight =
+        validatorProvider.getValidatorsAfterBlock(parentHeader);
+
+    final RoundChangePayloadValidator roundChangePayloadValidator =
+        new RoundChangePayloadValidator(validatorsForHeight, chainHeight);
+
+    return new RoundChangeMessageValidator(
+        roundChangePayloadValidator,
+        BftHelpers.calculateRequiredValidatorQuorum(validatorsForHeight.size()),
+        chainHeight,
+        validatorsForHeight,
+        protocolSchedule);
   }
 
-  public Optional<MessageValidator<PreCommit>> createPreCommitValidator() {
-    return Optional.of(new PreCommitMessageValidator(validatorSet));
+  /**
+   * Create message validator.
+   *
+   * @param roundIdentifier the round identifier
+   * @param parentHeader the parent header
+   * @return the message validator
+   */
+  public MessageValidator createMessageValidator(
+      final ConsensusRoundIdentifier roundIdentifier, final PactusBlockHeader parentHeader) {
+    final Collection<Address> validatorsForHeight =
+        validatorProvider.getValidatorsAfterBlock(parentHeader);
+
+    final ProposalValidator proposalValidator =
+        new ProposalValidator(
+            blockInterface,
+            protocolSchedule,
+            BftHelpers.calculateRequiredValidatorQuorum(validatorsForHeight.size()),
+            validatorsForHeight,
+            roundIdentifier,
+            proposerSelector.selectProposerForRound(roundIdentifier));
+
+    return new MessageValidator(
+        block ->
+            new SubsequentMessageValidator(
+                validatorsForHeight, roundIdentifier, block, blockInterface),
+        proposalValidator);
   }
 
-  public Optional<MessageValidator<Commit>> createCommitValidator() {
-    return Optional.of(new CommitMessageValidator(validatorSet));
+  /**
+   * Create future round proposal message validator.
+   *
+   * @param chainHeight the chain height
+   * @param parentHeader the parent header
+   * @return the future round proposal message validator
+   */
+  public FutureRoundProposalMessageValidator createFutureRoundProposalMessageValidator(
+      final long chainHeight, final PactusBlockHeader parentHeader) {
+    return new FutureRoundProposalMessageValidator(this, chainHeight, parentHeader);
   }
 }

@@ -39,7 +39,7 @@ public class PactusBlock {
 
     public static PactusBlock readFrom(RLPInput rlpInput) throws IOException {
         Block block= Block.readFrom(rlpInput, BftBlockHeaderFunctions.forCommittedSeal(new PactusExtraDataCodec()));
-        PactusBlockHeader header= PactusBlockHeader.readFrom(rlpInput);
+        PactusBlockHeader header= PactusBlockHeader.readFrom(rlpInput,block.getHeader());
         PactusCertificate certificate=PactusCertificate.readFrom(rlpInput) ;
         return new PactusBlock(block,header,certificate);
     }

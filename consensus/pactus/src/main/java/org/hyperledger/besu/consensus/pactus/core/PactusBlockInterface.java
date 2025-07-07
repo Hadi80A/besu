@@ -1,0 +1,47 @@
+/*
+ * Copyright contributors to Besu.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package org.hyperledger.besu.consensus.pactus.core;
+
+import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
+import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
+import org.hyperledger.besu.consensus.pactus.PactusExtraDataCodec;
+import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
+
+/**
+ * Adaptor class to allow a {@link BftBlockInterface} to be used as a {@link PactusBlockInterface}.
+ */
+public class PactusBlockInterface{
+  private final PactusExtraDataCodec bftExtraDataCodec = new PactusExtraDataCodec();
+  private final BftBlockInterface bftBlockInterface;
+
+  /**
+   * Constructs a new PactusBlockInterface
+   *
+   * @param bftBlockInterface the BFT block interface
+   */
+  public PactusBlockInterface(final BftBlockInterface bftBlockInterface) {
+    this.bftBlockInterface = bftBlockInterface;
+  }
+//
+//  public PactusBlock replaceRoundInBlock(final PactusBlock proposalBlock, final int roundNumber) {
+//    final Block besuBlock = proposalBlock.getBesuBlock();
+//    final BlockHeaderFunctions blockHeaderFunctions =
+//        BftBlockHeaderFunctions.forCommittedSeal(bftExtraDataCodec);
+//    final Block updatedRoundBlock =
+//        bftBlockInterface.replaceRoundInBlock(besuBlock, roundNumber, blockHeaderFunctions);
+//    return new PactusBlock(updatedRoundBlock,);
+//  }
+}

@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pactus;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.pactus.PactusExtraDataCodec;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
@@ -36,10 +37,9 @@ public class PactusBlockCodec {
     this.pactusExtraDataCodec = pactusExtraDataCodec;
   }
 
+  @SneakyThrows
   public PactusBlock readFrom(final RLPInput rlpInput) {
-    Block besuBlock =
-        Block.readFrom(rlpInput, BftBlockHeaderFunctions.forCommittedSeal(pactusExtraDataCodec));
-    return new PactusBlock(besuBlock);
+    return PactusBlock.readFrom(rlpInput);
   }
 
   public void writeTo(final PactusBlock block, final RLPOutput rlpOutput) throws JsonProcessingException {

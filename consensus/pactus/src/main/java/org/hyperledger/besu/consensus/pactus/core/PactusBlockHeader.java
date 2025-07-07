@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.pactus.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
@@ -28,6 +29,7 @@ public class PactusBlockHeader {
 
   private long sortitionSeed;
 
+  private BlockHeader besuHeader;
 
   public void writeTo(RLPOutput rlpOutput) throws JsonProcessingException {
     rlpOutput.writeBytes(SerializeUtil.toBytes(proposer));
@@ -35,11 +37,11 @@ public class PactusBlockHeader {
     rlpOutput.writeLong(sortitionSeed);
   }
 
-  public static PactusBlockHeader readFrom(RLPInput rlpInput) throws IOException {
+  public static PactusBlockHeader readFrom(RLPInput rlpInput, BlockHeader besuHeader) throws IOException {
     Address proposer= (Address) SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
     int version = rlpInput.readInt();
     long sortitionSeed = rlpInput.readLong();
-    return new PactusBlockHeader(proposer,version,sortitionSeed);
+    return new PactusBlockHeader(proposer,version,sortitionSeed,besuHeader);
   }
 
 

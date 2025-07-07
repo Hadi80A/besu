@@ -1,18 +1,24 @@
 // CommitPayload.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.payload;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import lombok.*;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.plugin.data.Signature;
+
+import java.io.IOException;
 
 /**
- * Represents the payload of a commit message in Pactus consensus.
- * Each validator uses this payload to vote on finalizing a proposed block.
+ * Payload for a block commit in the Pactus consensus protocol.
+ * Sent by the proposer to initiate a new round.
  */
 @Data
 @Builder
@@ -20,34 +26,51 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 @AllArgsConstructor
 public class CommitPayload implements Payload {
 
-  /** The ID or address of the committing validator. */
-  private String validatorId;
+  /** The proposed block for the current round. */
+  private PactusBlock pactusBlock;
 
-  /** Hash of the block being committed. */
-  private String blockHash;
-
-  /** The round number when this commit occurred. */
+  /** The round number in which the commit is made. */
   private int round;
 
-  /** The cryptographic signature over the blockHash and round. */
-  private String signature;
+  private int height;
+
+  /** Commitr's signature on the proposed block and round. */
+  private Signature signature;
 
   /**
-   * Verifies whether this payload is structurally valid.
+   * Checks whether the commit payload is complete and valid.
    */
   public boolean isValid() {
-    return validatorId != null &&
-           !validatorId.isEmpty() &&
-           blockHash != null &&
-           !blockHash.isEmpty() &&
-           signature != null &&
-           !signature.isEmpty();
+    return  pactusBlock != null &&
+            signature != null &&
+            !signature.isEmpty();
   }
 
+  public static CommitPayload readFrom(
+          final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
+    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
+    int round = rlpInput.readInt();
+    int height = rlpInput.readInt();
+    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+
+
+    return new CommitPayload(pactusBlock1,round,height,signature);
+  }
+
+  public PactusBlock getProposedBlock(){
+    return pactusBlock;
+  }
+
+  @SneakyThrows
   @Override
   public void writeTo(RLPOutput rlpOutput) {
-
+    pactusBlock.writeTo(rlpOutput);
+    rlpOutput.writeInt(round);
+    rlpOutput.writeInt(height);
+    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
   }
+
+
 
   @Override
   public int getMessageType() {

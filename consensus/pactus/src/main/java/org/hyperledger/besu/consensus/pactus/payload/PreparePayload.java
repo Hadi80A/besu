@@ -1,4 +1,4 @@
-// ProposePayload.java - placeholder for Pactus consensus implementation
+// PreparePayload.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.payload;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,28 +17,28 @@ import org.hyperledger.besu.plugin.data.Signature;
 import java.io.IOException;
 
 /**
- * Payload for a block proposal in the Pactus consensus protocol.
+ * Payload for a block prepare in the Pactus consensus protocol.
  * Sent by the proposer to initiate a new round.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProposePayload implements Payload {
+public class PreparePayload implements Payload {
 
   /** The proposed block for the current round. */
   private PactusBlock pactusBlock;
 
-  /** The round number in which the proposal is made. */
+  /** The round number in which the prepare is made. */
   private int round;
 
   private int height;
 
-  /** Proposer's signature on the proposed block and round. */
+  /** Preparer's signature on the proposed block and round. */
   private Signature signature;
 
   /**
-   * Checks whether the proposal payload is complete and valid.
+   * Checks whether the prepare payload is complete and valid.
    */
   public boolean isValid() {
    return  pactusBlock != null &&
@@ -46,7 +46,7 @@ public class ProposePayload implements Payload {
            !signature.isEmpty();
   }
 
-  public static ProposePayload readFrom(
+  public static PreparePayload readFrom(
           final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
     PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
     int round = rlpInput.readInt();
@@ -54,7 +54,7 @@ public class ProposePayload implements Payload {
     Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
 
 
-    return new ProposePayload(pactusBlock1,round,height,signature);
+    return new PreparePayload(pactusBlock1,round,height,signature);
   }
 
   @SneakyThrows
@@ -67,7 +67,9 @@ public class ProposePayload implements Payload {
   }
 
 
-
+  public PactusBlock getProposedBlock(){
+    return pactusBlock;
+  }
   @Override
   public int getMessageType() {
     return 0;
@@ -81,8 +83,5 @@ public class ProposePayload implements Payload {
   @Override
   public ConsensusRoundIdentifier getRoundIdentifier() {
     return null;
-  }
-  public PactusBlock getProposedBlock(){
-    return pactusBlock;
   }
 }

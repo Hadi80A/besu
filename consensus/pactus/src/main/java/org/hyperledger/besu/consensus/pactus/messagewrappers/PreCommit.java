@@ -5,38 +5,71 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
+import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
+import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
+import org.hyperledger.besu.consensus.pactus.PactusExtraDataCodec;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
+import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
+import org.hyperledger.besu.ethereum.rlp.RLP;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Wrapper class for a pre-commit vote sent by a validator during the Pactus consensus round.
- * Used internally to manage validator responses and track votes.
+ * Represents the wrapper for a preCommit in Pactus consensus.
+ * This is the first message broadcast in a new round by the selected proposer.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class PreCommit {
-
-  /** ID or public key of the validator sending the pre-commit vote. */
-  private String validatorId;
-
-  /** The hash of the block being pre-committed to. */
-  private String blockHash;
-
-  /** The round number during which this vote is cast. */
-  private int round;
-
-  /** The digital signature over the block hash and round. */
-  private String signature;
+public class PreCommit extends BftMessage<PreCommitPayload> {
 
   /**
-   * Checks if the structure of this pre-commit message is valid.
+   * The ID (or public key) of the proposer.
+   */
+  private int proposerId = -1;
+  private static final PactusBlockCodec pactusBlockCodec = new PactusBlockCodec(new PactusExtraDataCodec());
+
+  public PreCommit(SignedData<PreCommitPayload> payload, int proposerId) {
+    super(payload);
+    this.proposerId = proposerId;
+  }
+
+  /**
+   * Validates that the preCommit message is complete and structurally correct.
    */
   public boolean isValid() {
-    return validatorId != null &&
-           blockHash != null &&
-           signature != null &&
-           !validatorId.isEmpty() &&
-           !blockHash.isEmpty() &&
-           !signature.isEmpty();
+    return proposerId != -1 &&
+            getPayload() != null;
   }
+
+
+  @Override
+  public Bytes encode() {
+    final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
+    rlpOut.writeInt(proposerId);
+    getSignedPayload().writeTo(rlpOut);
+    return rlpOut.encoded();
+  }
+
+  public static PreCommit decode(final Bytes data) {
+    final RLPInput rlpIn = RLP.input(data);
+    int proposerId = rlpIn.readInt();
+    rlpIn.enterList();
+
+    final SignedData<PreCommitPayload> payload = readPayload(rlpIn, rlpInput -> {
+      try {
+        return PreCommitPayload.readFrom(rlpInput, pactusBlockCodec);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+    return new PreCommit(payload, proposerId);
+
+  }
+
 }

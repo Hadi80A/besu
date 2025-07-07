@@ -15,48 +15,48 @@
 package org.hyperledger.besu.consensus.pactus.messagedata;
 
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.PreCommit;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
 import org.apache.tuweni.bytes.Bytes;
 
-/** The PreCommit message data. */
-public class PreCommitMessageData extends AbstractBftMessageData {
+/** The Prepare message data. */
+public class PrepareMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = PactusMessage.PRE_COMMIT.getCode();
+  private static final int MESSAGE_CODE = PactusMessage.PREPARE.getCode();
 
-  private PreCommitMessageData(final Bytes data) {
+  private PrepareMessageData(final Bytes data) {
     super(data);
   }
 
   /**
-   * From message data create preCommit message data.
+   * From message data create prepare message data.
    *
    * @param messageData the message data
-   * @return the preCommit message data
+   * @return the prepare message data
    */
-  public static PreCommitMessageData fromMessageData(final MessageData messageData) {
+  public static PrepareMessageData fromMessageData(final MessageData messageData) {
     return fromMessageData(
-            messageData, MESSAGE_CODE, PreCommitMessageData.class, PreCommitMessageData::new);
+            messageData, MESSAGE_CODE, PrepareMessageData.class, PrepareMessageData::new);
   }
 
   /**
    * Decode.
    *
-   * @return the preCommit
+   * @return the prepare
    */
-  public PreCommit decode() {
-    return PreCommit.decode(data);
+  public Prepare decode() {
+    return Prepare.decode(data);
   }
 
   /**
-   * Create preCommit message data from preCommit.
+   * Create prepare message data from prepare.
    *
-   * @param preCommit the preCommit
-   * @return the preCommit message data
+   * @param prepare the prepare
+   * @return the prepare message data
    */
-  public static PreCommitMessageData create(final PreCommit preCommit) {
-    return new PreCommitMessageData(preCommit.encode());
+  public static PrepareMessageData create(final Prepare prepare) {
+    return new PrepareMessageData(prepare.encode());
   }
 
   @Override
