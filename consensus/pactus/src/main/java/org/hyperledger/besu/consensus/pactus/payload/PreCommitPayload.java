@@ -34,8 +34,6 @@ public class PreCommitPayload implements Payload {
 
   private int height;
 
-  /** PreCommitr's signature on the proposed block and round. */
-  private Signature signature;
 
   /**
    * Checks whether the preCommit payload is complete and valid.

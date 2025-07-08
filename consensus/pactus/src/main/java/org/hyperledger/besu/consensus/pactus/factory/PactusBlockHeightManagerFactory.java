@@ -12,13 +12,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.pactus.statemachine;
+package org.hyperledger.besu.consensus.pactus.factory;
 
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
 import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 
 
+import org.hyperledger.besu.consensus.pactus.statemachine.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +94,7 @@ public class PactusBlockHeightManagerFactory {
    * @param parentHeader the parent header
    * @return the no-op height manager
    */
-  protected BasePactusBlockHeightManager createNoOpBlockHeightManager(
+  public BasePactusBlockHeightManager createNoOpBlockHeightManager(
           final PactusBlockHeader parentHeader) {
     return new NoOpBlockHeightManager(parentHeader);
   }

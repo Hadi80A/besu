@@ -6,6 +6,7 @@ import static java.util.Collections.emptyList;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.PactusBlockImporter;
 import org.hyperledger.besu.consensus.pactus.PactusProtocolSchedule;
@@ -15,17 +16,18 @@ import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.pactus.network.PactusMessageTransmitter;
 import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
-import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
+import org.hyperledger.besu.consensus.pactus.payload.PactusPayload;
+import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pactus.payload.RoundChangePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.plugin.data.Signature;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
-import org.hyperledger.besu.util.Subscribers;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +56,7 @@ public class PactusRound {
 
   private final PactusBlockHeader parentHeader;
   private final ValidatorSet validators;
-  private final ProposerSelector proposerSelector;
+  private final PactusProposerSelector proposerSelector;
   private Address currentProposer;
 
   /**
@@ -82,7 +84,7 @@ public class PactusRound {
           final RoundTimer roundTimer,
           final PactusBlockHeader parentHeader,
           final ValidatorSet validators,
-          final ProposerSelector proposerSelector
+          final PactusProposerSelector proposerSelector
           ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
@@ -137,9 +139,6 @@ public class PactusRound {
   }
   /**
    * Start round with.
-   *
-   * @param roundChangeArtifacts the round change artifacts
-   * @param headerTimestamp the header timestamp
    */
 //  public void startRoundWith(
 //          final RoundChangeArtifacts roundChangeArtifacts, final long headerTimestamp) {
@@ -167,42 +166,38 @@ public class PactusRound {
 //            bestPreparedCertificate.map(PreparedCertificate::getPrepares).orElse(emptyList()));
 //  }
 
-  /**
-   * Update state with proposal and transmit.
-   *
-   * @param block the block
-   */
-  protected void updateStateWithProposalAndTransmit(final PactusBlock block) {
-    updateStateWithProposalAndTransmit(block, emptyList(), emptyList());
+  private SignedData<ProposePayload> createProposePayload(PactusBlock block) {
+    int round=0;
+    int height=0;
+    if(Objects.nonNull(block.getPactusCertificate())){
+      round=block.getPactusCertificate().getRound();
+      height=block.getPactusCertificate().getHeight();
+    }
+    ProposePayload proposePayload=messageFactory.createProposePayload(round,height);
+    return createSignedData(proposePayload);
+
   }
 
+  private<M extends Payload> SignedData<M> createSignedData(M payload){
+    SECPSignature sign = nodeKey.sign(payload.hashForSignature());
+    return SignedData.create(payload, sign);
+  }
   /**
    * Update state with proposal and transmit.
    *
    * @param block the block
-   * @param roundChanges the round changes
-   * @param prepares the prepares
    */
-  protected void updateStateWithProposalAndTransmit(
-          final PactusBlock block,
-          final List<SignedData<RoundChangePayload>> roundChanges,
-          final List<SignedData<PreparePayload>> prepares) {
+  protected void createProposalAndTransmit(final PactusBlock block) {
     final Proposal proposal;
     try {
-      proposal = messageFactory.createProposal(getRoundIdentifier(), block, roundChanges, prepares);
+      var proposePayload =createProposePayload(block);
+
+      proposal = messageFactory.createProposal(proposePayload,block);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
       return;
     }
-
-    transmitter.multicastProposal(
-            proposal.getRoundIdentifier(),
-            proposal.getSignedPayload().getPayload().getProposedBlock(),
-            roundChanges,
-            prepares);
-    if (updateStateWithProposedBlock(proposal)) {
-      sendPrepare(block);
-    }
+    transmitter.multicastProposal(proposal);
   }
 
   /**
@@ -211,14 +206,16 @@ public class PactusRound {
    * @param msg the msg
    */
   public void handleProposalMessage(final Proposal msg) {
-    LOG.debug(
-            "Received a proposal message. round={}. author={}",
-            roundState.getRoundIdentifier(),
+    LOG.debug("Received a proposal message. round={}. author={}", roundState.getRoundIdentifier(),
             msg.getAuthor());
-    final PactusBlock block = msg.getSignedPayload().getPayload().getProposedBlock();
-    if (updateStateWithProposedBlock(msg)) {
-      sendPrepare(block);
-    }
+    final PactusBlock block = msg.getPactusBlock();
+
+    sendPrepare(block);
+  }
+  private boolean validatePropose(SignedData<ProposePayload> payload){
+    if (payload.getAuthor().equals(proposerSelector.getCurrentProposer() ))
+      return true;
+    return false;
   }
 
   private void sendPrepare(final PactusBlock block) {
@@ -258,50 +255,6 @@ public class PactusRound {
             roundState.getRoundIdentifier(),
             msg.getAuthor());
     peerIsCommitted(msg);
-  }
-
-
-  private boolean updateStateWithProposedBlock(final Proposal msg) {
-    final boolean wasPrepared = roundState.isPrepared();
-    final boolean wasCommitted = roundState.isCommitted();
-    final boolean blockAccepted = roundState.setProposedBlock(msg);
-
-    if (blockAccepted) {
-      final PactusBlock block = roundState.getProposedBlock().get();
-      final SECPSignature commitSeal;
-      try {
-        commitSeal = createCommitSeal(block);
-      } catch (final SecurityModuleException e) {
-        LOG.warn("Failed to construct commit seal; {}", e.getMessage());
-        return true;
-      }
-
-      // There are times handling a proposed block is enough to enter prepared.
-      if (wasPrepared != roundState.isPrepared()) {
-        LOG.debug("Sending commit message. round={}", roundState.getRoundIdentifier());
-        transmitter.multicastCommit(getRoundIdentifier(), block.getHash(), commitSeal);
-      }
-
-      // can automatically add _our_ commit message to the roundState
-      // cannot create a prepare message here, as it may be _our_ proposal, and thus we cannot also
-      // prepare
-      try {
-        final Commit localCommitMessage =
-                messageFactory.createCommit(
-                        roundState.getRoundIdentifier(), msg.getBlock().getHash(), commitSeal);
-        roundState.addCommitMessage(localCommitMessage);
-      } catch (final SecurityModuleException e) {
-        LOG.warn("Failed to create signed Commit message; {}", e.getMessage());
-        return true;
-      }
-
-      // It is possible sufficient commit seals are now available and the block should be imported
-      if (wasCommitted != roundState.isCommitted()) {
-        importBlockToChain();
-      }
-    }
-
-    return blockAccepted;
   }
 
   private void peerIsPrepared(final Prepare msg) {

@@ -1,88 +1,207 @@
-// PactusMessageTransmitter.java - placeholder for Pactus consensus implementation
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pactus.network;
 
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.pactus.messagedata.PrepareMessageData;
+import org.hyperledger.besu.consensus.pactus.messagedata.ProposalMessageData;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.PreCommit;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Certificate;
-import org.hyperledger.besu.ethereum.p2p.api.Peer;
-import org.hyperledger.besu.ethereum.p2p.network.Network;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
+import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
+import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pactus.payload.RoundChangePayload;
+import org.hyperledger.besu.crypto.SECPSignature;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
-/**
- * Responsible for transmitting consensus messages to peers over the P2P network.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** The Pactus message transmitter. */
 public class PactusMessageTransmitter {
 
-  private final Network network;
+  private static final Logger LOG = LoggerFactory.getLogger(PactusMessageTransmitter.class);
 
-  public PactusMessageTransmitter(final Network network) {
-    this.network = network;
+  private final MessageFactory messageFactory;
+  private final ValidatorMulticaster multicaster;
+
+  /**
+   * Instantiates a new Pactus message transmitter.
+   *
+   * @param messageFactory the message factory
+   * @param multicaster the multicaster
+   */
+  public PactusMessageTransmitter(
+          final MessageFactory messageFactory, final ValidatorMulticaster multicaster) {
+    this.messageFactory = messageFactory;
+    this.multicaster = multicaster;
   }
 
   /**
-   * Broadcast a proposal to all peers.
+   * Multicast proposal
    */
-  public void multicastProposal(final Proposal proposal) {
-    network.broadcast("pactus/proposal", proposal);
+  public void multicastProposal(final Proposal propose) {
+    try {
+      final ProposalMessageData message = ProposalMessageData.create(propose);
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for Proposal (not sent): {} ", e.getMessage());
+    }
   }
 
   /**
-   * Broadcast a pre-commit message to all peers.
+   * Multicast prepare.
+   *
+   * @param roundIdentifier the round identifier
+   * @param digest the digest
    */
-  public void multicastPreCommit(final PreCommit preCommit) {
-    network.broadcast("pactus/precommit", preCommit);
+  public void multicastPrepare(final ConsensusRoundIdentifier roundIdentifier, final Hash digest) {
+    try {
+      final Prepare data = messageFactory.createPrepare(roundIdentifier, digest);
+
+      final PrepareMessageData message = PrepareMessageData.create(data);
+
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for Prepare (not sent): {} ", e.getMessage());
+    }
   }
 
   /**
-   * Broadcast a commit message to all peers.
+   * Multicast commit.
+   *
+   * @param roundIdentifier the round identifier
+   * @param digest the digest
+   * @param commitSeal the commit seal
    */
-  public void multicastCommit(final Commit commit) {
-    network.broadcast("pactus/commit", commit);
+  public void multicastCommit(
+          final ConsensusRoundIdentifier roundIdentifier,
+          final Hash digest,
+          final SECPSignature commitSeal) {
+    try {
+      final Commit data = messageFactory.createCommit(roundIdentifier, digest, commitSeal);
+
+      final CommitMessageData message = CommitMessageData.create(data);
+
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for Commit (not sent): {} ", e.getMessage());
+    }
   }
 
   /**
-   * Broadcast a final certificate to all peers.
+   * Multicast round change.
+   *
+   * @param roundIdentifier the round identifier
    */
-  public void multicastCertificate(final Certificate certificate) {
-    network.broadcast("pactus/certificate", certificate);
-  }
+  public void multicastRoundChange(
+          final ConsensusRoundIdentifier roundIdentifier) {
+    try {
+      final RoundChange data =
+              messageFactory.createRoundChange(roundIdentifier);
 
-  /**
-   * Send a proposal message to a specific peer.
-   */
-  public void unicastProposal(final Peer peer, final Proposal proposal) {
-    network.send(peer, "pactus/proposal", proposal);
-  }
+      final RoundChangeMessageData message = RoundChangeMessageData.create(data);
 
-  /**
-   * Send a commit message to a specific peer.
-   */
-  public void unicastCommit(final Peer peer, final Commit commit) {
-    network.send(peer, "pactus/commit", commit);
-  }
-
-  /**
-   * Send a pre-commit message to a specific peer.
-   */
-  public void unicastPreCommit(final Peer peer, final PreCommit preCommit) {
-    network.send(peer, "pactus/precommit", preCommit);
-  }
-
-  /**
-   * Send a certificate message to a specific peer.
-   */
-  public void unicastCertificate(final Peer peer, final Certificate certificate) {
-    network.send(peer, "pactus/certificate", certificate);
-  }
-
-  /**
-   * Send a batch of proposals or consensus messages to a group of peers.
-   */
-  public void multicastToGroup(Collection<Peer> peers, String messageType, Object message) {
-    for (Peer peer : peers) {
-      network.send(peer, messageType, message);
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for RoundChange (not sent): {} ", e.getMessage());
     }
   }
 }
+
+//public class PactusMessageTransmitter {
+//
+//  private final Network network;
+//
+//  public PactusMessageTransmitter(final Network network) {
+//    this.network = network;
+//  }
+//
+//  /**
+//   * Broadcast a proposal to all peers.
+//   */
+//  public void multicastProposal(final Proposal proposal) {
+//    network.broadcast("pactus/proposal", proposal);
+//  }
+//
+//  /**
+//   * Broadcast a pre-commit message to all peers.
+//   */
+//  public void multicastPreCommit(final PreCommit preCommit) {
+//    network.broadcast("pactus/precommit", preCommit);
+//  }
+//
+//  /**
+//   * Broadcast a commit message to all peers.
+//   */
+//  public void multicastCommit(final Commit commit) {
+//    network.broadcast("pactus/commit", commit);
+//  }
+//
+//  /**
+//   * Broadcast a final certificate to all peers.
+//   */
+//  public void multicastCertificate(final Certificate certificate) {
+//    network.broadcast("pactus/certificate", certificate);
+//  }
+//
+//  /**
+//   * Send a proposal message to a specific peer.
+//   */
+//  public void unicastProposal(final Peer peer, final Proposal proposal) {
+//    network.send(peer, "pactus/proposal", proposal);
+//  }
+//
+//  /**
+//   * Send a commit message to a specific peer.
+//   */
+//  public void unicastCommit(final Peer peer, final Commit commit) {
+//    network.send(peer, "pactus/commit", commit);
+//  }
+//
+//  /**
+//   * Send a pre-commit message to a specific peer.
+//   */
+//  public void unicastPreCommit(final Peer peer, final PreCommit preCommit) {
+//    network.send(peer, "pactus/precommit", preCommit);
+//  }
+//
+//  /**
+//   * Send a certificate message to a specific peer.
+//   */
+//  public void unicastCertificate(final Peer peer, final Certificate certificate) {
+//    network.send(peer, "pactus/certificate", certificate);
+//  }
+//
+//  /**
+//   * Send a batch of proposals or consensus messages to a group of peers.
+//   */
+//  public void multicastToGroup(Collection<Peer> peers, String messageType, Object message) {
+//    for (Peer peer : peers) {
+//      network.send(peer, messageType, message);
+//    }
+//  }
+//}

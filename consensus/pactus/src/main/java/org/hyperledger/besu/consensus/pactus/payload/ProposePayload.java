@@ -3,6 +3,7 @@ package org.hyperledger.besu.consensus.pactus.payload;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
@@ -21,49 +22,29 @@ import java.io.IOException;
  * Sent by the proposer to initiate a new round.
  */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProposePayload implements Payload {
+public class ProposePayload extends PactusPayload {
 
-  /** The proposed block for the current round. */
-  private PactusBlock pactusBlock;
-
-  /** The round number in which the proposal is made. */
-  private int round;
-
-  private int height;
-
-  /** Proposer's signature on the proposed block and round. */
-  private Signature signature;
-
-  /**
-   * Checks whether the proposal payload is complete and valid.
-   */
-  public boolean isValid() {
-   return  pactusBlock != null &&
-           signature != null &&
-           !signature.isEmpty();
+  @Builder
+  public ProposePayload(int round, int height) {
+    super(round, height);
   }
 
   public static ProposePayload readFrom(
           final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
-    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
     int round = rlpInput.readInt();
     int height = rlpInput.readInt();
-    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+//    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
 
 
-    return new ProposePayload(pactusBlock1,round,height,signature);
+    return new ProposePayload(round,height);
   }
 
   @SneakyThrows
   @Override
   public void writeTo(RLPOutput rlpOutput) {
-    pactusBlock.writeTo(rlpOutput);
     rlpOutput.writeInt(round);
     rlpOutput.writeInt(height);
-    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
+//    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
   }
 
 
@@ -75,14 +56,15 @@ public class ProposePayload implements Payload {
 
   @Override
   public Hash hashForSignature() {
-    return null;
+    String data= getMessageType() + "|"+round+"|"+height;
+    return Hash.hash(Bytes.wrap(data.getBytes()));
   }
 
   @Override
   public ConsensusRoundIdentifier getRoundIdentifier() {
     return null;
   }
-  public PactusBlock getProposedBlock(){
-    return pactusBlock;
-  }
+//  public PactusBlock getProposedBlock(){
+//    return pactusBlock;
+//  }
 }

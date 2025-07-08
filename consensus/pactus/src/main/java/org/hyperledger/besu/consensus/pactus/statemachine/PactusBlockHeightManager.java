@@ -20,6 +20,7 @@ import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
+import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
 import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pactus.core.PactusProposerSelector;
@@ -139,8 +140,8 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
   }
 
 
-
-//  public void handleBlockTimerExpiry(final ConsensusRoundIdentifier roundIdentifier) {
+  @Override
+  public void handleBlockTimerExpiry(final ConsensusRoundIdentifier roundIdentifier) {
 //    if (currentRound.isPresent()) {
 //      // It is possible for the block timer to take longer than it should due to the precision of
 //      // the timer in Java and the OS. This means occasionally the proposal can arrive before the
@@ -163,7 +164,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
 //              roundIdentifier,
 //              pactusRound.getRoundIdentifier());
 //    }
-//  }
+  }
 
   private void buildBlockAndMaybePropose(
           final ConsensusRoundIdentifier roundIdentifier, final PactusRound pactusRound) {
@@ -234,8 +235,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
 //      }
 //    }
   }
-
-//  public void roundExpired(final RoundExpiry expire) {
+  public void roundExpired(final RoundExpiry expire) {
 //    if (currentRound.isEmpty()) {
 //      LOG.error(
 //              "Received Round timer expiry before round is created timerRound={}", expire.getView());
@@ -252,7 +252,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
 //    }
 
 //    doRoundChange(pactusRound.getRoundIdentifier().getRoundNumber() + 1);
-//  }
+  }
 
   private synchronized void doRoundChange(final int newRoundNumber) {
 //    if (currentRound.isPresent()
@@ -396,7 +396,8 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
                 .get()
                 .startRound(TimeUnit.MILLISECONDS.toSeconds(clock.millis()));
       }
-//      doRoundChange(nextHigherRound.get());
+
+      doRoundChange(nextHigherRound.get());
       // check if f+1 RC messages for future rounds are received
       //ToDo
 //      PactusRound pactusRound = currentRound.get();
@@ -412,8 +413,10 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
   }
 
   private void startNewRound(final int roundNumber) {
-//    LOG.debug("Starting new round {}", roundNumber);
+
+    LOG.debug("Starting new round {}", roundNumber);
 //    // validate the current round
+
 //    if (futureRoundStateBuffer.containsKey(roundNumber)) {
 //      currentRound =
 //              Optional.of(
@@ -427,15 +430,6 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
 //    roundChangeManager.discardRoundsPriorTo(currentRound.get().getRoundIdentifier());
   }
 
-  @Override
-  public void handleBlockTimerExpiry(ConsensusRoundIdentifier roundIdentifier) {
-
-  }
-
-  @Override
-  public void roundExpired(RoundExpiry expire) {
-
-  }
 
   public long getChainHeight() {
     return parentHeader.getBesuHeader().getNumber()+1;

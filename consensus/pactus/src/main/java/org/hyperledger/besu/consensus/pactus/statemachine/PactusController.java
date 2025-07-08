@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBftController;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
+import org.hyperledger.besu.consensus.pactus.factory.PactusBlockHeightManagerFactory;
 import org.hyperledger.besu.consensus.pactus.messagedata.*;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;

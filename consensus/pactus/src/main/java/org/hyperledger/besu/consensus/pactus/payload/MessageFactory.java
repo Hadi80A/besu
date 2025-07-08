@@ -6,16 +6,16 @@ import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
+import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
-import org.hyperledger.besu.plugin.data.Signature;
 
 import java.util.List;
 
 /**
  * Factory class for creating consensus message payloads and wrappers.
  */
-public class MessageFactory implements Payload {
+public class MessageFactory{
 
   private final int localValidatorId;
 
@@ -23,8 +23,8 @@ public class MessageFactory implements Payload {
     this.localValidatorId = localValidatorId;
   }
 
-  public Proposal createProposal(SignedData<ProposePayload> payload) {
-    return new Proposal(payload,localValidatorId);
+  public Proposal createProposal(SignedData<ProposePayload> payload,PactusBlock block) {
+    return new Proposal(payload,localValidatorId,block);
   }
   public Prepare createPrepare(SignedData<PreparePayload> payload) {
     return new Prepare(payload,localValidatorId);
@@ -56,12 +56,10 @@ public class MessageFactory implements Payload {
         .build();
   }
 
-  public ProposePayload createProposePayload(PactusBlock pactusBlock, int round,int height, Signature signature) {
+  public ProposePayload createProposePayload(int round,int height) {
     return ProposePayload.builder()
-        .pactusBlock(pactusBlock)
         .round(round)
         .height(height)
-        .signature(signature)
         .build();
   }
 
@@ -96,7 +94,7 @@ public class MessageFactory implements Payload {
   }
 
   @Override
-  public Hash hashForSignature() {
+  public Hash hashForSECPSignature() {
     return null;
   }
 

@@ -17,7 +17,9 @@ package org.hyperledger.besu.consensus.pactus.validation;
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
+import org.hyperledger.besu.consensus.pactus.PactusProtocolSchedule;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
+import org.hyperledger.besu.consensus.pactus.core.PactusBlockInterface;
 import org.hyperledger.besu.consensus.pactus.validation.MessageValidator.SubsequentMessageValidator;
 import org.hyperledger.besu.datatypes.Address;
 

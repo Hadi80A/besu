@@ -63,9 +63,6 @@ public class PactusBlockCreator{
             .build();
   }
 
-  private
-
-
   public PactusBlock createSealedBlock(
       final PactusBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals) {
     final Block besuBlock = block.getBesuBlock();

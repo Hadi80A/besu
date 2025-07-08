@@ -1,10 +1,7 @@
 // Proposal.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.messagewrappers;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
@@ -26,6 +23,7 @@ import java.util.Optional;
  * Represents the wrapper for a proposal in Pactus consensus.
  * This is the first message broadcast in a new round by the selected proposer.
  */
+@Getter
 public class Proposal extends BftMessage<ProposePayload> {
 
     /**
@@ -33,10 +31,11 @@ public class Proposal extends BftMessage<ProposePayload> {
      */
     private int proposerId = -1;
     private static final PactusBlockCodec pactusBlockCodec = new PactusBlockCodec(new PactusExtraDataCodec());
-
-    public Proposal(SignedData<ProposePayload> payload, int proposerId) {
+    private PactusBlock pactusBlock;
+    public Proposal(SignedData<ProposePayload> payload, int proposerId,PactusBlock pactusBlock) {
         super(payload);
         this.proposerId = proposerId;
+        this.pactusBlock = pactusBlock;
     }
 
     /**
@@ -48,17 +47,22 @@ public class Proposal extends BftMessage<ProposePayload> {
     }
 
 
+    @SneakyThrows
     @Override
     public Bytes encode() {
         final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
         rlpOut.writeInt(proposerId);
+        pactusBlock.writeTo(rlpOut);
         getSignedPayload().writeTo(rlpOut);
         return rlpOut.encoded();
     }
 
+    @SneakyThrows
     public static Proposal decode(final Bytes data) {
         final RLPInput rlpIn = RLP.input(data);
         int proposerId = rlpIn.readInt();
+        PactusBlock block = PactusBlock.readFrom(rlpIn);
+
         rlpIn.enterList();
 
         final SignedData<ProposePayload> payload = readPayload(rlpIn, rlpInput -> {
@@ -68,7 +72,7 @@ public class Proposal extends BftMessage<ProposePayload> {
                 throw new RuntimeException(e);
             }
         });
-        return new Proposal(payload, proposerId);
+        return new Proposal(payload, proposerId,block);
 
     }
 

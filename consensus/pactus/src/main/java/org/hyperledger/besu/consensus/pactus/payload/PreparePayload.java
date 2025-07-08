@@ -20,64 +20,44 @@ import java.io.IOException;
  * Payload for a block prepare in the Pactus consensus protocol.
  * Sent by the proposer to initiate a new round.
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class PreparePayload implements Payload {
-
+public class PreparePayload extends PactusPayload{
   /** The proposed block for the current round. */
-  private PactusBlock pactusBlock;
-
-  /** The round number in which the prepare is made. */
-  private int round;
-
-  private int height;
-
-  /** Preparer's signature on the proposed block and round. */
-  private Signature signature;
-
-  /**
-   * Checks whether the prepare payload is complete and valid.
-   */
-  public boolean isValid() {
-   return  pactusBlock != null &&
-           signature != null &&
-           !signature.isEmpty();
+  private Hash blockHash;
+  @Builder
+  public PreparePayload(int round, int height,Hash blockHash) {
+    super(round, height);
+    this.blockHash = blockHash;
   }
 
-  public static PreparePayload readFrom(
-          final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
-    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
+  public static PreparePayload readFrom(final RLPInput rlpInput) throws IOException {
+//    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
     int round = rlpInput.readInt();
     int height = rlpInput.readInt();
-    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
-
-
-    return new PreparePayload(pactusBlock1,round,height,signature);
+//    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+    Hash blockHash= Hash.fromHexString(String.valueOf(rlpInput.readBytes()));
+    return new PreparePayload(round,height,blockHash);
   }
 
   @SneakyThrows
   @Override
   public void writeTo(RLPOutput rlpOutput) {
-    pactusBlock.writeTo(rlpOutput);
+//    pactusBlock.writeTo(rlpOutput);
     rlpOutput.writeInt(round);
     rlpOutput.writeInt(height);
-    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
+    rlpOutput.writeBytes(Bytes.wrap(blockHash.toHexString().getBytes()));
   }
 
-
-  public PactusBlock getProposedBlock(){
-    return pactusBlock;
-  }
   @Override
   public int getMessageType() {
-    return 0;
+    return 1;
   }
 
   @Override
   public Hash hashForSignature() {
-    return null;
+    String data= getMessageType() + "|"+round+"|"+height+"|"+blockHash.toHexString();
+    return Hash.hash(Bytes.wrap(data.getBytes()));
   }
 
   @Override
