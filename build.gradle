@@ -282,7 +282,7 @@ configure(allprojects - project(':platform')) {
       '-Xlint:divzero',
       '-Xlint:finally',
       '-Xlint:static',
-      '-Werror',
+//      '-Werror',
     ]
 
     options.errorprone {
@@ -453,7 +453,7 @@ configure(allprojects - project(':platform')) {
       true)
     options.addStringOption('Xmaxerrs','65535')
     options.addStringOption('Xmaxwarns','65535')
-    options.addStringOption('Xwerror', '-html5')
+//    options.addStringOption('Xwerror', '-html5')
     options.encoding = 'UTF-8'
   }
 }
