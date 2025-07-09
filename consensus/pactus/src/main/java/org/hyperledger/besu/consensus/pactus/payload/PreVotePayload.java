@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pactus.payload;
 
+import lombok.Builder;
+import lombok.Data;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pactus.messagedata.PactusMessage;
@@ -21,55 +23,51 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
+import java.io.IOException;
 import java.util.Objects;
 
 import com.google.common.base.MoreObjects;
 
 /** The Round change payload. */
+@Data
+
 public class PreVotePayload extends PactusPayload {
   private static final int TYPE = PactusMessage.PRE_VOTE.getCode();
-  private final ConsensusRoundIdentifier roundChangeIdentifier;
+//  private final ConsensusRoundIdentifier roundChangeIdentifier;
   private final int round_cp;
   private final int b;
 
+  @Builder
+  public PreVotePayload(int round, int height, int roundCp, int b) {
+    super(round, height);
+    this.round_cp=roundCp;
+    this.b=b;
+  }
+
 //  private final justification;//todo
 
-  public PreVotePayload(final ConsensusRoundIdentifier roundChangeIdentifier, int roundCp, int b){
-    this.roundChangeIdentifier = roundChangeIdentifier;
-      round_cp = roundCp;
-      this.b = b;
-  }
 
   @Override
   public ConsensusRoundIdentifier getRoundIdentifier() {
-    return roundChangeIdentifier;
+//    return roundChangeIdentifier;
+    return null;
   }
 
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
-    // RLP encode of the message data content (round identifier and prepared certificate)
-    rlpOutput.startList();
-    writeConsensusRound(rlpOutput);
-
-    rlpOutput.startList();
-    rlpOutput.endList();
-
-    rlpOutput.endList();
+    rlpOutput.writeInt(round);
+    rlpOutput.writeInt(height);
+    rlpOutput.writeInt(round_cp);
+    rlpOutput.writeInt(b);
+  }
+  public static PreVotePayload readFrom(final RLPInput rlpInput) throws IOException {
+    int round = rlpInput.readInt();
+    int height = rlpInput.readInt();
+    int round_cp = rlpInput.readInt();
+    int b = rlpInput.readInt();
+    return new PreVotePayload(round,height,round_cp,b);
   }
 
-  /**
-   * Read from rlp input and return round change payload.
-   *
-   * @param rlpInput the rlp input
-   * @return the round change payload
-   */
-  public static ChangeProposerPayload readFrom(final RLPInput rlpInput) {
-    rlpInput.enterList();
-    final ConsensusRoundIdentifier roundIdentifier = readConsensusRound(rlpInput);
-
-    rlpInput.leaveList();
-    return new ChangeProposerPayload(roundIdentifier);
-  }
 
   @Override
   public int getMessageType() {
@@ -78,7 +76,7 @@ public class PreVotePayload extends PactusPayload {
 
   @Override
   public Hash hashForSignature() {
-    String data= getMessageType() + "|"+round+"|"+height+"|"+blockHash.toHexString();
+    String data=TYPE + "|"+round+"|"+height+"|" +round_cp+"|" +b ;
     return Hash.hash(Bytes.wrap(data.getBytes()));
   }
 
@@ -97,27 +95,27 @@ public class PreVotePayload extends PactusPayload {
     return new ConsensusRoundIdentifier(in.readLongScalar(), in.readIntScalar());
   }
 
-  @Override
-  public boolean equals(final Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ChangeProposerPayload that = (ChangeProposerPayload) o;
-    return Objects.equals(roundChangeIdentifier);
-  }
+//  @Override
+//  public boolean equals(final Object o) {
+//    if (this == o) {
+//      return true;
+//    }
+//    if (o == null || getClass() != o.getClass()) {
+//      return false;
+//    }
+//    ChangeProposerPayload that = (ChangeProposerPayload) o;
+//    return Objects.equals(roundChangeIdentifier);
+//  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(roundChangeIdentifier);
-  }
-
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("roundChangeIdentifier", roundChangeIdentifier)
-        .toString();
-  }
+//  @Override
+//  public int hashCode() {
+//    return Objects.hash(roundChangeIdentifier);
+//  }
+//
+//  @Override
+//  public String toString() {
+//    return MoreObjects.toStringHelper(this)
+//        .add("roundChangeIdentifier", roundChangeIdentifier)
+//        .toString();
+//  }
 }
