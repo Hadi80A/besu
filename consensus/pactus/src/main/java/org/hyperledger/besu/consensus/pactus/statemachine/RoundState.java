@@ -14,16 +14,18 @@
  */
 package org.hyperledger.besu.consensus.pactus.statemachine;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.PreCommit;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
-import org.hyperledger.besu.consensus.pactus.validation.MessageValidator;
 import org.hyperledger.besu.crypto.SECPSignature;
 
 import java.util.Collection;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,141 +35,65 @@ import org.slf4j.LoggerFactory;
 
 /** The Round state defines how a round will operate. */
 // Data items used to define how a round will operate
+  @Getter
 public class RoundState {
   private static final Logger LOG = LoggerFactory.getLogger(RoundState.class);
 
   private final ConsensusRoundIdentifier roundIdentifier;
-  private final MessageValidator validator;
   private final long quorum;
 
-  private Optional<Proposal> proposalMessage = Optional.empty();
+  @Setter
+  private Proposal proposalMessage;
 
   // Must track the actual Prepare message, not just the sender, as these may need to be reused
   // to send out in a PrepareCertificate.
   private final Set<Prepare> prepareMessages = Sets.newLinkedHashSet();
+  private final Set<PreCommit> preCommitMessages = Sets.newLinkedHashSet();
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
-
-  private boolean prepared = false;
-  private boolean committed = false;
+  @Setter
+  private State currentState;
+  private final int round;
+  private final int height;
 
   /**
    * Instantiates a new Round state.
    *
    * @param roundIdentifier the round identifier
    * @param quorum the quorum
-   * @param validator the validator
    */
   public RoundState(
           final ConsensusRoundIdentifier roundIdentifier,
-          final int quorum,
-          final MessageValidator validator) {
+          final int quorum, int round, int height) {
     this.roundIdentifier = roundIdentifier;
     this.quorum = quorum;
-    this.validator = validator;
+      this.round = round;
+      this.height = height;
+      this.currentState=State.PROPOSE;
   }
 
-  /**
-   * Gets round identifier.
-   *
-   * @return the round identifier
-   */
-  public ConsensusRoundIdentifier getRoundIdentifier() {
-    return roundIdentifier;
+  public PactusBlock getProposedBlock() {
+    return  proposalMessage.getPactusBlock();
   }
 
-  /**
-   * Sets proposed block.
-   *
-   * @param msg the Proposal payload msg
-   * @return the proposed block
-   */
-  public boolean setProposedBlock(final Proposal msg) {
-
-    if (proposalMessage.isEmpty()) {
-      if (validator.validateProposal(msg)) {
-        proposalMessage = Optional.of(msg);
-        prepareMessages.removeIf(p -> !validator.validatePrepare(p));
-        commitMessages.removeIf(p -> !validator.validateCommit(p));
-        updateState();
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Add prepare message.
-   *
-   * @param msg the msg
-   */
   public void addPrepareMessage(final Prepare msg) {
-    if (proposalMessage.isEmpty() || validator.validatePrepare(msg)) {
+    if (Objects.nonNull(proposalMessage)) {
       prepareMessages.add(msg);
       LOG.trace("Round state added prepare message prepare={}", msg);
     }
-    updateState();
   }
-
-  /**
-   * Add commit message.
-   *
-   * @param msg the msg
-   */
+  public void addPreCommitMessage(final PreCommit msg) {
+    if (Objects.nonNull(proposalMessage)) {
+      precommitMessages.add(msg);
+      LOG.trace("Round state added precommit message commit={}", msg);
+    }
+  }
   public void addCommitMessage(final Commit msg) {
-    if (proposalMessage.isEmpty() || validator.validateCommit(msg)) {
+    if (Objects.nonNull(proposalMessage)) {
       commitMessages.add(msg);
       LOG.trace("Round state added commit message commit={}", msg);
     }
-
-    updateState();
   }
 
-  private void updateState() {
-    prepared = (prepareMessages.size() >= quorum) && proposalMessage.isPresent();
-    committed = (commitMessages.size() >= quorum) && proposalMessage.isPresent();
-    LOG.trace(
-            "Round state updated prepared={} committed={} preparedQuorum={}/{} committedQuorum={}/{}",
-            prepared,
-            committed,
-            prepareMessages.size(),
-            quorum,
-            commitMessages.size(),
-            quorum);
-  }
-
-  /**
-   * Gets proposed block.
-   *
-   * @return the proposed block
-   */
-  public Optional<PactusBlock> getProposedBlock() {
-    return proposalMessage.map(p -> p.getSignedPayload().getPayload().getProposedBlock());
-  }
-
-  /**
-   * Is prepared.
-   *
-   * @return the boolean
-   */
-  public boolean isPrepared() {
-    return prepared;
-  }
-
-  /**a
-   * Is committed.
-   *
-   * @return the boolean
-   */
-  public boolean isCommitted() {
-    return committed;
-  }
-
-  /**
-   * Gets commit seals.
-   *
-   * @return the commit seals
-   */
   public Collection<SECPSignature> getCommitSeals() {
     return commitMessages.stream()
             .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())

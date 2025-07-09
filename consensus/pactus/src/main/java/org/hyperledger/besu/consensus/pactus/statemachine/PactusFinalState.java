@@ -9,8 +9,8 @@ import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.pactus.core.ValidatorSet;
 import org.hyperledger.besu.consensus.pactus.factory.PactusBlockCreatorFactory;
+import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory;
 import org.hyperledger.besu.consensus.pactus.network.PactusMessageTransmitter;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -30,7 +30,7 @@ public class PactusFinalState {
   private final NodeKey nodeKey;
   private final ValidatorMulticaster validatorMulticaster;
   private final PactusBlockCreatorFactory blockCreatorFactory;
-  private final MessageFactory messageFactory;
+  private final PactusRoundFactory.MessageFactory messageFactory;
   private final String localValidatorId;
   private final RoundTimer roundTimer;
   private final BlockTimer blockTimer;

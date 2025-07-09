@@ -17,5 +17,4 @@ public abstract class PactusPayload implements Payload {
 
     protected int height;
 
-
 }

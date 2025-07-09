@@ -22,7 +22,6 @@ import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
 import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pactus.core.PactusProposerSelector;
 import org.hyperledger.besu.consensus.pactus.validation.MessageValidatorFactory;
 
@@ -51,7 +50,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
 
   private final PactusRoundFactory roundFactory;
   private final PactusBlockHeader parentHeader;
-  private final MessageFactory messageFactory;
+  private final PactusRoundFactory.MessageFactory messageFactory;
   private final Map<Integer, RoundState> futureRoundStateBuffer = Maps.newHashMap();
   private final Clock clock;
   private final Function<ConsensusRoundIdentifier, RoundState> roundStateCreator;
@@ -83,7 +82,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
           final PactusRoundFactory pactusRoundFactory,
           final Clock clock,
           final MessageValidatorFactory messageValidatorFactory,
-          final MessageFactory messageFactory, PactusProposerSelector proposerSelector
+          final PactusRoundFactory.MessageFactory messageFactory, PactusProposerSelector proposerSelector
   ) {
     this.parentHeader = parentHeader;
     this.roundFactory = pactusRoundFactory;
@@ -96,8 +95,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
             (roundIdentifier) ->
                     new RoundState(
                             roundIdentifier,
-                            finalState.getQuorum(),
-                            messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+                            finalState.getQuorum());
 
     final long nextBlockHeight = getChainHeight();
     final ConsensusRoundIdentifier roundIdentifier =
@@ -124,7 +122,7 @@ public class PactusBlockHeightManager implements BasePactusBlockHeightManager  {
           final PactusRoundFactory pactusRoundFactory,
           final Clock clock,
           final MessageValidatorFactory messageValidatorFactory,
-          final MessageFactory messageFactory, PactusProposerSelector proposerSelector,
+          final PactusRoundFactory.MessageFactory messageFactory, PactusProposerSelector proposerSelector,
 //          final PactusValidatorProvider validatorProvider,
 
           final boolean isEarlyRoundChangeEnabled) {

@@ -1,24 +1,20 @@
 
 package org.hyperledger.besu.consensus.pactus.statemachine;
 
-import static java.util.Collections.emptyList;
-
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
-import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.PactusBlockImporter;
 import org.hyperledger.besu.consensus.pactus.PactusProtocolSchedule;
 import org.hyperledger.besu.consensus.pactus.core.*;
+import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.PreCommit;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.pactus.network.PactusMessageTransmitter;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
-import org.hyperledger.besu.consensus.pactus.payload.PactusPayload;
-import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
-import org.hyperledger.besu.consensus.pactus.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.pactus.payload.*;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -28,6 +24,7 @@ import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleExcepti
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,9 +48,8 @@ public class PactusRound {
   protected final PactusProtocolSchedule protocolSchedule;
 
   private final NodeKey nodeKey;
-  private final MessageFactory messageFactory; // used only to create stored local msgs
+  private final PactusRoundFactory.MessageFactory messageFactory; // used only to create stored local msgs
   private final PactusMessageTransmitter transmitter;
-
   private final PactusBlockHeader parentHeader;
   private final ValidatorSet validators;
   private final PactusProposerSelector proposerSelector;
@@ -66,7 +62,6 @@ public class PactusRound {
    * @param blockCreator the block creator
    * @param blockInterface the block interface
    * @param protocolSchedule the protocol schedule
-   * @param observers the observers
    * @param nodeKey the node key
    * @param messageFactory the message factory
    * @param transmitter the transmitter
@@ -79,7 +74,7 @@ public class PactusRound {
           final PactusBlockInterface blockInterface,
           final PactusProtocolSchedule protocolSchedule,
           final NodeKey nodeKey,
-          final MessageFactory messageFactory,
+          final PactusRoundFactory.MessageFactory messageFactory,
           final PactusMessageTransmitter transmitter,
           final RoundTimer roundTimer,
           final PactusBlockHeader parentHeader,
@@ -125,9 +120,9 @@ public class PactusRound {
       if(roundNumber>1){
 //        round=
       }
-      PactusCertificate  certificate= createCertificate(round+1,height+1,committers,absentees,sign);
+      PactusCertificate  certificate= createCertificate(round+1,height+1,committers,absentees);
     }
-    return blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader);
+    return blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,proposerSelector.getCurrentProposer());
   }
 
   private PactusCertificate createCertificate(int round, int height, List<Validator> committers, List<Validator> absentees, Signature sign){
@@ -209,83 +204,111 @@ public class PactusRound {
     LOG.debug("Received a proposal message. round={}. author={}", roundState.getRoundIdentifier(),
             msg.getAuthor());
     final PactusBlock block = msg.getPactusBlock();
-
-    sendPrepare(block);
+    if (validateProposer(msg.getSignedPayload())){
+      LOG.debug("Valid a proposal message.");
+      roundState.setProposalMessage(msg);
+      sendPrepare(block);
+    }else {
+      LOG.debug("Invalid a proposal message.");
+    }
   }
-  private boolean validatePropose(SignedData<ProposePayload> payload){
-    if (payload.getAuthor().equals(proposerSelector.getCurrentProposer() ))
-      return true;
-    return false;
+  private boolean validateProposer(SignedData<ProposePayload> payload){
+      return payload.getAuthor().equals(proposerSelector.getCurrentProposer()) &&
+              payload.getPayload().getRound() == roundState.getRound() &&
+              payload.getPayload().getHeight() == roundState.getHeight();
+
   }
 
   private void sendPrepare(final PactusBlock block) {
     LOG.debug("Sending prepare message. round={}", roundState.getRoundIdentifier());
     try {
-      final Prepare localPrepareMessage =
-              messageFactory.createPrepare(getRoundIdentifier(), block.getHash());
-      peerIsPrepared(localPrepareMessage);
-      transmitter.multicastPrepare(
-              localPrepareMessage.getRoundIdentifier(), localPrepareMessage.getDigest());
+      PreparePayload unsigned= messageFactory.createPreparePayload(block);
+      SignedData<PreparePayload> signedData= createSignedData(unsigned);
+      final Prepare localPrepareMessage = messageFactory.createPrepare(signedData);
+      roundState.addPrepareMessage(localPrepareMessage);
+      transmitter.multicastPrepare(localPrepareMessage);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed Prepare; {}", e.getMessage());
     }
   }
 
-  /**
-   * Handle prepare message.
-   *
-   * @param msg the msg
-   */
   public void handlePrepareMessage(final Prepare msg) {
-    LOG.debug(
-            "Received a prepare message. round={}. author={}",
-            roundState.getRoundIdentifier(),
+    LOG.debug("Received a prepare message. round={}. author={}", roundState.getRoundIdentifier(),
             msg.getAuthor());
-    peerIsPrepared(msg);
-  }
-
-  /**
-   * Handle commit message.
-   *
-   * @param msg the msg
-   */
-  public void handleCommitMessage(final Commit msg) {
-    LOG.debug(
-            "Received a commit message. round={}. author={}",
-            roundState.getRoundIdentifier(),
-            msg.getAuthor());
-    peerIsCommitted(msg);
-  }
-
-  private void peerIsPrepared(final Prepare msg) {
-    final boolean wasPrepared = roundState.isPrepared();
     roundState.addPrepareMessage(msg);
-    if (wasPrepared != roundState.isPrepared()) {
-      LOG.debug("Sending commit message. round={}", roundState.getRoundIdentifier());
-      final PactusBlock block = roundState.getProposedBlock().get();
-      try {
-        transmitter.multicastCommit(getRoundIdentifier(), block.getHash(), createCommitSeal(block));
-        // Note: the local-node's commit message was added to RoundState on block acceptance
-        // and thus does not need to be done again here.
-      } catch (final SecurityModuleException e) {
-        LOG.warn("Failed to construct a commit seal: {}", e.getMessage());
-      }
+    if(validateBlockHash(msg.getSignedPayload().getPayload().getBlockHash()) &&
+            checkThreshold(roundState.getPrepareMessages()) &&
+            validateHeightAndRound(msg.getSignedPayload().getPayload())
+    ) {
+      sendPrecommit(roundState.getProposedBlock());
+    }else {
+      LOG.debug("Invalid a prepare message.");
+    }
+  }
+  private boolean checkThreshold(Set<?> msg){
+    return msg.size()>=roundState.getQuorum();
+  }
+
+
+  private boolean validateHeightAndRound(PactusPayload pactusPayload) {
+    return pactusPayload.getHeight()==roundState.getHeight() &&
+    pactusPayload.getRound()==roundState.getRound();
+  }
+  private boolean validateBlockHash(Hash blockHash) {
+    PactusBlock block=roundState.getProposedBlock();
+    return blockHash.equals(block.getHash());
+  }
+  private void sendPrecommit(final PactusBlock block) {
+    LOG.debug("Sending precommit message. round={}", roundState.getRoundIdentifier());
+    try {
+      PreCommitPayload unsigned= messageFactory.createPreCommitPayload(block);
+      SignedData<PreCommitPayload> signedData= createSignedData(unsigned);
+      final PreCommit localPreCommitMessage = messageFactory.createPreCommit(signedData);
+      roundState.addPreCommitMessage(localPreCommitMessage);
+      transmitter.multicastPreCommit(localPreCommitMessage);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed PreCommit; {}", e.getMessage());
     }
   }
 
-  private void peerIsCommitted(final Commit msg) {
-    final boolean wasCommitted = roundState.isCommitted();
-    roundState.addCommitMessage(msg);
-    if (wasCommitted != roundState.isCommitted()) {
-      importBlockToChain();
+  public void handlePreCommitMessage(final PreCommit msg) {
+    LOG.debug("Received a prepare message. round={}. author={}", roundState.getRoundIdentifier(),
+            msg.getAuthor());
+    roundState.addPreCommitMessage(msg);
+    if(validateBlockHash(msg.getSignedPayload().getPayload().getBlockHash()) &&
+            checkThreshold(roundState.getPreCommitMessages()) &&
+            validateHeightAndRound(msg.getSignedPayload().getPayload())
+    ) {
+      sendCommit(roundState.getProposedBlock());
+    }else {
+      LOG.debug("Invalid a PreCommit message.");
     }
+  }
+
+  private void sendCommit(final PactusBlock block) {
+    LOG.debug("Sending Commit message. round={}", roundState.getRoundIdentifier());
+    try {
+      CommitPayload unsigned= messageFactory.createCommitPayload(block);
+      SignedData<CommitPayload> signedData= createSignedData(unsigned);
+      final Commit localCommitMessage = messageFactory.createCommit(signedData);
+      roundState.addCommitMessage(localCommitMessage);
+      transmitter.multicastCommit(localCommitMessage);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed Commit; {}", e.getMessage());
+    }
+  }
+
+  public void handleCommitMessage(final Commit msg) {
+    LOG.debug("Received a commit message. round={}. author={}", roundState.getRoundIdentifier(),
+            msg.getAuthor());
+    roundState.addCommitMessage(msg);
+    importBlockToChain();
   }
 
   private void importBlockToChain() {
-
     final PactusBlock blockToImport =
             blockCreator.createSealedBlock(
-                    roundState.getProposedBlock().get(),
+                    roundState.getProposedBlock(),
                     roundState.getRoundIdentifier().getRoundNumber(),
                     roundState.getCommitSeals());
 
@@ -334,7 +357,7 @@ public class PactusRound {
 //package org.hyperledger.besu.consensus.pactus.statemachine;
 //
 //import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
-//import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
+//import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory.MessageFactory;
 //import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
 //import org.hyperledger.besu.consensus.pactus.payload.PreCommitPayload;
 //import org.hyperledger.besu.consensus.pactus.payload.CommitPayload;

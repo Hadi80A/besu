@@ -14,31 +14,30 @@
  */
 package org.hyperledger.besu.consensus.pactus.payload;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pactus.messagedata.PactusMessage;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.util.Objects;
-import java.util.Optional;
 
 import com.google.common.base.MoreObjects;
 
 /** The Round change payload. */
-public class RoundChangePayload implements Payload {
-  private static final int TYPE = PactusMessage.ROUND_CHANGE.getCode();
+public class PreVotePayload extends PactusPayload {
+  private static final int TYPE = PactusMessage.PRE_VOTE.getCode();
   private final ConsensusRoundIdentifier roundChangeIdentifier;
+  private final int round_cp;
+  private final int b;
 
-  /**
-   * Instantiates a new Round change payload.
-   *
-   * @param roundChangeIdentifier the round change identifier
-   */
-  public RoundChangePayload(
-      final ConsensusRoundIdentifier roundChangeIdentifier){
+//  private final justification;//todo
+
+  public PreVotePayload(final ConsensusRoundIdentifier roundChangeIdentifier, int roundCp, int b){
     this.roundChangeIdentifier = roundChangeIdentifier;
+      round_cp = roundCp;
+      this.b = b;
   }
 
   @Override
@@ -64,12 +63,12 @@ public class RoundChangePayload implements Payload {
    * @param rlpInput the rlp input
    * @return the round change payload
    */
-  public static RoundChangePayload readFrom(final RLPInput rlpInput) {
+  public static ChangeProposerPayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = readConsensusRound(rlpInput);
 
     rlpInput.leaveList();
-    return new RoundChangePayload(roundIdentifier);
+    return new ChangeProposerPayload(roundIdentifier);
   }
 
   @Override
@@ -79,7 +78,8 @@ public class RoundChangePayload implements Payload {
 
   @Override
   public Hash hashForSignature() {
-    return null;
+    String data= getMessageType() + "|"+round+"|"+height+"|"+blockHash.toHexString();
+    return Hash.hash(Bytes.wrap(data.getBytes()));
   }
 
   protected void writeConsensusRound(final RLPOutput out) {
@@ -105,8 +105,8 @@ public class RoundChangePayload implements Payload {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    RoundChangePayload that = (RoundChangePayload) o;
-    return Objects.equals(roundChangeIdentifier, that.roundChangeIdentifier);
+    ChangeProposerPayload that = (ChangeProposerPayload) o;
+    return Objects.equals(roundChangeIdentifier);
   }
 
   @Override

@@ -16,26 +16,15 @@ package org.hyperledger.besu.consensus.pactus.network;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
-import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.factory.PactusRoundFactory;
 import org.hyperledger.besu.consensus.pactus.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.pactus.messagedata.PreCommitMessageData;
 import org.hyperledger.besu.consensus.pactus.messagedata.PrepareMessageData;
 import org.hyperledger.besu.consensus.pactus.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Prepare;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pactus.messagewrappers.RoundChange;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
-import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
-import org.hyperledger.besu.consensus.pactus.payload.ProposePayload;
-import org.hyperledger.besu.consensus.pactus.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +34,7 @@ public class PactusMessageTransmitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(PactusMessageTransmitter.class);
 
-  private final MessageFactory messageFactory;
+  private final PactusRoundFactory.MessageFactory messageFactory;
   private final ValidatorMulticaster multicaster;
 
   /**
@@ -55,7 +44,7 @@ public class PactusMessageTransmitter {
    * @param multicaster the multicaster
    */
   public PactusMessageTransmitter(
-          final MessageFactory messageFactory, final ValidatorMulticaster multicaster) {
+          final PactusRoundFactory.MessageFactory messageFactory, final ValidatorMulticaster multicaster) {
     this.messageFactory = messageFactory;
     this.multicaster = multicaster;
   }
@@ -72,51 +61,34 @@ public class PactusMessageTransmitter {
     }
   }
 
-  /**
-   * Multicast prepare.
-   *
-   * @param roundIdentifier the round identifier
-   * @param digest the digest
-   */
-  public void multicastPrepare(final ConsensusRoundIdentifier roundIdentifier, final Hash digest) {
+  public void multicastPrepare(Prepare prepare) {
     try {
-      final Prepare data = messageFactory.createPrepare(roundIdentifier, digest);
-
-      final PrepareMessageData message = PrepareMessageData.create(data);
-
+//      final Prepare data = messageFactory.createPrepare(roundIdentifier, digest);
+      final PrepareMessageData message = PrepareMessageData.create(prepare);
       multicaster.send(message);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Prepare (not sent): {} ", e.getMessage());
     }
   }
-
-  /**
-   * Multicast commit.
-   *
-   * @param roundIdentifier the round identifier
-   * @param digest the digest
-   * @param commitSeal the commit seal
-   */
-  public void multicastCommit(
-          final ConsensusRoundIdentifier roundIdentifier,
-          final Hash digest,
-          final SECPSignature commitSeal) {
+  public void multicastPreCommit(PreCommit preCommit) {
     try {
-      final Commit data = messageFactory.createCommit(roundIdentifier, digest, commitSeal);
+//      final Prepare data = messageFactory.createPrepare(roundIdentifier, digest);
+      final PreCommitMessageData message =PreCommitMessageData.create(preCommit);
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for PreCommit (not sent): {} ", e.getMessage());
+    }
+  }
 
-      final CommitMessageData message = CommitMessageData.create(data);
-
+  public void multicastCommit(Commit commit) {
+    try {
+      final CommitMessageData message =CommitMessageData.create(commit);
       multicaster.send(message);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Commit (not sent): {} ", e.getMessage());
     }
   }
 
-  /**
-   * Multicast round change.
-   *
-   * @param roundIdentifier the round identifier
-   */
   public void multicastRoundChange(
           final ConsensusRoundIdentifier roundIdentifier) {
     try {

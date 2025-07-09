@@ -1,10 +1,7 @@
 // Prepare.java - placeholder for Pactus consensus implementation
 package org.hyperledger.besu.consensus.pactus.messagewrappers;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
@@ -29,51 +26,36 @@ import java.util.function.Function;
  * Represents the wrapper for a prepare in Pactus consensus.
  * This is the first message broadcast in a new round by the selected proposer.
  */
+@Getter
 public class Prepare extends BftMessage<PreparePayload> {
 
   /**
    * The ID (or public key) of the proposer.
    */
-  private int proposerId = -1;
+//  private int proposerId = -1;
   private static final PactusBlockCodec pactusBlockCodec = new PactusBlockCodec(new PactusExtraDataCodec());
 
-  public Prepare(SignedData<PreparePayload> payload, int proposerId) {
+  public Prepare(SignedData<PreparePayload> payload) {
     super(payload);
-    this.proposerId = proposerId;
   }
-
-  /**
-   * Validates that the prepare message is complete and structurally correct.
-   */
-  public boolean isValid() {
-    return proposerId != -1 &&
-            getPayload() != null;
-  }
-
 
   @Override
   public Bytes encode() {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
-    rlpOut.writeInt(proposerId);
     getSignedPayload().writeTo(rlpOut);
     return rlpOut.encoded();
   }
 
   public static Prepare decode(final Bytes data) {
     final RLPInput rlpIn = RLP.input(data);
-    int proposerId = rlpIn.readInt();
-    rlpIn.enterList();
-
     final SignedData<PreparePayload> payload = readPayload(rlpIn, rlpInput -> {
       try {
-        return PreparePayload.readFrom(rlpInput, pactusBlockCodec);
+        return PreparePayload.readFrom(rlpInput);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     });
-    return new Prepare(payload, proposerId);
+    return new Prepare(payload);
 
   }
-
-
 }

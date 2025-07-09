@@ -21,13 +21,12 @@ public enum PactusMessage {
   PROPOSAL(0),
   PREPARE(1),
   PRE_COMMIT(2),
-  COMMIT(3),
-  ROUND_CHANGE(4),
-  CHANGE_PROPOSER(5),
-  PRE_VOTE(6),
-  MAIN_VOTE(7),
-  DECIDE(8),
-  MESSAGE_SPACE(9);
+  BLOCK_ANNOUNCE(3),
+  CHANGE_PROPOSER(4),
+  PRE_VOTE(5),
+  MAIN_VOTE(6),
+  DECIDE(7),
+  MESSAGE_SPACE(8);
 
   private final int code;
 

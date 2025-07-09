@@ -9,6 +9,7 @@ import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.messagedata.PactusMessage;
 import org.hyperledger.besu.consensus.pactus.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
@@ -51,7 +52,7 @@ public class ProposePayload extends PactusPayload {
 
   @Override
   public int getMessageType() {
-    return 0;
+    return PactusMessage.PROPOSAL.getCode();
   }
 
   @Override

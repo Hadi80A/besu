@@ -22,6 +22,7 @@ import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.pactus.payload.ChangeProposerPayload;
 import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
@@ -115,7 +116,7 @@ public class ProposalValidator {
 
       // The RoundChangePayloadValidator ensures the PreparedRound is less than targetRound
       // therefore, no need to validate that here.
-      final Optional<SignedData<RoundChangePayload>> roundChangeWithLatestPreparedRound =
+      final Optional<SignedData<ChangeProposerPayload>> roundChangeWithLatestPreparedRound =
           getRoundChangeWithLatestPreparedRound(proposal.getRoundChanges());
 
       if (roundChangeWithLatestPreparedRound.isPresent()) {
@@ -179,7 +180,7 @@ public class ProposalValidator {
   }
 
   private boolean validateRoundChanges(
-      final Proposal proposal, final List<SignedData<RoundChangePayload>> roundChanges) {
+      final Proposal proposal, final List<SignedData<ChangeProposerPayload>> roundChanges) {
 
     if (hasDuplicateAuthors(roundChanges)) {
       LOG.info("{}: multiple round changes from the same author.", ERROR_PREFIX);
@@ -241,10 +242,10 @@ public class ProposalValidator {
     return true;
   }
 
-  private Optional<SignedData<RoundChangePayload>> getRoundChangeWithLatestPreparedRound(
-      final List<SignedData<RoundChangePayload>> roundChanges) {
+  private Optional<SignedData<ChangeProposerPayload>> getRoundChangeWithLatestPreparedRound(
+      final List<SignedData<ChangeProposerPayload>> roundChanges) {
 
-    final Comparator<SignedData<RoundChangePayload>> preparedRoundComparator =
+    final Comparator<SignedData<ChangeProposerPayload>> preparedRoundComparator =
         (o1, o2) -> {
           if (o1.getPayload().getPreparedRoundMetadata().isEmpty()) {
             return -1;
@@ -265,7 +266,7 @@ public class ProposalValidator {
   }
 
   private boolean metadataIsConsistentAcrossRoundChanges(
-      final List<SignedData<RoundChangePayload>> roundChanges) {
+      final List<SignedData<ChangeProposerPayload>> roundChanges) {
     final List<PreparedRoundMetadata> distinctMetadatas =
         roundChanges.stream()
             .map(rc -> rc.getPayload().getPreparedRoundMetadata())

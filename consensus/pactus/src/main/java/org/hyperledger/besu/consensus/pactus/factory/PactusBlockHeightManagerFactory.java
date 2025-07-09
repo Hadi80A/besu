@@ -16,7 +16,6 @@ package org.hyperledger.besu.consensus.pactus.factory;
 
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlockHeader;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
 
 
 import org.hyperledger.besu.consensus.pactus.statemachine.*;
@@ -31,7 +30,7 @@ public class PactusBlockHeightManagerFactory {
   private final PactusRoundFactory roundFactory;
   private final PactusFinalState finalState;
   private final MessageValidatorFactory messageValidatorFactory;
-  private final MessageFactory messageFactory;
+  private final PactusRoundFactory.MessageFactory messageFactory;
   private final PactusValidatorProvider validatorProvider;
   private final PactusValidatorModeTransitionLogger validatorModeTransitionLogger;
   private boolean isEarlyRoundChangeEnabled = false;
@@ -50,7 +49,7 @@ public class PactusBlockHeightManagerFactory {
           final PactusFinalState finalState,
           final PactusRoundFactory roundFactory,
           final MessageValidatorFactory messageValidatorFactory,
-          final MessageFactory messageFactory,
+          final PactusRoundFactory.MessageFactory messageFactory,
           final PactusValidatorProvider validatorProvider,
           final PactusValidatorModeTransitionLogger validatorModeTransitionLogger) {
     this.roundFactory = roundFactory;

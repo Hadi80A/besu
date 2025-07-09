@@ -13,16 +13,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 package org.hyperledger.besu.consensus.pactus.factory;
-import jakarta.validation.Valid;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.PactusProtocolSchedule;
 import org.hyperledger.besu.consensus.pactus.core.*;
+import org.hyperledger.besu.consensus.pactus.messagewrappers.*;
 import org.hyperledger.besu.consensus.pactus.network.PactusMessageTransmitter;
-import org.hyperledger.besu.consensus.pactus.payload.MessageFactory;
+import org.hyperledger.besu.consensus.pactus.payload.*;
 import org.hyperledger.besu.consensus.pactus.statemachine.PactusFinalState;
 import org.hyperledger.besu.consensus.pactus.statemachine.PactusRound;
 import org.hyperledger.besu.consensus.pactus.statemachine.RoundState;
 import org.hyperledger.besu.consensus.pactus.validation.MessageValidatorFactory;
+import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+
+import java.util.List;
 
 /** The Pactus round factory. */
 public class PactusRoundFactory {
@@ -76,8 +81,8 @@ public class PactusRoundFactory {
     final RoundState roundState =
         new RoundState(
             roundIdentifier,
-            finalState.getQuorum(),
-            messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+            finalState.getQuorum()
+            );
 
     return createNewRoundWithState(parentHeader, roundState);
   }
@@ -112,5 +117,94 @@ public class PactusRoundFactory {
         proposerSelector
 
     );
+  }
+
+  /**
+   * Factory class for creating consensus message payloads and wrappers.
+   */
+  public static class MessageFactory{
+
+    private final int localValidatorId;
+
+    public MessageFactory(final int localValidatorId) {
+      this.localValidatorId = localValidatorId;
+    }
+
+    public Proposal createProposal(SignedData<ProposePayload> payload, PactusBlock block) {
+      return new Proposal(payload,localValidatorId,block);
+    }
+    public Prepare createPrepare(SignedData<PreparePayload> payload) {
+      return new Prepare(payload);
+    }
+    public PreCommit createPreCommit(SignedData<PreCommitPayload> payload) {
+      return new PreCommit(payload,localValidatorId);
+    }
+
+    public Commit createCommit(SignedData<CommitPayload> payload) {
+      return new Commit(payload,localValidatorId);
+    }
+
+    public Certificate createCertificate(String blockHash, long height, int round,
+                                         List<String> signerIds, List<String> signatures) {
+      return Certificate.builder()
+          .blockHash(blockHash)
+          .blockHeight(height)
+          .round(round)
+          .signerIds(signerIds)
+          .signatures(signatures)
+          .build();
+    }
+
+    public CommitPayload createCommitPayload(PactusBlock block) {
+      return CommitPayload.builder()
+              .block(block)
+              .round(block.getRound())
+              .height(block.getHeight())
+              .build();
+    }
+
+    public ProposePayload createProposePayload(int round,int height) {
+      return ProposePayload.builder()
+          .round(round)
+          .height(height)
+          .build();
+    }
+
+    public PreparePayload createPreparePayload(PactusBlock block) {
+      return PreparePayload.builder()
+              .blockHash(block.getHash())
+              .round(block.getRound())
+              .height(block.getHeight())
+              .build();
+    }
+
+    public PreCommitPayload createPreCommitPayload(PactusBlock block) {
+      return PreCommitPayload.builder()
+          .blockHash(block.getHash())
+          .round(block.getRound())
+          .height(block.getHeight())
+          .build();
+    }
+
+    @Override
+    public void writeTo(RLPOutput rlpOutput) {
+
+    }
+
+    @Override
+    public int getMessageType() {
+//      PactusMessage.ROUND_CHANGE.getCode()
+      return 0;
+    }
+
+    @Override
+    public Hash hashForSECPSignature() {
+      return null;
+    }
+
+    @Override
+    public ConsensusRoundIdentifier getRoundIdentifier() {
+      return null;
+    }
   }
 }

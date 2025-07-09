@@ -8,6 +8,7 @@ import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
+import org.hyperledger.besu.consensus.pactus.messagedata.PactusMessage;
 import org.hyperledger.besu.consensus.pactus.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
@@ -21,63 +22,44 @@ import java.io.IOException;
  * Sent by the proposer to initiate a new round.
  */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class PreCommitPayload implements Payload {
-
-  /** The proposed block for the current round. */
-  private PactusBlock pactusBlock;
-
-  /** The round number in which the preCommit is made. */
-  private int round;
-
-  private int height;
-
-
-  /**
-   * Checks whether the preCommit payload is complete and valid.
-   */
-  public boolean isValid() {
-    return  pactusBlock != null &&
-            signature != null &&
-            !signature.isEmpty();
+@EqualsAndHashCode(callSuper = true)
+public class PreCommitPayload extends PactusPayload{
+  private Hash blockHash;
+  @Builder
+  public PreCommitPayload(int round, int height,Hash blockHash) {
+    super(round, height);
+    this.blockHash = blockHash;
   }
 
-  public static PreCommitPayload readFrom(
-          final RLPInput rlpInput, final PactusBlockCodec blockEncoder) throws IOException {
-    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
+  public static PreCommitPayload readFrom(final RLPInput rlpInput) throws IOException {
+//    PactusBlock pactusBlock1 = PactusBlock.readFrom(rlpInput);
     int round = rlpInput.readInt();
     int height = rlpInput.readInt();
-    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+//    Signature signature = SerializeUtil.toObject(rlpInput.readBytes(),Signature.class) ;
+    Hash blockHash= Hash.fromHexString(String.valueOf(rlpInput.readBytes()));
 
-
-    return new PreCommitPayload(pactusBlock1,round,height,signature);
-  }
-
-  public PactusBlock getProposedBlock(){
-    return pactusBlock;
+    return new PreCommitPayload(round,height,blockHash);
   }
 
   @SneakyThrows
   @Override
   public void writeTo(RLPOutput rlpOutput) {
-    pactusBlock.writeTo(rlpOutput);
+//    pactusBlock.writeTo(rlpOutput);
     rlpOutput.writeInt(round);
     rlpOutput.writeInt(height);
-    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
+    rlpOutput.writeBytes(Bytes.wrap(blockHash.toHexString().getBytes()));
+//    rlpOutput.writeBytes(SerializeUtil.toBytes(signature));
   }
-
-
 
   @Override
   public int getMessageType() {
-    return 0;
+    return PactusMessage.PRE_COMMIT.getCode();
   }
 
   @Override
   public Hash hashForSignature() {
-    return null;
+    String data= getMessageType() + "|"+round+"|"+height+"|"+blockHash.toHexString();
+    return Hash.hash(Bytes.wrap(data.getBytes()));
   }
 
   @Override

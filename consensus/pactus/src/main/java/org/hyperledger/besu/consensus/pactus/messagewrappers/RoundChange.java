@@ -19,19 +19,17 @@ import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pactus.PactusBlockCodec;
 import org.hyperledger.besu.consensus.pactus.core.PactusBlock;
-import org.hyperledger.besu.consensus.pactus.payload.PreparePayload;
-import org.hyperledger.besu.consensus.pactus.payload.RoundChangePayload;
+import org.hyperledger.besu.consensus.pactus.payload.ChangeProposerPayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
 
 /** The Round change payload message. */
-public class RoundChange extends BftMessage<RoundChangePayload> {
+public class RoundChange extends BftMessage<ChangeProposerPayload> {
 
   private final Optional<PactusBlock> proposedBlock;
   private final PactusBlockCodec blockEncoder;
@@ -44,7 +42,7 @@ public class RoundChange extends BftMessage<RoundChangePayload> {
    * @param blockEncoder the pactus block encoder
    */
   public RoundChange(
-      final SignedData<RoundChangePayload> payload,
+      final SignedData<ChangeProposerPayload> payload,
       final Optional<PactusBlock> proposedBlock,
       final PactusBlockCodec blockEncoder) {
     super(payload);
@@ -88,7 +86,7 @@ public class RoundChange extends BftMessage<RoundChangePayload> {
 
     final RLPInput rlpIn = RLP.input(data);
     rlpIn.enterList();
-    final SignedData<RoundChangePayload> payload = readPayload(rlpIn, RoundChangePayload::readFrom);
+    final SignedData<ChangeProposerPayload> payload = readPayload(rlpIn, ChangeProposerPayload::readFrom);
 
     final Optional<PactusBlock> block;
     if (rlpIn.nextIsList() && rlpIn.nextSize() == 0) {

@@ -85,7 +85,7 @@ public class PactusController extends BaseBftController {
               PreCommitMessageData.fromMessageData(messageData).decode(),
               currentHeightManager::handlePreCommitPayload);
     }
-    else if (messageData.getCode() == PactusMessage.COMMIT.getCode()) {
+    else if (messageData.getCode() == PactusMessage.BLOCK_ANNOUNCE.getCode()) {
       consumeMessage(
               message,
               CommitMessageData.fromMessageData(messageData).decode(),
