@@ -33,6 +33,8 @@ public enum RpcApis {
   CLIQUE,
   IBFT,
   ENGINE,
+  POS,
+  NEXUS,
   QBFT;
 
   public static final List<String> DEFAULT_RPC_APIS = Arrays.asList("ETH", "NET", "WEB3");

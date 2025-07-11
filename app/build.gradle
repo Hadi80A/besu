@@ -41,6 +41,7 @@ dependencies {
   implementation project(':consensus:merge')
   implementation project(':consensus:qbft')
   implementation project(':consensus:qbft-core')
+  implementation project(':consensus:pos')
   implementation project(':crypto:services')
   implementation project(':datatypes')
   implementation project(':ethereum:api')
