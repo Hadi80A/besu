@@ -51,10 +51,10 @@ public class NodeSet {
 //        .min(Comparator.comparingLong(Node::getLastJoinedHeight));
 //  }
 
-  public boolean isInCommittee(String id) {
-    Node v = validatorMap.get(id);
-    return v != null && v.isInCommittee();
-  }
+//  public boolean isInCommittee(String id) {
+//    Node v = validatorMap.get(id);
+//    return v != null && v.isInCommittee();
+//  }
 //
 //  public void markAsJoined(String id, long currentHeight) {
 //    Node v = validatorMap.get(id);
@@ -64,12 +64,12 @@ public class NodeSet {
 //    }
 //  }
 
-  public void markAsRemoved(String id) {
-    Node v = validatorMap.get(id);
-    if (v != null) {
-      v.setInCommittee(false);
-    }
-  }
+//  public void markAsRemoved(String id) {
+//    Node v = validatorMap.get(id);
+//    if (v != null) {
+//      v.setInCommittee(false);
+//    }
+//  }
 
 //  public void updateStake(String id, long amount, long height) {
 //    Node v = validatorMap.get(id);

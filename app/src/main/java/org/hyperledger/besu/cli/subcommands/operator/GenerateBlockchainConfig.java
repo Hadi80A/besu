@@ -24,6 +24,7 @@ import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.JsonGenesisConfigOptions;
 import org.hyperledger.besu.config.JsonUtil;
 import org.hyperledger.besu.consensus.ibft.IbftExtraDataCodec;
+import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPPrivateKey;
@@ -254,6 +255,11 @@ class GenerateBlockchainConfig implements Runnable {
       LOG.info("Generating QBFT extra data.");
       final String extraData =
           QbftExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
+      genesisConfig.put("extraData", extraData);
+    }else if (genesisConfigOptions.isPos()) {
+      LOG.info("Generating Pos extra data.");
+      final String extraData =
+              PosExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     }
   }

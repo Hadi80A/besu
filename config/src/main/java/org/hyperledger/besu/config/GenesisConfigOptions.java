@@ -65,6 +65,7 @@ public interface GenesisConfigOptions {
    */
   boolean isClique();
 
+  boolean isPos();
   /**
    * Is a Proof of Authority network.
    *
@@ -122,6 +123,8 @@ public interface GenesisConfigOptions {
    * @return the qbft config options
    */
   QbftConfigOptions getQbftConfigOptions();
+
+  PosConfigOptions getPosConfigOptions() ;
 
   /**
    * Gets discovery options.
@@ -595,4 +598,6 @@ public interface GenesisConfigOptions {
    * @return the blob schedule
    */
   Optional<BlobScheduleOptions> getBlobScheduleOptions();
+
+
 }

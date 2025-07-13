@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBftController;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
@@ -30,27 +31,28 @@ import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 public class PosController extends BaseBftController {
 
   private BasePosBlockHeightManager currentHeightManager;
-  private final PosBlockHeightManagerFactory ibftBlockHeightManagerFactory;
+  private final PosBlockHeightManagerFactory posBlockHeightManagerFactory;
+//  private StakeManagerInteractor stakeManager;
 
   /**
    * Instantiates a new Pos controller.
    *
-   * @param blockchain the blockchain
-   * @param bftFinalState the bft final state
-   * @param ibftBlockHeightManagerFactory the ibft block height manager factory
-   * @param gossiper the gossiper
-   * @param duplicateMessageTracker the duplicate message tracker
-   * @param futureMessageBuffer the future message buffer
-   * @param synchronizerUpdater the synchronizer updater
+   * @param blockchain                    the blockchain
+   * @param bftFinalState                 the bft final state
+   * @param posBlockHeightManagerFactory the ibft block height manager factory
+   * @param gossiper                      the gossiper
+   * @param duplicateMessageTracker       the duplicate message tracker
+   * @param futureMessageBuffer           the future message buffer
+   * @param synchronizerUpdater           the synchronizer updater
    */
   public PosController(
-      final Blockchain blockchain,
-      final BftFinalState bftFinalState,
-      final PosBlockHeightManagerFactory ibftBlockHeightManagerFactory,
-      final Gossiper gossiper,
-      final MessageTracker duplicateMessageTracker,
-      final FutureMessageBuffer futureMessageBuffer,
-      final SynchronizerUpdater synchronizerUpdater) {
+          final Blockchain blockchain,
+          final BftFinalState bftFinalState,
+          final PosBlockHeightManagerFactory posBlockHeightManagerFactory,
+          final Gossiper gossiper,
+          final MessageTracker duplicateMessageTracker,
+          final FutureMessageBuffer futureMessageBuffer,
+          final SynchronizerUpdater synchronizerUpdater) {
 
     super(
         blockchain,
@@ -59,7 +61,8 @@ public class PosController extends BaseBftController {
         duplicateMessageTracker,
         futureMessageBuffer,
         synchronizerUpdater);
-    this.ibftBlockHeightManagerFactory = ibftBlockHeightManagerFactory;
+    this.posBlockHeightManagerFactory = posBlockHeightManagerFactory;
+//    this.stakeManager=stakeManager;
   }
 
   @Override
@@ -105,14 +108,15 @@ public class PosController extends BaseBftController {
 
   @Override
   protected void createNewHeightManager(final BlockHeader parentHeader) {
-//    currentHeightManager = ibftBlockHeightManagerFactory.create(parentHeader);
+    PosBlockHeader posBlockHeader=new PosBlockHeader(parentHeader);
+    currentHeightManager = posBlockHeightManagerFactory.create(posBlockHeader);
   }
 
   @Override
   protected BaseBlockHeightManager getCurrentHeightManager() {
-//    return currentHeightManager;
-      return null;
+    return currentHeightManager;
   }
+
 
   @Override
   protected void stopCurrentHeightManager(final BlockHeader parentHeader) {

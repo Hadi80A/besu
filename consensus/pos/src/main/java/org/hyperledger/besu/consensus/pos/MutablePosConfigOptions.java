@@ -14,9 +14,11 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
+import lombok.Setter;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.bft.MutableBftConfigOptions;
+import org.hyperledger.besu.datatypes.Address;
 
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -26,17 +28,26 @@ import java.util.OptionalLong;
  * {@link ForksSchedule}.
  */
 public class MutablePosConfigOptions extends MutableBftConfigOptions implements PosConfigOptions {
-  private Optional<String> validatorContractAddress;
-
+    /**
+     * -- SETTER --
+     *  Sets validator contract address.
+     *
+     * @param validatorContractAddress the validator contract address
+     */
+    @Setter
+    private Optional<String> validatorContractAddress;
+    @Setter
+    private Address contractAddress;
   /**
-   * Instantiates a new Mutable qbft config options.
+   * Instantiates a new Mutable pos config options.
    *
-   * @param qbftConfigOptions the qbft config options
+   * @param posConfigOptions the pos config options
    */
-  public MutablePosConfigOptions(final PosConfigOptions qbftConfigOptions) {
-    super(qbftConfigOptions);
+  public MutablePosConfigOptions(final PosConfigOptions posConfigOptions) {
+    super(posConfigOptions);
     this.validatorContractAddress =
-        qbftConfigOptions.getValidatorContractAddress().map(String::toLowerCase);
+        posConfigOptions.getValidatorContractAddress().map(String::toLowerCase);
+    this.contractAddress=posConfigOptions.getContractAddress();
   }
 
   @Override
@@ -44,17 +55,13 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
     return validatorContractAddress;
   }
 
-  /**
-   * Sets validator contract address.
-   *
-   * @param validatorContractAddress the validator contract address
-   */
-  public void setValidatorContractAddress(final Optional<String> validatorContractAddress) {
-    this.validatorContractAddress = validatorContractAddress;
+    @Override
+  public OptionalLong getStartBlock() {
+    return OptionalLong.empty();
   }
 
   @Override
-  public OptionalLong getStartBlock() {
-    return OptionalLong.empty();
+  public Address getContractAddress() {
+    return contractAddress;
   }
 }

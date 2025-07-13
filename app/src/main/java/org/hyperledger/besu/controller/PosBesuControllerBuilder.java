@@ -43,15 +43,11 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidatorProvider;
-import org.hyperledger.besu.consensus.pos.PosProtocolScheduleBuilder;
+import org.hyperledger.besu.consensus.pos.*;
 import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.core.StakeInfo;
 import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
-import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
-import org.hyperledger.besu.consensus.pos.PosForksSchedulesFactory;
-import org.hyperledger.besu.consensus.pos.PosGossip;
-import org.hyperledger.besu.consensus.pos.jsonrpc.PosJsonRpcMethods;
 import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.PosBlockHeightManagerFactory;
 import org.hyperledger.besu.consensus.pos.statemachine.PosController;
@@ -80,6 +76,7 @@ import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.plugin.services.BesuEvents;
 import org.hyperledger.besu.util.Subscribers;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -113,15 +110,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     bftBlockInterface = new BftBlockInterface(bftExtraDataCodec);
   }
 
-  @Override
-  protected JsonRpcMethods createAdditionalJsonRpcMethodFactory(
-      final ProtocolContext protocolContext,
-      final ProtocolSchedule protocolSchedule,
-      final MiningConfiguration miningConfiguration) {
-    return null ;//TODO: create new instance of PosJsonRpcMethods
-      // new PosJsonRpcMethods(protocolContext, protocolSchedule, miningConfiguration);
-
-  }
 
   @Override
   protected SubProtocolConfiguration createSubProtocolConfiguration(
@@ -215,6 +203,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     final MessageFactory messageFactory = new MessageFactory(nodeKey);
     NodeSet nodeSet= createNodeSet(protocolContext);
 
+
     final BftEventHandler posController =
         new PosController(
             blockchain,
@@ -234,7 +223,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             gossiper,
             duplicateMessageTracker,
             futureMessageBuffer,
-            new EthSynchronizerUpdater(ethProtocolManager.ethContext().getEthPeers()));
+            new EthSynchronizerUpdater(ethProtocolManager.ethContext().getEthPeers())
+            );
 
     final EventMultiplexer eventMultiplexer = new EventMultiplexer(posController);
     final BftProcessor bftProcessor = new BftProcessor(bftEventQueue, eventMultiplexer);

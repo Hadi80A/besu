@@ -20,6 +20,7 @@ import java.util.OptionalLong;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
+import org.hyperledger.besu.datatypes.Address;
 
 /** The Json QBFT config options. */
 public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosConfigOptions {
@@ -32,6 +33,8 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
 
   /** The constant START_BLOCK. */
   public static final String START_BLOCK = "startblock";
+
+  public static final String CONTRACT_ADDRESS = "contractraddress";
 
   /**
    * Instantiates a new Json QBFT config options.
@@ -50,6 +53,15 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
   @Override
   public OptionalLong getStartBlock() {
     return JsonUtil.getLong(bftConfigRoot, START_BLOCK);
+  }
+
+  @Override
+  public Address getContractAddress() {
+    Optional<String> addressStr= JsonUtil.getValueAsString(bftConfigRoot, CONTRACT_ADDRESS);
+    if(addressStr.isPresent()) {
+      return Address.fromHexString(addressStr.get());
+    }
+    return Address.ZERO;
   }
 
   @Override

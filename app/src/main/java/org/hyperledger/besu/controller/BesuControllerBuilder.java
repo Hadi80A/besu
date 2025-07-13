@@ -948,7 +948,7 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
       final MetricsSystem metricsSystem,
       final Blockchain blockchain) {
 
-    if (genesisConfigOptions.isQbft() || genesisConfigOptions.isIbft2()) {
+    if (genesisConfigOptions.isQbft() || genesisConfigOptions.isIbft2() || genesisConfigOptions.isPos()) {
       LOG.info(
           "{} is configured, creating initial sync for BFT",
           genesisConfigOptions.getConsensusEngine().toUpperCase(Locale.ROOT));

@@ -43,6 +43,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String IBFT2_CONFIG_KEY = "ibft2";
   private static final String QBFT_CONFIG_KEY = "qbft";
   private static final String CLIQUE_CONFIG_KEY = "clique";
+  private static final String POS_CONFIG_KEY = "pos";
   private static final String EC_CURVE_CONFIG_KEY = "eccurve";
   private static final String TRANSITIONS_CONFIG_KEY = "transitions";
   private static final String DISCOVERY_CONFIG_KEY = "discovery";
@@ -124,6 +125,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       return QBFT_CONFIG_KEY;
     } else if (isClique()) {
       return CLIQUE_CONFIG_KEY;
+    } else if (isPos()){
+      return POS_CONFIG_KEY;
     } else {
       return "unknown";
     }
@@ -142,6 +145,11 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   @Override
   public boolean isClique() {
     return configRoot.has(CLIQUE_CONFIG_KEY);
+  }
+
+  @Override
+  public boolean isPos() {
+    return configRoot.has(POS_CONFIG_KEY);
   }
 
   @Override
@@ -179,6 +187,13 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     return JsonUtil.getObjectNode(configRoot, QBFT_CONFIG_KEY)
         .map(JsonQbftConfigOptions::new)
         .orElse(JsonQbftConfigOptions.DEFAULT);
+  }
+
+  @Override
+  public PosConfigOptions getPosConfigOptions() {
+    return JsonUtil.getObjectNode(configRoot, POS_CONFIG_KEY)
+            .map(JsonPosConfigOptions::new)
+            .orElse(JsonPosConfigOptions.DEFAULT);
   }
 
   @Override
@@ -576,6 +591,9 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
     }
     if (isQbft()) {
       builder.put("qbft", getQbftConfigOptions().asMap());
+    }
+    if (isPos()) {
+      builder.put("pos", getPosConfigOptions().asMap());
     }
 
     if (isZeroBaseFee()) {
