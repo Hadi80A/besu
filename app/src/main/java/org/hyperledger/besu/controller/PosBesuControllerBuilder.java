@@ -14,24 +14,16 @@
  */
 package org.hyperledger.besu.controller;
 
+import com.ibm.icu.math.BigDecimal;
+import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.config.BftConfigOptions;
 import org.hyperledger.besu.config.BftFork;
 import org.hyperledger.besu.consensus.common.BftValidatorOverrides;
 import org.hyperledger.besu.consensus.common.EpochManager;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.common.bft.BftContext;
-import org.hyperledger.besu.consensus.common.bft.BftEventQueue;
-import org.hyperledger.besu.consensus.common.bft.BftExecutors;
-import org.hyperledger.besu.consensus.common.bft.BftProcessor;
-import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
-import org.hyperledger.besu.consensus.common.bft.BlockTimer;
-import org.hyperledger.besu.consensus.common.bft.EthSynchronizerUpdater;
-import org.hyperledger.besu.consensus.common.bft.EventMultiplexer;
-import org.hyperledger.besu.consensus.common.bft.MessageTracker;
-import org.hyperledger.besu.consensus.common.bft.RoundTimer;
-import org.hyperledger.besu.consensus.common.bft.UniqueMessageMulticaster;
+import org.hyperledger.besu.consensus.common.bft.*;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftMiningCoordinator;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftProposerSelector;
@@ -53,6 +45,7 @@ import org.hyperledger.besu.consensus.pos.statemachine.PosBlockHeightManagerFact
 import org.hyperledger.besu.consensus.pos.statemachine.PosController;
 import org.hyperledger.besu.consensus.pos.statemachine.PosRoundFactory;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
+import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.methods.JsonRpcMethods;
@@ -73,19 +66,21 @@ import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
+import org.hyperledger.besu.evm.account.Account;
+import org.hyperledger.besu.evm.worldstate.WorldState;
 import org.hyperledger.besu.plugin.services.BesuEvents;
 import org.hyperledger.besu.util.Subscribers;
 
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.web3j.utils.Convert;
 
 /** The Pos besu controller builder. */
 public class PosBesuControllerBuilder extends BesuControllerBuilder {
@@ -281,35 +276,147 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     return posMiningCoordinator;
   }
 
-  private static NodeSet createNodeSet(ProtocolContext protocolContext) {
+  private NodeSet createNodeSet(ProtocolContext protocolContext) {
+
     WorldStateArchive worldStateArchive= protocolContext.getWorldStateArchive();
+    Blockchain blockchain = protocolContext.getBlockchain();
+    BlockHeader genesisHeader = blockchain.getBlockHeader(0)
+            .orElseThrow(()-> new RuntimeException("Genesis block not found"));
+
+    WorldState worldState = worldStateArchive.get(genesisHeader.getStateRoot(), genesisHeader.getHash())
+            .orElseThrow(() -> new RuntimeException("Genesis state not available"));
+
     NodeSet nodeSet=new NodeSet();
-    try (MutableWorldState worldState = worldStateArchive.getWorldState()) {
-      
-      worldState.streamAccounts(Bytes32.ZERO,Integer.MAX_VALUE).forEach(account -> {
-        String id="Node-"+(nodeSet.totalSize()+1);
-        if(account.getAddress().isPresent()) {
-          Address address = account.getAddress().get();
-          StakeInfo stake = StakeInfo.builder()
-                  .stakedAmount(0)
-                  .active(false)
-                  .build();
-          Node node = Node.builder()
-                  .id(id)
-                  .address(address)
-                  .inCommittee(false)
-                  .stakeInfo(stake)
-                  .blocksProposed(0)
-                  .lastProposedAt(0)
-                  .build();
-          nodeSet.addOrUpdateNode(node);
-        }
-        //        validatorAddresses.add(account.getAddress());
-      });
-    } catch (Exception e) {
-        throw new RuntimeException(e);
+
+
+// Use your custom codec to decode extraData
+    PosExtraDataCodec codec = new PosExtraDataCodec();
+    BftExtraData bftExtraData = codec.decodeRaw(genesisHeader.getExtraData());
+
+// Extract validator addresses
+    Collection<Address> validators = bftExtraData.getValidators();
+
+// 4. Contract address
+    Address stakeManager = Address.fromHexString("0x1234567890123456789012345678901234567890");
+
+    System.out.println("========== Validator Wallets ==========");
+    System.out.printf("%-20s | %-42s | %-15s | %-15s%n",
+            "Validator ID", "Address", "Balance (ETH)", "Stake (ETH)");
+    System.out.println("---------------------------------------------------------------------------");
+
+
+    int validatorCount = 0;
+    for (Address validator : validators) {
+      validatorCount++;
+      String id = "Validator-" +validatorCount;
+      // Get account balance from world state
+      Account account = worldState.get(validator);
+      BigInteger balanceWei = account != null ? account.getBalance().toBigInteger() : BigInteger.ZERO;
+
+      BigDecimal balanceEth = weiToEth(balanceWei);
+
+      // Get stake from contract
+      BigInteger stakeWei = getValidatorStake(worldState, stakeManager, validator);
+      BigDecimal stakeEth = weiToEth(stakeWei);
+
+      System.out.printf("%-20s | %-42s | %-15s | %-15s%n",
+              id,
+              validator.toHexString(),
+              balanceEth.toString(),
+              stakeEth.toString());
+
+      // Build node info (customize as needed)
+      StakeInfo stake = StakeInfo.builder()
+              .stakedAmount(0)
+              .active(false)
+              .build();
+
+      Node node = Node.builder()
+              .id(id)
+              .address(validator)
+              .inCommittee(false)
+              .stakeInfo(stake)
+              .blocksProposed(0)
+              .lastProposedAt(0)
+              .build();
+
+      nodeSet.addOrUpdateNode(node);
     }
+
+    System.out.println("Total validators: " + validators.size());
+
+//
+//    System.out.println("========== Genesis Accounts ==========");
+//    System.out.printf("%-20s | %-42s | %-20s%n", "Account ID", "Address", "Balance");
+//    System.out.println("------------------------------------------------------------");
+//
+//    AtomicInteger accountCount = new AtomicInteger(0);
+//    NodeSet nodeSet = new NodeSet();
+//
+//    worldState.streamAccounts(Bytes32.ZERO, Integer.MAX_VALUE).forEach(account -> {
+//      if (account.getAddress().isPresent()) {
+//        int count = accountCount.incrementAndGet();
+//        Address address = account.getAddress().get();
+//        String id = "Node-" + count;
+//        BigInteger balance = account.getBalance().toBigInteger();
+//
+//        // Convert wei to ETH
+//        BigDecimal balanceEth = new BigDecimal(balance)
+//                .divide(new BigDecimal(1_000_000_000_000_000_000L), 6, RoundingMode.HALF_UP.ordinal());
+//
+//        System.out.printf("%-20s | %-42s | %-20s ETH%n",
+//                id,
+//                address.toHexString(),
+//                balanceEth.toString());
+//
+//        // Build node info (customize as needed)
+//        StakeInfo stake = StakeInfo.builder()
+//                .stakedAmount(0)
+//                .active(false)
+//                .build();
+//
+//        Node node = Node.builder()
+//                .id(id)
+//                .address(address)
+//                .inCommittee(false)
+//                .stakeInfo(stake)
+//                .blocksProposed(0)
+//                .lastProposedAt(0)
+//                .build();
+//
+//        nodeSet.addOrUpdateNode(node);
+//      }
+//    });
+//
+//    System.out.println("Total genesis accounts: " + accountCount.get());
+
     return nodeSet;
+  }
+
+  private BigDecimal weiToEth(BigInteger wei) {
+    return new BigDecimal(wei)
+            .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
+  }
+
+  private BigInteger getValidatorStake(WorldState worldState, Address contractAddress, Address validatorAddress) {
+    // 1. Get contract account
+    Account contractAccount = worldState.get(contractAddress);
+    if (contractAccount == null || contractAccount.isEmpty()) {
+      System.out.println("contractAccount is null or empty");
+      return BigInteger.ZERO;
+    }
+
+    // 2. Compute storage slot for validator's stake
+    // Slot = keccak256(validatorAddress + slot_index)
+    // slot_index = 0 (first slot in the contract storage layout)
+    Bytes32 key = Bytes32.leftPad(validatorAddress);
+    Bytes32 slotIndex = Bytes32.leftPad(Bytes.of(0));  // Slot 0 for mapping
+    Bytes concatenated = Bytes.concatenate(key, slotIndex);
+    Bytes32 slotHash =Hash.keccak256(concatenated);
+
+    // 3. Read storage value at computed slot
+    UInt256 stakeValue = contractAccount.getStorageValue(UInt256.valueOf(slotHash.toUnsignedBigInteger()));
+    return stakeValue.toBigInteger();
   }
 
   @Override
