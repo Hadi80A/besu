@@ -37,7 +37,7 @@ import java.util.Optional;
 
 import org.apache.tuweni.units.bigints.UInt256;
 
-/** The Pos block header validation ruleset factory. */
+/** The Ibft block header validation ruleset factory. */
 public class PosBlockHeaderValidationRulesetFactory {
   /** Default constructor. */
   private PosBlockHeaderValidationRulesetFactory() {}
@@ -71,8 +71,8 @@ public class PosBlockHeaderValidationRulesetFactory {
                     "Difficulty", BlockHeader::getDifficulty, UInt256.ONE))
             .addRule(new ConstantFieldValidationRule<>("Nonce", BlockHeader::getNonce, 0L))
             .addRule(new BftValidatorsValidationRule())
-            .addRule(new BftCoinbaseValidationRule())
-            .addRule(new BftCommitSealsValidationRule());
+            .addRule(new BftCoinbaseValidationRule());
+//            .addRule(new BftCommitSealsValidationRule());
 
     // Currently the minimum acceptable time between blocks is 1 second. The timestamp of an
     // Ethereum header is stored as seconds since Unix epoch so blocks being produced more

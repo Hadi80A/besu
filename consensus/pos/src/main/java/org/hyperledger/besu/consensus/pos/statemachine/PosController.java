@@ -108,8 +108,8 @@ public class PosController extends BaseBftController {
 
   @Override
   protected void createNewHeightManager(final BlockHeader parentHeader) {
-    PosBlockHeader posBlockHeader=new PosBlockHeader(parentHeader);
-    currentHeightManager = posBlockHeightManagerFactory.create(posBlockHeader);
+//    PosBlockHeader posBlockHeader=new PosBlockHeader(parentHeader);
+    currentHeightManager = posBlockHeightManagerFactory.create(parentHeader);
   }
 
   @Override
@@ -120,6 +120,6 @@ public class PosController extends BaseBftController {
 
   @Override
   protected void stopCurrentHeightManager(final BlockHeader parentHeader) {
-//    currentHeightManager = ibftBlockHeightManagerFactory.createNoOpBlockHeightManager(parentHeader);
+    currentHeightManager = posBlockHeightManagerFactory.createNoOpBlockHeightManager(parentHeader);
   }
 }

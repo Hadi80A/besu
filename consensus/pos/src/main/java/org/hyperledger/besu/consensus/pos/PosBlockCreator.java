@@ -1,0 +1,79 @@
+/*
+ * Copyright contributors to Besu.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package org.hyperledger.besu.consensus.pos;
+
+import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
+import org.hyperledger.besu.consensus.common.bft.BftExtraData;
+import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+import org.hyperledger.besu.crypto.SECPSignature;
+import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
+import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
+
+import java.util.Collection;
+
+/** Adaptor class to allow a {@link BlockCreator} to be used as a {@link PosBlockCreator}. */
+public class PosBlockCreator {
+
+  private final BlockCreator besuBlockCreator;
+  private final BftExtraDataCodec bftExtraDataCodec;
+
+  /**
+   * Constructs a new PosBlockCreator
+   *
+   * @param besuBftBlockCreator the Besu BFT block creator
+   * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
+   */
+  public PosBlockCreator(
+      final BlockCreator besuBftBlockCreator, final BftExtraDataCodec bftExtraDataCodec) {
+    this.besuBlockCreator = besuBftBlockCreator;
+    this.bftExtraDataCodec = bftExtraDataCodec;
+  }
+
+  public PosBlock createBlock(
+      final long headerTimeStampSeconds, final PosBlockHeader parentHeader) {
+    var blockResult =
+        besuBlockCreator.createBlock(
+            headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
+    return new PosBlock(blockResult.getBlock());
+  }
+
+  public PosBlock createSealedBlock(
+      final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals) {
+    final Block besuBlock = BlockUtil.toBesuBlock(block);
+    final PosBlockHeader initialHeader = block.getHeader();
+    final BftExtraData initialExtraData =
+        bftExtraDataCodec.decode(BlockUtil.toBesuBlockHeader(initialHeader));
+
+    final BftExtraData sealedExtraData =
+        new BftExtraData(
+            initialExtraData.getVanityData(),
+            commitSeals,
+            initialExtraData.getVote(),
+            roundNumber,
+            initialExtraData.getValidators());
+
+    final BlockHeader sealedHeader =
+        BlockHeaderBuilder.fromHeader(BlockUtil.toBesuBlockHeader(initialHeader))
+            .extraData(bftExtraDataCodec.encode(sealedExtraData))
+            .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(bftExtraDataCodec))
+            .buildBlockHeader();
+    final Block sealedBesuBlock = new Block(sealedHeader, besuBlock.getBody());
+    return new PosBlock(sealedBesuBlock);
+  }
+}

@@ -118,7 +118,11 @@ public class Proposal extends BftMessage<ProposalPayload> {
     return new Proposal(payload, proposedBlock);//, roundChangeCertificate
   }
 
-//  private static Optional<RoundChangeCertificate> readRoundChangeCertificate(final RLPInput rlpIn) {
+  public Block getProposedBlock() {
+    return proposedBlock;
+  }
+
+  //  private static Optional<RoundChangeCertificate> readRoundChangeCertificate(final RLPInput rlpIn) {
 //    RoundChangeCertificate roundChangeCertificate = null;
 //    if (!rlpIn.nextIsNull()) {
 //      roundChangeCertificate = RoundChangeCertificate.readFrom(rlpIn);
