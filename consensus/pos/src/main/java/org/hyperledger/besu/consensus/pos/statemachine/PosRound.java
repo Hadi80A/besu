@@ -14,37 +14,44 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHashing;
-import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.common.bft.BftContext;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.pos.core.NodeSet;
+import org.hyperledger.besu.consensus.pos.core.StakeInfo;
 import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
+import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
+import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
+import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
-import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
+import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
+import org.hyperledger.besu.evm.account.Account;
+import org.hyperledger.besu.evm.worldstate.WorldState;
 import org.hyperledger.besu.util.Subscribers;
-
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
 
 /** The Pos round. */
 public class PosRound {
@@ -57,6 +64,9 @@ public class PosRound {
 
   /** The protocol context. */
   protected final ProtocolContext protocolContext;
+
+  protected final NodeSet nodeSet;
+  protected final ContractCaller contractCaller;
 
   private final ProtocolSchedule protocolSchedule;
   private final NodeKey nodeKey;
@@ -91,7 +101,9 @@ public class PosRound {
 //          final PosMessageTransmitter transmitter,
           final RoundTimer roundTimer,
           final BftExtraDataCodec bftExtraDataCodec,
-          final BlockHeader parentHeader) {
+          final BlockHeader parentHeader,
+          final ContractCaller contractCaller, NodeSet nodeSet
+  ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
     this.protocolContext = protocolContext;
@@ -102,7 +114,9 @@ public class PosRound {
 //    this.transmitter = transmitter;
     this.bftExtraDataCodec = bftExtraDataCodec;
     this.parentHeader = parentHeader;
-    roundTimer.startTimer(getRoundIdentifier());
+      this.contractCaller = contractCaller;
+      this.nodeSet = nodeSet;
+      roundTimer.startTimer(getRoundIdentifier());
   }
 
   /**
@@ -124,18 +138,80 @@ public class PosRound {
             blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader).getBlock();
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
     importBlockToChain(block);
+    updateRound(block);
+    printStake(block);
     LOG.debug("Creating proposed block. round={}", roundState.getRoundIdentifier());
     LOG.trace(
             "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
 //    updateStateWithProposalAndTransmit(block, Optional.empty());
+
   }
 
-  /**
-   * Start round with.
-   *
-   * @param roundChangeArtifacts the round change artifacts
-   * @param headerTimestamp the header timestamp
-   */
+  private void printStake(Block block){
+    WorldStateArchive worldStateArchive = protocolContext.getWorldStateArchive();
+    Blockchain blockchain = protocolContext.getBlockchain();
+
+    BlockHeader header =block.getHeader();
+
+    WorldState worldState =
+            worldStateArchive
+                    .get(header.getStateRoot(), header.getHash())
+                    .orElseThrow(() -> new RuntimeException("Genesis state not available"));
+    Address nodeAddress= Util.publicKeyToAddress(nodeKey.getPublicKey());
+    Account account = worldState.get(nodeAddress);
+    BigInteger balanceWei =
+            account != null ? account.getBalance().toBigInteger() : BigInteger.ZERO;
+
+    BigDecimal balanceEth = weiToEth(balanceWei);
+    Address stakeManager = Address.fromHexString("0x1234567890123456789012345678901234567890");
+
+    // Get stake from contract
+    BigInteger stakeWei = getValidatorStake(worldState, stakeManager, nodeAddress);
+    BigDecimal stakeEth = weiToEth(stakeWei);
+    System.out.printf(
+            "%-20s | %-42s | %-15s | %-15s%n",
+            "Validator ID", "Address", "Balance (ETH)", "Stake (ETH)");
+    System.out.println(
+            "---------------------------------------------------------------------------");
+    System.out.printf(
+            "%-20s | %-42s | %-15s | %-15s%n",
+            0, nodeAddress.toHexString(), balanceEth.toString(), stakeEth.toString());
+  }
+
+  private BigDecimal weiToEth(BigInteger wei) {
+    return new BigDecimal(wei)
+            .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
+  }
+
+  private BigInteger getValidatorStake(
+          WorldState worldState, Address contractAddress, Address validatorAddress) {
+    // 1. Get contract account
+    Account contractAccount = worldState.get(contractAddress);
+    if (contractAccount == null || contractAccount.isEmpty()) {
+      System.out.println("contractAccount is null or empty");
+      return BigInteger.ZERO;
+    }
+
+    // 2. Compute storage slot for validator's stake
+    // Slot = keccak256(validatorAddress + slot_index)
+    // slot_index = 0 (first slot in the contract storage layout)
+    Bytes32 key = Bytes32.leftPad(validatorAddress);
+    Bytes32 slotIndex = Bytes32.leftPad(Bytes.of(0)); // Slot 0 for mapping
+    Bytes concatenated = Bytes.concatenate(key, slotIndex);
+    Bytes32 slotHash = org.hyperledger.besu.crypto.Hash.keccak256(concatenated);
+
+    // 3. Read storage value at computed slot
+    UInt256 stakeValue =
+            contractAccount.getStorageValue(UInt256.valueOf(slotHash.toUnsignedBigInteger()));
+    return stakeValue.toBigInteger();
+  }
+//
+//  /**
+//   * Start round with.
+//   *
+//   * @param roundChangeArtifacts the round change artifacts
+//   * @param headerTimestamp the header timestamp
+//   */
 //  public void startRoundWith(
 //          /*final RoundChangeArtifacts roundChangeArtifacts,*/ final long headerTimestamp) {
 ////    final Optional<Block> bestBlockFromRoundChange = roundChangeArtifacts.getBlock();
@@ -176,12 +252,12 @@ public class PosRound {
 //            proposal.getRoundIdentifier(), proposal.getBlock(), proposal.getRoundChangeCertificate());
 //    updateStateWithProposedBlock(proposal);
 //  }
-
-  /**
-   * Handle proposal message.
-   *
-   * @param msg the msg
-   */
+//
+//  /**
+//   * Handle proposal message.
+//   *
+//   * @param msg the msg
+//   */
 //  public void handleProposalMessage(final Proposal msg) {
 //    LOG.debug("Received a proposal message. round={}", roundState.getRoundIdentifier());
 //    final Block block = msg.getBlock();
@@ -200,31 +276,31 @@ public class PosRound {
 //    }
 //  }
 
-  /**
-   * Handle prepare message.
-   *
-   * @param msg the msg
-   */
+//  /**
+//   * Handle prepare message.
+//   *
+//   * @param msg the msg
+//   */
 //  public void handlePrepareMessage(final Prepare msg) {
 //    LOG.debug("Received a prepare message. round={}", roundState.getRoundIdentifier());
 //    peerIsPrepared(msg);
 //  }
 
-  /**
-   * Handle commit message.
-   *
-   * @param msg the msg
-   */
+//  /**
+//   * Handle commit message.
+//   *
+//   * @param msg the msg
+//   */
 //  public void handleCommitMessage(final Commit msg) {
 //    LOG.debug("Received a commit message. round={}", roundState.getRoundIdentifier());
 //    peerIsCommitted(msg);
 //  }
 
-  /**
-   * Construct prepared round artifacts.
-   *
-   * @return the optional prepared round artifacts
-   */
+//  /**
+//   * Construct prepared round artifacts.
+//   *
+//   * @return the optional prepared round artifacts
+//   */
 //  public Optional<PreparedRoundArtifacts> constructPreparedRoundArtifacts() {
 //    return roundState.constructPreparedRoundArtifacts();
 //  }
@@ -382,5 +458,17 @@ public class PosRound {
 
   private void notifyNewBlockListeners(final Block block) {
     observers.forEach(obs -> obs.blockMined(block));
+  }
+
+  private void updateNodes(Block currentBlock){
+    nodeSet.getAllNodes().forEach(node -> {
+      BigInteger newStake= contractCaller.getValidatorStake(node.getAddress(),currentBlock);
+      StakeInfo stakeInfo = new StakeInfo(newStake.longValue());
+      node.setStakeInfo(stakeInfo);
+    });
+  }
+
+  private void updateRound(Block block){
+    updateNodes(block);
   }
 }

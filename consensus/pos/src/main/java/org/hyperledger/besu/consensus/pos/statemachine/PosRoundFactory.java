@@ -19,6 +19,7 @@ import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
+import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -38,6 +39,8 @@ public class PosRoundFactory {
     private final MessageValidatorFactory messageValidatorFactory;
     private final MessageFactory messageFactory;
     private final BftExtraDataCodec bftExtraDataCodec;
+    private final ContractCaller contractCaller;
+    private final NodeSet nodeSet;
 
     /**
      * Instantiates a new Pos round factory.
@@ -57,7 +60,7 @@ public class PosRoundFactory {
             final Subscribers<MinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
-            final BftExtraDataCodec bftExtraDataCodec) {
+            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet) {
         this.finalState = finalState;
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
@@ -66,6 +69,8 @@ public class PosRoundFactory {
         this.messageValidatorFactory = messageValidatorFactory;
         this.messageFactory = messageFactory;
         this.bftExtraDataCodec = bftExtraDataCodec;
+        this.contractCaller = contractCaller;
+        this.nodeSet = nodeSet;
     }
 
     /**
@@ -115,6 +120,8 @@ public class PosRoundFactory {
 //                messageTransmitter,
                 finalState.getRoundTimer(),
                 bftExtraDataCodec,
-                parentHeader);
+                parentHeader,
+                contractCaller,
+                nodeSet);
     }
 }

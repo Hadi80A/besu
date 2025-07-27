@@ -34,7 +34,7 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
   /** The constant START_BLOCK. */
   public static final String START_BLOCK = "startblock";
 
-  public static final String CONTRACT_ADDRESS = "contractraddress";
+  public static final String CONTRACT_ADDRESS = "contractaddress";
 
   /**
    * Instantiates a new Json QBFT config options.

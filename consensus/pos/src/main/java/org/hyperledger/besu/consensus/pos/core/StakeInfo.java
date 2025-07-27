@@ -25,7 +25,7 @@ public class StakeInfo {
 //  private long withdrawableHeight;
 
   /** Flag indicating if stake is currently active in the validator set. */
-  private boolean active;
+//  private boolean active;
 
   /** Optional: Flag for whether the validator has initiated unbonding. */
 //  private boolean unbonding;

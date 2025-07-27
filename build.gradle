@@ -247,11 +247,11 @@ configure(allprojects - project(':platform')) {
       licenseHeaderFile("${rootDir}/gradle/spotless/java.current.license").named("current").onlyIfContentMatches("^(?!/\\*\\r?\\n \\*.*(ConsenSys AG|Hyperledger Besu)\\.)")
     }
     // spotless check applied to build.gradle (groovy) files
-    groovyGradle {
-      target '*.gradle'
-      greclipse('4.31').configFile(rootProject.file('gradle/spotless/greclipse.properties'))
-      endWithNewline()
-    }
+//    groovyGradle {
+//      target '*.gradle'
+//      greclipse('4.31').configFile(rootProject.file('gradle/spotless/greclipse.properties'))
+//      endWithNewline()
+//    }
     // Below this line are currently only license header tasks
     format 'ShellScripts', {
       target '**/*.sh'

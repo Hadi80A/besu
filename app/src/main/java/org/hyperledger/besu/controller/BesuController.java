@@ -353,8 +353,7 @@ public class BesuController implements java.io.Closeable {
         builder = new CliqueBesuControllerBuilder();
       } else if (configOptions.isPos()) {
         builder = new PosBesuControllerBuilder();
-      }
-      else {
+      } else {
         throw new IllegalArgumentException("Unknown consensus mechanism defined");
       }
 

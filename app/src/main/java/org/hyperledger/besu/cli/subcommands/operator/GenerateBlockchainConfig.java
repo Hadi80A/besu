@@ -256,10 +256,10 @@ class GenerateBlockchainConfig implements Runnable {
       final String extraData =
           QbftExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
-    }else if (genesisConfigOptions.isPos()) {
+    } else if (genesisConfigOptions.isPos()) {
       LOG.info("Generating Pos extra data.");
       final String extraData =
-              PosExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
+          PosExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     }
   }

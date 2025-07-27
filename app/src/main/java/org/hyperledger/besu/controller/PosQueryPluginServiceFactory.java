@@ -15,15 +15,9 @@
 package org.hyperledger.besu.controller;
 
 import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.common.bft.queries.BftQueryServiceImpl;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
-import org.hyperledger.besu.consensus.ibft.queries.IbftQueryServiceImpl;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
-import org.hyperledger.besu.plugin.services.metrics.PoAMetricsService;
-import org.hyperledger.besu.plugin.services.query.BftQueryService;
-import org.hyperledger.besu.plugin.services.query.IbftQueryService;
-import org.hyperledger.besu.plugin.services.query.PoaQueryService;
 import org.hyperledger.besu.services.BesuPluginContextImpl;
 
 /** The IBFT query plugin service factory. */
@@ -55,14 +49,15 @@ public class PosQueryPluginServiceFactory implements PluginServiceFactory {
 
   @Override
   public void appendPluginServices(final BesuPluginContextImpl besuContext) {
-//    final IbftQueryServiceImpl service =
-//        new IbftQueryServiceImpl(blockInterface, blockchain, nodeKey);
-//    besuContext.addService(IbftQueryService.class, service);
-//    besuContext.addService(PoaQueryService.class, service);
-//    besuContext.addService(PoAMetricsService.class, service);
-//
-//    final BftQueryServiceImpl bftService =
-//        new BftQueryServiceImpl(blockInterface, blockchain, validatorProvider, nodeKey, "ibft");
-//    besuContext.addService(BftQueryService.class, bftService);
+    //    final IbftQueryServiceImpl service =
+    //        new IbftQueryServiceImpl(blockInterface, blockchain, nodeKey);
+    //    besuContext.addService(IbftQueryService.class, service);
+    //    besuContext.addService(PoaQueryService.class, service);
+    //    besuContext.addService(PoAMetricsService.class, service);
+    //
+    //    final BftQueryServiceImpl bftService =
+    //        new BftQueryServiceImpl(blockInterface, blockchain, validatorProvider, nodeKey,
+    // "ibft");
+    //    besuContext.addService(BftQueryService.class, bftService);
   }
 }
