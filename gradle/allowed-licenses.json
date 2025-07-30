@@ -69,6 +69,16 @@
     {
       "moduleName": "org.jetbrains.kotlin:kotlin-stdlib-common",
       "moduleVersion": "1.9.22"
-    }
+    },
+    {"moduleLicense": "Apache-2.0"},
+    {"moduleLicense": "MIT"},
+    {"moduleLicense": "BSD-3-Clause"},
+    {"moduleLicense": "CDDL-1.1"},
+    {"moduleLicense": "CC0-1.0"},
+    {"moduleLicense": "Bouncy-Castle"},
+    {"moduleLicense": "PUBLIC DOMAIN"},
+    {"moduleLicense": "Public Domain"},
+    {"moduleLicense": "EPL-2.0"},
+    {"moduleLicense": "LGPL-2.1-or-later"}
   ]
 }

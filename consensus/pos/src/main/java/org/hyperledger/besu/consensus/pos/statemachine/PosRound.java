@@ -139,7 +139,7 @@ public class PosRound {
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
     importBlockToChain(block);
     updateRound(block);
-    printStake(block);
+    printAllStake();
     LOG.debug("Creating proposed block. round={}", roundState.getRoundIdentifier());
     LOG.trace(
             "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
@@ -176,6 +176,24 @@ public class PosRound {
     System.out.printf(
             "%-20s | %-42s | %-15s | %-15s%n",
             0, nodeAddress.toHexString(), balanceEth.toString(), stakeEth.toString());
+  }
+
+  private void printAllStake(){
+
+    System.out.printf(
+            "%-20s | %-42s | %-15s%n",
+            "Validator ID", "Address", "Stake (ETH)");
+    System.out.println(
+            "---------------------------------------------------------------------------");
+    nodeSet.getAllNodes().forEach(node -> {
+      long stakedWei = node.getStakeInfo().getStakedAmount();
+      BigDecimal stakeEth = weiToEth(BigInteger.valueOf(stakedWei));
+      System.out.printf(
+              "%-20s | %-42s |  %-15s%n",
+              node.getId(), node.getAddress().toHexString(), stakeEth.toString());
+    });
+
+
   }
 
   private BigDecimal weiToEth(BigInteger wei) {

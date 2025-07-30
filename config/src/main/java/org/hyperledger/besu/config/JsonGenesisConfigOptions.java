@@ -125,7 +125,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       return QBFT_CONFIG_KEY;
     } else if (isClique()) {
       return CLIQUE_CONFIG_KEY;
-    } else if (isPos()){
+    } else if (isPos()) {
       return POS_CONFIG_KEY;
     } else {
       return "unknown";
@@ -192,8 +192,8 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   @Override
   public PosConfigOptions getPosConfigOptions() {
     return JsonUtil.getObjectNode(configRoot, POS_CONFIG_KEY)
-            .map(JsonPosConfigOptions::new)
-            .orElse(JsonPosConfigOptions.DEFAULT);
+        .map(JsonPosConfigOptions::new)
+        .orElse(JsonPosConfigOptions.DEFAULT);
   }
 
   @Override

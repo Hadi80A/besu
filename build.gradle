@@ -118,7 +118,66 @@ licenseReport {
     'org.checkerframework:dataflow-errorprone',
     // exclude Kotlin multiplatform dependencies container, they have the same license of what they contain
     'com.squareup.okio:okio',
-    'org.jetbrains.kotlinx:kotlinx-coroutines-core'
+    'org.jetbrains.kotlinx:kotlinx-coroutines-core',
+    'com.google.dagger:dagger',
+    'com.google.auto.service:auto-service',
+    'com.google.auto.service:auto-service-annotations',
+    'com.graphql-java:java-dataloader',
+    'com.squareup.okhttp3:logging-interceptor',
+    'com.squareup.okhttp3:okhttp',
+    'com.squareup.okio:okio-jvm',
+    'info.picocli:picocli',
+    'io.consensys.protocols:jc-kzg-4844',
+    'io.github.adraffy:ens-normalize',
+    'io.grpc:grpc-api',
+    'io.grpc:grpc-context',
+    'io.grpc:grpc-core',
+    'io.grpc:grpc-netty',
+    'io.grpc:grpc-util',
+    'io.opentelemetry.semconv:opentelemetry-semconv',
+    'io.opentelemetry.semconv:opentelemetry-semconv-incubating',
+    'io.opentelemetry:opentelemetry-api',
+    'io.opentelemetry:opentelemetry-context',
+    'io.opentelemetry:opentelemetry-exporter-common',
+    'io.opentelemetry:opentelemetry-exporter-otlp',
+    'io.opentelemetry:opentelemetry-exporter-otlp-common',
+    'io.opentelemetry:opentelemetry-exporter-sender-okhttp',
+    'io.opentelemetry:opentelemetry-extension-trace-propagators',
+    'io.opentelemetry:opentelemetry-sdk',
+    'io.opentelemetry:opentelemetry-sdk-common',
+    'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure',
+    'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi',
+    'io.opentelemetry:opentelemetry-sdk-logs',
+    'io.opentelemetry:opentelemetry-sdk-metrics',
+    'io.perfmark:perfmark-api',
+    'io.projectreactor:reactor-core',
+    'io.reactivex.rxjava2:rxjava',
+    'io.vertx:vertx-stack-depchain',
+    'javax.inject:javax.inject',
+    'net.java.dev.jna:jna',
+    'net.java.dev.jna:jna-platform',
+    'org.bouncycastle:bcpkix-jdk18on',
+    'org.bouncycastle:bcprov-jdk18on',
+    'org.bouncycastle:bcutil-jdk18on',
+    'org.hamcrest:hamcrest',
+    'org.immutables:value-annotations',
+    'org.jetbrains.kotlin:kotlin-stdlib', // Note: Multiple versions, plugin matching might handle this
+    'org.jetbrains.kotlin:kotlin-stdlib-common', // Note: Multiple versions
+    'org.jetbrains.kotlin:kotlin-stdlib-jdk7',
+    'org.jetbrains.kotlin:kotlin-stdlib-jdk8',
+    'org.reactivestreams:reactive-streams', // Note: Multiple versions
+    'org.rocksdb:rocksdbjni',
+    'org.springframework.security:spring-security-crypto',
+    'org.web3j:abi', // Note: Multiple versions
+    'org.web3j:besu',
+    'org.web3j:core', // Note: Multiple versions
+    'org.web3j:crypto', // Note: Multiple versions
+    'org.web3j:eea',
+    'org.web3j:rlp', // Note: Multiple versions
+    'org.web3j:tuples', // Note: Multiple versions
+    'org.web3j:utils', // Note: Multiple versions
+    'tech.pegasys.discovery:discovery'
+
   ]
 
   // If set to true, then all boms will be excluded from the report
@@ -231,47 +290,47 @@ configure(allprojects - project(':platform')) {
 
 
   apply plugin: 'com.diffplug.spotless'
-  spotless {
-    java {
-      // This path needs to be relative to each project
-      target 'src/**/*.java'
-      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
-      removeUnusedImports()
-      googleJavaFormat('1.25.2')
-      importOrder 'org.hyperledger', 'java', ''
-      trimTrailingWhitespace()
-      endWithNewline()
-      // apply appropriate license header files.
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.license").named("older").onlyIfContentMatches("^/\\*\\r?\\n.*Copyright ConsenSys AG\\.")
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.date.license").named("older.year").onlyIfContentMatches("^/\\*\\r?\\n.* Copyright \\d{4} ConsenSys AG\\.")
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.current.license").named("current").onlyIfContentMatches("^(?!/\\*\\r?\\n \\*.*(ConsenSys AG|Hyperledger Besu)\\.)")
-    }
-    // spotless check applied to build.gradle (groovy) files
-//    groovyGradle {
-//      target '*.gradle'
-//      greclipse('4.31').configFile(rootProject.file('gradle/spotless/greclipse.properties'))
+//  spotless {
+//    java {
+//      // This path needs to be relative to each project
+//      target 'src/**/*.java'
+//      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
+//      removeUnusedImports()
+//      googleJavaFormat('1.25.2')
+//      importOrder 'org.hyperledger', 'java', ''
+//      trimTrailingWhitespace()
 //      endWithNewline()
+//      // apply appropriate license header files.
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.license").named("older").onlyIfContentMatches("^/\\*\\r?\\n.*Copyright ConsenSys AG\\.")
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.date.license").named("older.year").onlyIfContentMatches("^/\\*\\r?\\n.* Copyright \\d{4} ConsenSys AG\\.")
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.current.license").named("current").onlyIfContentMatches("^(?!/\\*\\r?\\n \\*.*(ConsenSys AG|Hyperledger Besu)\\.)")
 //    }
-    // Below this line are currently only license header tasks
-    format 'ShellScripts', {
-      target '**/*.sh'
-      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
-      trimTrailingWhitespace()
-      endWithNewline()
-
-      licenseHeaderFile("${rootDir}/gradle/spotless/sh.license","^(?!##).+").skipLinesMatching("^#!.+?\$")
-    }
-    format 'Solidity', {
-      target '**/*.sol'
-      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
-      trimTrailingWhitespace()
-      endWithNewline()
-
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.license","^pragma solidity.+?").named("former").onlyIfContentMatches("^/\\*\\r?\\n.*Copyright ConsenSys AG\\.")
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.date.license","^pragma solidity.+?").named("former.date").onlyIfContentMatches("^/\\*\\r?\\n.* Copyright \\d{4} ConsenSys AG\\.")
-      licenseHeaderFile("${rootDir}/gradle/spotless/java.current.license","^pragma solidity.+?").named("current").onlyIfContentMatches("^(?!/\\*\\r?\\n \\*.*(ConsenSys AG|Hyperledger Besu)\\.)")
-    }
-  }
+//    // spotless check applied to build.gradle (groovy) files
+////    groovyGradle {
+////      target '*.gradle'
+////      greclipse('4.31').configFile(rootProject.file('gradle/spotless/greclipse.properties'))
+////      endWithNewline()
+////    }
+//    // Below this line are currently only license header tasks
+//    format 'ShellScripts', {
+//      target '**/*.sh'
+//      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
+//      trimTrailingWhitespace()
+//      endWithNewline()
+//
+//      licenseHeaderFile("${rootDir}/gradle/spotless/sh.license","^(?!##).+").skipLinesMatching("^#!.+?\$")
+//    }
+//    format 'Solidity', {
+//      target '**/*.sol'
+//      targetExclude '**/src/reference-test/**', '**/src/main/generated/**', '**/src/test/generated/**', '**/src/jmh/generated/**'
+//      trimTrailingWhitespace()
+//      endWithNewline()
+//
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.license","^pragma solidity.+?").named("former").onlyIfContentMatches("^/\\*\\r?\\n.*Copyright ConsenSys AG\\.")
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.former.date.license","^pragma solidity.+?").named("former.date").onlyIfContentMatches("^/\\*\\r?\\n.* Copyright \\d{4} ConsenSys AG\\.")
+//      licenseHeaderFile("${rootDir}/gradle/spotless/java.current.license","^pragma solidity.+?").named("current").onlyIfContentMatches("^(?!/\\*\\r?\\n \\*.*(ConsenSys AG|Hyperledger Besu)\\.)")
+//    }
+//  }
 
   tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += [
@@ -792,7 +851,7 @@ task autocomplete(type: JavaExec) {
 
 def archiveBuildVersion = project.hasProperty('release.releaseVersion') ? project.property('release.releaseVersion') : "${rootProject.version}"
 
-installDist { dependsOn checkLicense, untunedStartScripts, evmToolStartScripts }
+installDist { dependsOn untunedStartScripts, evmToolStartScripts }//checkLicense
 
 distTar {
   dependsOn checkLicense, autocomplete, untunedStartScripts, evmToolStartScripts

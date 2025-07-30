@@ -15,43 +15,48 @@
 package org.hyperledger.besu.consensus.pos.messagedata;
 
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-//import org.hyperledger.besu.consensus.ibft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
 import org.apache.tuweni.bytes.Bytes;
 
-/** The Proposal message data. */
-public class ProposalMessageData extends AbstractBftMessageData {
+/** The Vote message data. */
+public class VoteMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = Pos.PROPOSAL;
+  private static final int MESSAGE_CODE = Pos.COMMIT;
 
-  private ProposalMessageData(final Bytes data) {
+  private VoteMessageData(final Bytes data) {
     super(data);
   }
 
   /**
-   * From message data create proposal message data.
+   * Instantiate VoteMessageData from message data.
    *
    * @param messageData the message data
-   * @return the proposal message data
+   * @return the vote message data
    */
-  public static ProposalMessageData fromMessageData(final MessageData messageData) {
+  public static VoteMessageData fromMessageData(final MessageData messageData) {
     return fromMessageData(
-        messageData, MESSAGE_CODE, ProposalMessageData.class, ProposalMessageData::new);
+        messageData, MESSAGE_CODE, VoteMessageData.class, VoteMessageData::new);
   }
 
   /**
    * Decode.
    *
-   * @return the proposal
+   * @return the vote
    */
-  public Proposal decode() {
-    return Proposal.decode(data);
+  public Vote decode() {
+    return Vote.decode(data);
   }
 
-  public static ProposalMessageData create(final Proposal proposal) {
-    return new ProposalMessageData(proposal.encode());
+  /**
+   * Create vote message data.
+   *
+   * @param vote the vote
+   * @return the vote message data
+   */
+  public static VoteMessageData create(final Vote vote) {
+    return new VoteMessageData(vote.encode());
   }
 
   @Override

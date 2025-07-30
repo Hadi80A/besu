@@ -31,12 +31,11 @@ import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 
 /** The Proposal. */
+
 public class Proposal extends BftMessage<ProposalPayload> {
 
   private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
   private final Block proposedBlock;
-
-//  private final Optional<RoundChangeCertificate> roundChangeCertificate;
 
   /**
    * Instantiates a new Proposal.
@@ -46,13 +45,11 @@ public class Proposal extends BftMessage<ProposalPayload> {
 //   * @param certificate the certificate
    */
   public Proposal(
-      final SignedData<ProposalPayload> payload,
-      final Block proposedBlock
-//      final Optional<RoundChangeCertificate> certificate
+          final SignedData<ProposalPayload> payload,
+          final Block proposedBlock
   ) {
     super(payload);
     this.proposedBlock = proposedBlock;
-//    this.roundChangeCertificate = certificate;
   }
 
   /**
@@ -64,14 +61,6 @@ public class Proposal extends BftMessage<ProposalPayload> {
     return proposedBlock;
   }
 
-  /**
-   * Gets digest.
-   *
-   * @return the digest
-   */
-  public Hash getDigest() {
-    return getPayload().getDigest();
-  }
 
   /**
    * Gets round change certificate.
@@ -88,11 +77,6 @@ public class Proposal extends BftMessage<ProposalPayload> {
     rlpOut.startList();
     getSignedPayload().writeTo(rlpOut);
     proposedBlock.writeTo(rlpOut);
-//    if (roundChangeCertificate.isPresent()) {
-//      roundChangeCertificate.get().writeTo(rlpOut);
-//    } else {
-//      rlpOut.writeNull();
-//    }
     rlpOut.endList();
     return rlpOut.encoded();
   }
@@ -110,26 +94,12 @@ public class Proposal extends BftMessage<ProposalPayload> {
         PayloadDeserializers.readSignedProposalPayloadFrom(rlpIn);
     final Block proposedBlock =
         Block.readFrom(rlpIn, BftBlockHeaderFunctions.forCommittedSeal(BFT_EXTRA_DATA_ENCODER));
-
-//    final Optional<RoundChangeCertificate> roundChangeCertificate =
-//        readRoundChangeCertificate(rlpIn);
-
     rlpIn.leaveList();
-    return new Proposal(payload, proposedBlock);//, roundChangeCertificate
+    return new Proposal(payload, proposedBlock);
   }
 
   public Block getProposedBlock() {
     return proposedBlock;
   }
 
-  //  private static Optional<RoundChangeCertificate> readRoundChangeCertificate(final RLPInput rlpIn) {
-//    RoundChangeCertificate roundChangeCertificate = null;
-//    if (!rlpIn.nextIsNull()) {
-//      roundChangeCertificate = RoundChangeCertificate.readFrom(rlpIn);
-//    } else {
-//      rlpIn.skipNext();
-//    }
-//
-//    return Optional.ofNullable(roundChangeCertificate);
-//  }
 }

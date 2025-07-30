@@ -14,13 +14,14 @@
  */
 package org.hyperledger.besu.config;
 
+import org.hyperledger.besu.datatypes.Address;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
-import org.hyperledger.besu.datatypes.Address;
 
 /** The Json QBFT config options. */
 public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosConfigOptions {
@@ -57,8 +58,8 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
 
   @Override
   public Address getContractAddress() {
-    Optional<String> addressStr= JsonUtil.getValueAsString(bftConfigRoot, CONTRACT_ADDRESS);
-    if(addressStr.isPresent()) {
+    Optional<String> addressStr = JsonUtil.getValueAsString(bftConfigRoot, CONTRACT_ADDRESS);
+    if (addressStr.isPresent()) {
       return Address.fromHexString(addressStr.get());
     }
     return Address.ZERO;

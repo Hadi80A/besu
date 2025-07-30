@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.Pos;
@@ -25,21 +27,13 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 /** The Proposal payload. */
+@AllArgsConstructor
+@Getter
 public class ProposalPayload extends PosPayload {
   private static final int TYPE = Pos.PROPOSAL;
   private final ConsensusRoundIdentifier roundIdentifier;
-  private final Hash digest;
-
-  /**
-   * Instantiates a new Proposal payload.
-   *
-   * @param roundIdentifier the round identifier
-   * @param digest the digest
-   */
-  public ProposalPayload(final ConsensusRoundIdentifier roundIdentifier, final Hash digest) {
-    this.roundIdentifier = roundIdentifier;
-    this.digest = digest;
-  }
+  private long height = -1;
+//  private vrf leader
 
   /**
    * Read from rlp input and return proposal payload.
@@ -50,17 +44,17 @@ public class ProposalPayload extends PosPayload {
   public static ProposalPayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final Hash digest = Hash.wrap(rlpInput.readBytes32());
+    final long height = rlpInput.readLong();
     rlpInput.leaveList();
 
-    return new ProposalPayload(roundIdentifier, digest);
+    return new ProposalPayload(roundIdentifier,height);
   }
 
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
     rlpOutput.startList();
     roundIdentifier.writeTo(rlpOutput);
-    rlpOutput.writeBytes(digest);
+    rlpOutput.writeLong(height);
     rlpOutput.endList();
   }
 
@@ -69,19 +63,12 @@ public class ProposalPayload extends PosPayload {
    *
    * @return the digest
    */
-  public Hash getDigest() {
-    return digest;
-  }
 
   @Override
   public int getMessageType() {
     return TYPE;
   }
 
-  @Override
-  public ConsensusRoundIdentifier getRoundIdentifier() {
-    return roundIdentifier;
-  }
 
   @Override
   public boolean equals(final Object o) {
@@ -93,19 +80,19 @@ public class ProposalPayload extends PosPayload {
     }
     final ProposalPayload that = (ProposalPayload) o;
     return Objects.equals(roundIdentifier, that.roundIdentifier)
-        && Objects.equals(digest, that.digest);
+        && Objects.equals(height, that.height);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(roundIdentifier, digest);
+    return Objects.hash(roundIdentifier, height);
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", ProposalPayload.class.getSimpleName() + "[", "]")
         .add("roundIdentifier=" + roundIdentifier)
-        .add("digest=" + digest)
+        .add("digest=" + height)
         .toString();
   }
 }

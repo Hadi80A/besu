@@ -196,7 +196,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey);
     NodeSet nodeSet = createNodeSet(protocolContext);
-    ContractCaller contractCaller=new ContractCaller(posConfig.getContractAddress(),protocolContext);
+    ContractCaller contractCaller =
+        new ContractCaller(posConfig.getContractAddress(), protocolContext);
     final BftEventHandler posController =
         new PosController(
             blockchain,
@@ -300,7 +301,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     Collection<Address> validators = bftExtraData.getValidators();
 
     // 4. Contract address
-//    Address stakeManager = Address.fromHexString("0x1234567890123456789012345678901234567890");
+    //    Address stakeManager =
+    // Address.fromHexString("0x1234567890123456789012345678901234567890");
     Address stakeManager = posConfig.getContractAddress();
 
     System.out.println("========== Validator Wallets ==========");
@@ -330,7 +332,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
           id, validator.toHexString(), balanceEth.toString(), stakeEth.toString());
 
       // Build node info (customize as needed)
-      StakeInfo stake = StakeInfo.builder().stakedAmount(0).active(false).build();
+      StakeInfo stake = StakeInfo.builder().stakedAmount(0).build();
 
       Node node =
           Node.builder()
