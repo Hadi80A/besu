@@ -14,15 +14,27 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.datatypes.Hash;
 
 import org.apache.tuweni.bytes.Bytes;
 
 /** The Pos payload. */
+
+@AllArgsConstructor
+@Getter
 public abstract class PosPayload implements Payload {
+  private final ConsensusRoundIdentifier roundIdentifier;
+  private final long height;
   /** Default constructor. */
-  protected PosPayload() {}
+//  protected PosPayload(ConsensusRoundIdentifier roundIdentifier, long height) {
+//      this.roundIdentifier = roundIdentifier;
+//      this.height = height;
+//  }
+
 
   @Override
   public Hash hashForSignature() {

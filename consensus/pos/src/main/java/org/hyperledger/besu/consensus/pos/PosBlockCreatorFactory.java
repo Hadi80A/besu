@@ -24,7 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFa
  */
 public class PosBlockCreatorFactory {
 
-  private final BftBlockCreatorFactory<PosConfigOptions> posBlockCreatorFactory;
+  private final BftBlockCreatorFactory<?> posBlockCreatorFactory;
   private final BftExtraDataCodec bftExtraDataCodec;
 
   /**
@@ -34,7 +34,7 @@ public class PosBlockCreatorFactory {
    * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
    */
   public PosBlockCreatorFactory(
-      final BftBlockCreatorFactory<PosConfigOptions> bftBlockCreatorFactory,
+      final BftBlockCreatorFactory<?> bftBlockCreatorFactory,
       final BftExtraDataCodec bftExtraDataCodec) {
     this.posBlockCreatorFactory = bftBlockCreatorFactory;
     this.bftExtraDataCodec = bftExtraDataCodec;

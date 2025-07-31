@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
+import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
 import org.hyperledger.besu.cryptoservices.NodeKey;
@@ -78,6 +79,8 @@ public class PosFinalState {
     @Getter
     private final Clock clock;
 
+    @Getter
+    private final BftFinalState bftFinalState;
   /**
    * Constructs a new QBFT final state.
    *
@@ -100,7 +103,7 @@ public class PosFinalState {
           final RoundTimer roundTimer,
           final BlockTimer blockTimer,
           final PosBlockCreatorFactory blockCreatorFactory,
-          final Clock clock) {
+          final Clock clock, BftFinalState bftFinalState) {
     this.validatorProvider = validatorProvider;
     this.nodeKey = nodeKey;
     this.localAddress = localAddress;
@@ -110,6 +113,7 @@ public class PosFinalState {
     this.blockTimer = blockTimer;
     this.blockCreatorFactory = blockCreatorFactory;
     this.clock = clock;
+    this.bftFinalState = bftFinalState;
   }
 
   /**

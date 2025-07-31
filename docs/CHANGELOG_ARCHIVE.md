@@ -323,7 +323,7 @@ https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/23.4.0/besu-23.4.0.z
 https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/23.4.0/besu-23.4.0.tar.gz / sha256: 821695b3255c9f646f4d527e374219c96416f498231520f2eec2bebedc53f5a0
 
 ## 23.1.3 - Nimbus Hotfix
-This update is strongly recommended for anyone running Nimbus with Besu. Due to the way Nimbus send request data, this can lead to a missed block proposal in certain circumstances.
+This update is strongly recommended for anyone running Nimbus with Besu. Due to the way Nimbus send request data, this can lead to a missed block propose in certain circumstances.
 
 ### Bug Fixes
 Add withdrawals to payloadId calculation to avoid collisions #5321
@@ -533,7 +533,7 @@ https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/22.10.2/besu-22.10.2
 - Fields `publicKey` and `raw` removed from RPC API `Transaction` result object [#4575](https://github.com/hyperledger/besu/pull/4575)
 
 ### Additions and Improvements
-- Explain and improve price validation for London and local transactions during block proposal selection [#4602](https://github.com/hyperledger/besu/pull/4602)
+- Explain and improve price validation for London and local transactions during block propose selection [#4602](https://github.com/hyperledger/besu/pull/4602)
 - Support for ephemeral testnet Shandong, for EOF testing. [#4599](https://github.com/hyperledger/besu/pull/4599)
 - Improve performance of block processing by parallelizing some parts during the "commit" step [#4635](https://github.com/hyperledger/besu/pull/4635)
 - Upgrade RocksDB version from 7.6.0 to 7.7.3
@@ -696,7 +696,7 @@ https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/22.7.6/besu-22.7.6.t
 
 ### Additions and Improvements
 - Avoid sending added block events to transaction pool, and processing incoming transactions during initial sync [#4457](https://github.com/hyperledger/besu/pull/4457)
-- When building a new proposal, keep the best block built until now instead of the last one [#4455](https://github.com/hyperledger/besu/pull/4455)
+- When building a new propose, keep the best block built until now instead of the last one [#4455](https://github.com/hyperledger/besu/pull/4455)
 - Add Mainnet to merged networks [#4463](https://github.com/hyperledger/besu/pull/4463)
 
 ### Bug Fixes
@@ -3279,7 +3279,7 @@ For compatibility with ETC Agharta upgrade, use 1.3.7 or later.
 
 - Better errors for when permissioning contract is set up wrong [\#1296](https://github.com/PegaSysEng/pantheon/pull/1296)
 - Consolidate p2p node info methods [\#1288](https://github.com/PegaSysEng/pantheon/pull/1288)
-- Update permissioning smart contract interface to match updated EEA proposal [\#1287](https://github.com/PegaSysEng/pantheon/pull/1287)
+- Update permissioning smart contract interface to match updated EEA propose [\#1287](https://github.com/PegaSysEng/pantheon/pull/1287)
 - Switch to new sync target if it exceeds the td threshold [\#1286](https://github.com/PegaSysEng/pantheon/pull/1286)
 - Fix running ATs with in-process node runner [\#1285](https://github.com/PegaSysEng/pantheon/pull/1285)
 - Simplify enode construction [\#1283](https://github.com/PegaSysEng/pantheon/pull/1283)
@@ -3796,7 +3796,7 @@ has been updated to use the moved quickstart.
 - Added `getNodeData` to `EthPeer` to enable requesting node data [\#589](https://github.com/PegaSysEng/pantheon/pull/589)
 - `Blockcreator` to use `parentblock` specified at construction [\#588](https://github.com/PegaSysEng/pantheon/pull/588)
 - Support responding to `GetNodeData` requests [\#587](https://github.com/PegaSysEng/pantheon/pull/587)
-- IBFT validates block on proposal reception [\#583](https://github.com/PegaSysEng/pantheon/pull/583)
+- IBFT validates block on propose reception [\#583](https://github.com/PegaSysEng/pantheon/pull/583)
 - Rework `NewRoundValidator` tests [\#582](https://github.com/PegaSysEng/pantheon/pull/582)
 - IBFT split extra data validation rule into components [\#581](https://github.com/PegaSysEng/pantheon/pull/581)
 - Allow attached rules to be flagged `light` [\#580](https://github.com/PegaSysEng/pantheon/pull/580)

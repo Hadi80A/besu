@@ -18,9 +18,20 @@ import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
+import org.hyperledger.besu.consensus.pos.PosBlockCreator;
+import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
-import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+import org.hyperledger.besu.consensus.pos.core.PosFinalState;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
+import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
@@ -31,8 +42,8 @@ import org.hyperledger.besu.util.Subscribers;
 /** The Pos round factory. */
 public class PosRoundFactory {
 
-    private final BftFinalState finalState;
-    private final BftBlockCreatorFactory<?> blockCreatorFactory;
+    private final PosFinalState finalState;
+    private final PosBlockCreatorFactory blockCreatorFactory;
     private final ProtocolContext protocolContext;
     private final BftProtocolSchedule protocolSchedule;
     private final Subscribers<MinedBlockObserver> minedBlockObservers;
@@ -54,7 +65,7 @@ public class PosRoundFactory {
      * @param bftExtraDataCodec the bft extra data codec
      */
     public PosRoundFactory(
-            final BftFinalState finalState,
+            final PosFinalState finalState,
             final ProtocolContext protocolContext,
             final BftProtocolSchedule protocolSchedule,
             final Subscribers<MinedBlockObserver> minedBlockObservers,
@@ -80,8 +91,8 @@ public class PosRoundFactory {
      * @param round the round
      * @return the pos round
      */
-    public PosRound createNewRound(final BlockHeader parentHeader, final int round) {
-        long nextBlockHeight = parentHeader.getNumber() + 1;
+    public PosRound createNewRound(final PosBlockHeader parentHeader, final int round) {
+        long nextBlockHeight = parentHeader.getBesuBlockHeader().getNumber() + 1;
         final ConsensusRoundIdentifier roundIdentifier =
                 new ConsensusRoundIdentifier(nextBlockHeight, round);
 
@@ -89,7 +100,8 @@ public class PosRoundFactory {
                 new RoundState(
                         roundIdentifier,
                         finalState.getQuorum(),
-                        messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+                        nextBlockHeight
+                        );
 
         return createNewRoundWithState(parentHeader, roundState);
     }
@@ -102,8 +114,8 @@ public class PosRoundFactory {
      * @return the pos round
      */
     public PosRound createNewRoundWithState(
-            final BlockHeader parentHeader, final RoundState roundState) {
-        final BlockCreator blockCreator =
+            final PosBlockHeader parentHeader, final RoundState roundState) {
+        final PosBlockCreator blockCreator =
                 blockCreatorFactory.create(roundState.getRoundIdentifier().getRoundNumber());
 //
 //        final PosMessageTransmitter messageTransmitter =
@@ -123,5 +135,45 @@ public class PosRoundFactory {
                 parentHeader,
                 contractCaller,
                 nodeSet);
+    }
+
+    public static class MessageFactory{
+
+        public Propose createPropose(SignedData<ProposePayload> payload) {
+            return new Propose(payload);
+        }
+        public Vote createVote(SignedData<VotePayload> payload) {
+            return new Vote(payload);
+        }
+
+        public Commit createCommit(SignedData<CommitPayload> payload) {
+            return new Commit(payload);
+        }
+
+        public CommitPayload createCommitPayload(PosBlock block) {
+            return CommitPayload.builder()
+                    .block(block)
+                    .round(block.getRound())
+                    .height(block.getHeight())
+                    .build();
+        }
+
+        public ProposePayload createProposePayload(ConsensusRoundIdentifier round,long height,PosBlock block) {
+            return ProposePayload.builder()
+                    .roundIdentifier(round)
+                    .height(height)
+                    .proposedBlock(block)
+                    .build();
+        }
+
+        public VotePayload createVotePayload(PosBlock block) {
+            return VotePayload.builder()
+                    .blockHash(block.getHash())
+                    .round(block.getRound())
+                    .height(block.getHeight())
+                    .build();
+        }
+
+
     }
 }

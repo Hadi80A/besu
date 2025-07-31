@@ -16,19 +16,20 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
 /** The NoOp block height manager. */
 public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
 
-  private final BlockHeader parentHeader;
+  private final PosBlockHeader parentHeader;
 
   /**
    * Instantiates a new NoOp block height manager.
    *
    * @param parentHeader the parent header
    */
-  public NoOpBlockHeightManager(final BlockHeader parentHeader) {
+  public NoOpBlockHeightManager(final PosBlockHeader parentHeader) {
     this.parentHeader = parentHeader;
   }
 
@@ -52,11 +53,11 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
 
   @Override
   public long getChainHeight() {
-    return parentHeader.getNumber() + 1;
+    return parentHeader.getBesuBlockHeader().getNumber() + 1;
   }
 
   @Override
   public BlockHeader getParentBlockHeader() {
-    return parentHeader;
+    return parentHeader.getBesuBlockHeader();
   }
 }

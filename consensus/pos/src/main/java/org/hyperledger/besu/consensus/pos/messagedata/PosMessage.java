@@ -14,20 +14,25 @@
  */
 package org.hyperledger.besu.consensus.pos.messagedata;
 
-/** Message codes for iBFT v2 messages */
-public interface Pos {
-  /** The constant PROPOSAL. */
-  int PROPOSAL = 0;
+import lombok.Getter;
 
-  /** The constant PREPARE. */
-  int PREPARE = 1;
+@Getter
+public enum PosMessage {
+  PROPOSE(0),
+  VOTE(1),
+  BLOCK_ANNOUNCE(2),
+  VIEW_CHANGE(3),
+  PRE_VOTE(4),
+  MAIN_VOTE(5),
+  DECIDE(6),
+  MESSAGE_SPACE(7);
 
-  /** The constant COMMIT. */
-  int COMMIT = 2;
+  private final int code;
 
-  /** The constant ROUND_CHANGE. */
-  int ROUND_CHANGE = 3;
-
-  /** The constant MESSAGE_SPACE. */
-  int MESSAGE_SPACE = 4;
+  PosMessage(int code) {
+    this.code = code;
+  }
+  public int getCode() {
+    return code;
+  }
 }

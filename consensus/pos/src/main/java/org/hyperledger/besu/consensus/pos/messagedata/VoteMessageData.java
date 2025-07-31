@@ -23,7 +23,7 @@ import org.apache.tuweni.bytes.Bytes;
 /** The Vote message data. */
 public class VoteMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = Pos.COMMIT;
+  private static final int MESSAGE_CODE = PosMessage.VOTE.getCode();
 
   private VoteMessageData(final Bytes data) {
     super(data);

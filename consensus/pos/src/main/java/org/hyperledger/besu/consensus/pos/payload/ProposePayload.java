@@ -14,75 +14,74 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+import lombok.*;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.crypto.SECPSignature;
-import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.util.Objects;
 import java.util.StringJoiner;
+
+/** The Proposal payload. */
 //@AllArgsConstructor
 @Getter
+@Builder
 @EqualsAndHashCode(callSuper = false)
-/** The Vote payload. */
-public class VotePayload extends PosPayload {
-  private static final int TYPE = PosMessage.VOTE.getCode();
-  private final Hash digest;
+public class ProposePayload extends PosPayload {
+  private static final int TYPE = PosMessage.PROPOSE.getCode();
+//  private ConsensusRoundIdentifier roundIdentifier;
+//  private long height = -1;
+  private PosBlock proposedBlock;
 
-  /**
-   * Default constructor.
-   *
-   * @param roundIdentifier
-   * @param height
-   */
-  protected VotePayload(ConsensusRoundIdentifier roundIdentifier, long height, Hash digest) {
+//  private vrf leader
+
+  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ) {
     super(roundIdentifier, height);
-    this.digest = digest;
+    this.proposedBlock = proposedBlock;
   }
-
   /**
-   * Read from rlp input and return vote payload.
+   * Read from rlp input and return proposal payload.
    *
    * @param rlpInput the rlp input
-   * @return the vote payload
+   * @return the proposal payload
    */
-  public static VotePayload readFrom(final RLPInput rlpInput) {
+  @SneakyThrows
+  public static ProposePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final Hash digest = Payload.readDigest(rlpInput);
     final long height = rlpInput.readLong();
-
     rlpInput.leaveList();
-
-    return new VotePayload(roundIdentifier,height,digest);
+    final PosBlock proposedBlock =
+            PosBlock.readFrom(rlpInput);
+    return new ProposePayload(roundIdentifier,height,proposedBlock);
   }
 
+  @SneakyThrows
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
     rlpOutput.startList();
     getRoundIdentifier().writeTo(rlpOutput);
-    rlpOutput.writeBytes(digest);
     rlpOutput.writeLong(getHeight());
+    proposedBlock.writeTo(rlpOutput);
+
     rlpOutput.endList();
   }
+
+  /**
+   * Gets digest.
+   *
+   * @return the digest
+   */
 
   @Override
   public int getMessageType() {
     return TYPE;
   }
 
-//  @Override
-//  public ConsensusRoundIdentifier getRoundIdentifier() {
-//    return roundIdentifier;
-//  }
-
+//
 //  @Override
 //  public boolean equals(final Object o) {
 //    if (this == o) {
@@ -91,21 +90,21 @@ public class VotePayload extends PosPayload {
 //    if (o == null || getClass() != o.getClass()) {
 //      return false;
 //    }
-//    final VotePayload that = (VotePayload) o;
+//    final ProposePayload that = (ProposePayload) o;
 //    return Objects.equals(roundIdentifier, that.roundIdentifier)
-//        && Objects.equals(digest, that.digest);
+//        && Objects.equals(height, that.height);
 //  }
 
 //  @Override
 //  public int hashCode() {
-//    return Objects.hash(roundIdentifier, digest);
+//    return Objects.hash(roundIdentifier, height);
 //  }
 //
 //  @Override
 //  public String toString() {
-//    return new StringJoiner(", ", VotePayload.class.getSimpleName() + "[", "]")
+//    return new StringJoiner(", ", ProposePayload.class.getSimpleName() + "[", "]")
 //        .add("roundIdentifier=" + roundIdentifier)
-//        .add("digest=" + digest)
+//        .add("digest=" + height)
 //        .toString();
 //  }
 }

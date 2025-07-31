@@ -17,10 +17,12 @@ package org.hyperledger.besu.consensus.pos;
 import static org.hyperledger.besu.consensus.common.bft.Vote.ADD_BYTE_VALUE;
 import static org.hyperledger.besu.consensus.common.bft.Vote.DROP_BYTE_VALUE;
 
+import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.validator.VoteType;
+import org.hyperledger.besu.consensus.pos.util.SerializeUtil;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Address;
@@ -147,5 +149,55 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     rlpInput.leaveList();
 
     return new Vote(recipient, vote);
+  }
+
+  @SneakyThrows
+  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType){
+    final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
+    encoder.startList();
+    encoder.writeBytes(posExtraData.getVanityData());
+    encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+    if (posExtraData.getVote().isPresent()) {
+      encodeVote(encoder, posExtraData.getVote().get());
+    } else {
+      encoder.writeNull();
+    }
+
+    if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS_AND_ROUND_NUMBER) {
+      encoder.writeInt(posExtraData.getRound());
+      if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS) {
+        encoder.writeList(
+                posExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
+      }
+    }
+    encoder.endList();
+    encoder.writeBytes(SerializeUtil.toBytes(posExtraData.getProposer()));
+    return encoder.encoded();
+  }
+  @SneakyThrows
+  public PosExtraData decodePosData(final Bytes input) {
+    if (input.isEmpty()) {
+      throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
+    }
+
+    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
+
+    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
+    final Bytes vanityData = rlpInput.readBytes();
+    final List<Address> validators = rlpInput.readList(Address::readFrom);
+    final Optional<Vote> vote;
+    if (rlpInput.nextIsNull()) {
+      vote = Optional.empty();
+      rlpInput.skipNext();
+    } else {
+      vote = Optional.of(decodeVote(rlpInput));
+    }
+    final int round = rlpInput.readInt();
+    final List<SECPSignature> seals =
+            rlpInput.readList(
+                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+    rlpInput.leaveList();
+    Address proposer = SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
+    return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
   }
 }

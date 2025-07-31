@@ -463,7 +463,7 @@ This is a hotfix to address publishing besu maven artifacts.  There are no issue
 ### Bug fixes
 - Fix registering new metric categories from plugins [#7825](https://github.com/hyperledger/besu/pull/7825)
 - Fix CVE-2024-47535 [7878](https://github.com/hyperledger/besu/pull/7878)
-- Fix QBFT prepared block based proposal validation [#7875](https://github.com/hyperledger/besu/pull/7875)
+- Fix QBFT prepared block based propose validation [#7875](https://github.com/hyperledger/besu/pull/7875)
 - Correct default parameters for frontier transactions in `eth_call` and `eth_estimateGas` [#7965](https://github.com/hyperledger/besu/pull/7965)
 - Correctly parse nonce as hex in `eth_call` account overrides [#7999](https://github.com/hyperledger/besu/pull/7999)
 

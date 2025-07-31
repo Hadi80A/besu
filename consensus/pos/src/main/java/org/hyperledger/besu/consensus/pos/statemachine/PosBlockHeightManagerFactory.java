@@ -14,11 +14,9 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
-import org.hyperledger.besu.consensus.common.bft.BftHelpers;
-import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
-import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
-import org.hyperledger.besu.ethereum.core.BlockHeader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,9 +27,10 @@ public class PosBlockHeightManagerFactory {
     private static final Logger LOG = LoggerFactory.getLogger(PosBlockHeightManagerFactory.class);
 
     private final PosRoundFactory roundFactory;
-    private final BftFinalState finalState;
+    private final PosFinalState finalState;
     private final MessageValidatorFactory messageValidatorFactory;
-    private final MessageFactory messageFactory;
+    private final PosRoundFactory.MessageFactory messageFactory;
+    private final PosProposerSelector posProposerSelector;
 
     /**
      * Instantiates a new Pos block height manager factory.
@@ -42,14 +41,15 @@ public class PosBlockHeightManagerFactory {
      * @param messageFactory the message factory
      */
     public PosBlockHeightManagerFactory(
-            final BftFinalState finalState,
+            final PosFinalState finalState,
             final PosRoundFactory roundFactory,
             final MessageValidatorFactory messageValidatorFactory,
-            final MessageFactory messageFactory) {
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
         this.messageFactory = messageFactory;
+        this.posProposerSelector = posProposerSelector;
     }
 
     /**
@@ -58,7 +58,7 @@ public class PosBlockHeightManagerFactory {
      * @param parentHeader the parent header
      * @return the base pos block height manager
      */
-    public BasePosBlockHeightManager create(final BlockHeader parentHeader) {
+    public BasePosBlockHeightManager create(final PosBlockHeader parentHeader) {
         if (finalState.isLocalNodeValidator()) {
             LOG.debug("Local node is a validator");
             return createFullBlockHeightManager(parentHeader);
@@ -75,11 +75,11 @@ public class PosBlockHeightManagerFactory {
      * @return the no-op height manager
      */
     protected BasePosBlockHeightManager createNoOpBlockHeightManager(
-            final BlockHeader parentHeader) {
+            final PosBlockHeader parentHeader) {
         return new NoOpBlockHeightManager(parentHeader);
     }
 
-    private BasePosBlockHeightManager createFullBlockHeightManager(final BlockHeader parentHeader) {
+    private BasePosBlockHeightManager createFullBlockHeightManager(final PosBlockHeader parentHeader) {
         return new PosBlockHeightManager(
                 parentHeader,
                 finalState,
@@ -89,7 +89,7 @@ public class PosBlockHeightManagerFactory {
 //                                parentHeader.getNumber() + 1L, parentHeader)),
                 roundFactory,
                 finalState.getClock(),
-                messageValidatorFactory,
-                messageFactory);
+                messageFactory,
+                posProposerSelector);
     }
 }

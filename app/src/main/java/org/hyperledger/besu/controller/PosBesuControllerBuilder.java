@@ -35,13 +35,10 @@ import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidator
 import org.hyperledger.besu.consensus.pos.*;
 import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
+import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.core.StakeInfo;
-import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
 import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
-import org.hyperledger.besu.consensus.pos.statemachine.ContractCaller;
-import org.hyperledger.besu.consensus.pos.statemachine.PosBlockHeightManagerFactory;
-import org.hyperledger.besu.consensus.pos.statemachine.PosController;
-import org.hyperledger.besu.consensus.pos.statemachine.PosRoundFactory;
+import org.hyperledger.besu.consensus.pos.statemachine.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
@@ -137,7 +134,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     final Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
-    final BftBlockCreatorFactory<?> blockCreatorFactory =
+    final BftBlockCreatorFactory<?> bftblockCreatorFactory =
         new BftBlockCreatorFactory<>(
             transactionPool,
             protocolContext,
@@ -147,6 +144,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             localAddress,
             bftExtraDataCodec,
             ethProtocolManager.ethContext().getScheduler());
+    final PosBlockCreatorFactory  blockCreatorFactory =
+            new PosBlockCreatorFactory(
+                    bftblockCreatorFactory,
+                    bftExtraDataCodec
+            );
 
     final ValidatorProvider validatorProvider =
         protocolContext.getConsensusContext(BftContext.class).getValidatorProvider();
@@ -163,7 +165,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     final PosGossip gossiper = new PosGossip(uniqueMessageMulticaster);
 
-    final BftFinalState finalState =
+    final BftFinalState bftfinalState =
         new BftFinalState(
             validatorProvider,
             nodeKey,
@@ -175,9 +177,24 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                 Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds()),
                 bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
-            blockCreatorFactory,
+                bftblockCreatorFactory,
             clock);
+    final PosFinalState posFinalState=new PosFinalState(
+            validatorProvider,
+            nodeKey,
+            Util.publicKeyToAddress(nodeKey.getPublicKey()),
+            proposerSelector,
+            uniqueMessageMulticaster,
+            new RoundTimer(
+                    bftEventQueue,
+                    Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds()),
+                    bftExecutors),
+            new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
+            blockCreatorFactory,
+            clock,
+            bftfinalState
 
+    );
     final MessageValidatorFactory messageValidatorFactory =
         new MessageValidatorFactory(
             proposerSelector, bftProtocolSchedule, protocolContext, bftExtraDataCodec);
@@ -194,18 +211,19 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     final MessageTracker duplicateMessageTracker =
         new MessageTracker(bftConfig.getDuplicateMessageLimit());
 
-    final MessageFactory messageFactory = new MessageFactory(nodeKey);
+    final PosRoundFactory.MessageFactory messageFactory = new PosRoundFactory.MessageFactory();
     NodeSet nodeSet = createNodeSet(protocolContext);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
+    PosProposerSelector  posProposerSelector=new PosProposerSelector();
     final BftEventHandler posController =
         new PosController(
             blockchain,
-            finalState,
+                posFinalState,
             new PosBlockHeightManagerFactory(
-                finalState,
+                  posFinalState,
                 new PosRoundFactory(
-                    finalState,
+                    posFinalState,
                     protocolContext,
                     bftProtocolSchedule,
                     minedBlockObservers,
@@ -215,7 +233,9 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     contractCaller,
                     nodeSet),
                 messageValidatorFactory,
-                messageFactory),
+                messageFactory,
+                    posProposerSelector
+            ),
             gossiper,
             duplicateMessageTracker,
             futureMessageBuffer,
@@ -229,7 +249,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             bftExecutors,
             posController,
             bftProcessor,
-            blockCreatorFactory,
+             bftblockCreatorFactory,
             blockchain,
             bftEventQueue);
 

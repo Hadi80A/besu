@@ -14,53 +14,40 @@
  */
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
+import lombok.Getter;
+import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
-import org.hyperledger.besu.consensus.pos.payload.ProposalPayload;
-import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
-
-import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
 
 /** The Proposal. */
 
-public class Proposal extends BftMessage<ProposalPayload> {
+@Getter
+public class Propose extends BftMessage<ProposePayload> {
 
   private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
-  private final Block proposedBlock;
 
   /**
    * Instantiates a new Proposal.
    *
    * @param payload the payload
-   * @param proposedBlock the proposed block
 //   * @param certificate the certificate
    */
-  public Proposal(
-          final SignedData<ProposalPayload> payload,
-          final Block proposedBlock
+  public Propose(
+          final SignedData<ProposePayload> payload
   ) {
     super(payload);
-    this.proposedBlock = proposedBlock;
+//    this.proposedBlock = proposedBlock;
   }
-
-  /**
-   * Gets block.
-   *
-   * @return the block
-   */
-  public Block getBlock() {
-    return proposedBlock;
-  }
-
 
   /**
    * Gets round change certificate.
@@ -71,12 +58,12 @@ public class Proposal extends BftMessage<ProposalPayload> {
 //    return roundChangeCertificate;
 //  }
 
+  @SneakyThrows
   @Override
   public Bytes encode() {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
     rlpOut.startList();
     getSignedPayload().writeTo(rlpOut);
-    proposedBlock.writeTo(rlpOut);
     rlpOut.endList();
     return rlpOut.encoded();
   }
@@ -87,19 +74,15 @@ public class Proposal extends BftMessage<ProposalPayload> {
    * @param data the data
    * @return the proposal
    */
-  public static Proposal decode(final Bytes data) {
+  @SneakyThrows
+  public static Propose decode(final Bytes data) {
     final RLPInput rlpIn = RLP.input(data);
     rlpIn.enterList();
-    final SignedData<ProposalPayload> payload =
+    final SignedData<ProposePayload> payload =
         PayloadDeserializers.readSignedProposalPayloadFrom(rlpIn);
-    final Block proposedBlock =
-        Block.readFrom(rlpIn, BftBlockHeaderFunctions.forCommittedSeal(BFT_EXTRA_DATA_ENCODER));
-    rlpIn.leaveList();
-    return new Proposal(payload, proposedBlock);
-  }
 
-  public Block getProposedBlock() {
-    return proposedBlock;
+    rlpIn.leaveList();
+    return new Propose(payload);
   }
 
 }

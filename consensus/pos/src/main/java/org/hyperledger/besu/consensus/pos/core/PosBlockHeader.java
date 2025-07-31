@@ -14,40 +14,45 @@
  */
 package org.hyperledger.besu.consensus.pos.core;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import lombok.*;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.pos.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
+import java.io.IOException;
 import java.util.Objects;
-
-/** Adaptor class to allow a {@link BlockHeader} to be used as a {@link PosBlockHeader}. */
+@Data
+@Builder
+//@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class PosBlockHeader{
+  private BlockHeader besuHeader;
+  private final ConsensusRoundIdentifier roundIdentifier;
+  private Address proposer;
 
-  private final BlockHeader blockHeader;
 
-  /**
-   * Construct a new PosBlockHeader
-   *
-   * @param blockHeader the Besu block header
-   */
-  public PosBlockHeader(final BlockHeader blockHeader) {
-    this.blockHeader = blockHeader;
-  }
 
-  public long getNumber() {
-    return blockHeader.getNumber();
+  public long getHeight() {
+    return besuHeader.getNumber();
+
   }
 
   public long getTimestamp() {
-    return blockHeader.getTimestamp();
+    return besuHeader.getTimestamp();
   }
 
   public Address getCoinbase() {
-    return blockHeader.getCoinbase();
+    return besuHeader.getCoinbase();
   }
 
   public Hash getHash() {
-    return blockHeader.getHash();
+    return besuHeader.getHash();
   }
 
   /**
@@ -56,17 +61,20 @@ public class PosBlockHeader{
    * @return the Besu block header.
    */
   public BlockHeader getBesuBlockHeader() {
-    return blockHeader;
+    return besuHeader;
   }
 
-  @Override
-  public boolean equals(final Object o) {
-    if (!(o instanceof PosBlockHeader that)) return false;
-    return Objects.equals(blockHeader, that.blockHeader);
+  public void writeTo(RLPOutput rlpOutput) throws JsonProcessingException {
+    besuHeader.writeTo(rlpOutput);
+    rlpOutput.writeInt(roundIdentifier.getRoundNumber());
+    rlpOutput.writeLong(roundIdentifier.getSequenceNumber());
+    rlpOutput.writeBytes(SerializeUtil.toBytes(proposer));
   }
 
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(blockHeader);
+  public static PosBlockHeader readFrom(RLPInput rlpInput, BlockHeader besuHeader) throws IOException {
+    ConsensusRoundIdentifier round = new ConsensusRoundIdentifier(rlpInput.readLong(),rlpInput.readInt());
+    Address proposer=  SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
+    return new PosBlockHeader(besuHeader,round,proposer);
   }
+
 }

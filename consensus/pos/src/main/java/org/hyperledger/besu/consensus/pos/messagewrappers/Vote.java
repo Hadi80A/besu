@@ -16,6 +16,8 @@ package org.hyperledger.besu.consensus.pos.messagewrappers;
 
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
+import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
+import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
@@ -23,6 +25,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
 /** The Vote. */
 public class Vote extends BftMessage<VotePayload> {
@@ -36,15 +39,6 @@ public class Vote extends BftMessage<VotePayload> {
     super(payload);
   }
 
-  /**
-   * Gets vote seal.
-   *
-   * @return the vote seal
-   */
-  public SECPSignature getVoteSeal() {
-//    return getPayload().getVoteSeal();
-    return null;
-  }
 
   /**
    * Gets digest.
@@ -62,7 +56,13 @@ public class Vote extends BftMessage<VotePayload> {
    * @return the vote
    */
   public static Vote decode(final Bytes data) {
-//    return new Vote(PayloadDeserializers.readSignedVotePayloadFrom(RLP.input(data)));
-    return null;
+    final RLPInput rlpIn = RLP.input(data);
+    rlpIn.enterList();
+    final SignedData<VotePayload> payload =
+            PayloadDeserializers.readSignedVotePayloadFrom(rlpIn);
+
+    rlpIn.leaveList();
+    return new Vote(payload);
   }
+
 }

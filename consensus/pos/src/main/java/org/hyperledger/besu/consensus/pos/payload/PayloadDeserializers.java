@@ -31,10 +31,10 @@ public class PayloadDeserializers {
    * @param rlpInput the rlp input
    * @return the signed data
    */
-  public static SignedData<ProposalPayload> readSignedProposalPayloadFrom(final RLPInput rlpInput) {
+  public static SignedData<ProposePayload> readSignedProposalPayloadFrom(final RLPInput rlpInput) {
 
     rlpInput.enterList();
-    final ProposalPayload unsignedMessageData = ProposalPayload.readFrom(rlpInput);
+    final ProposePayload unsignedMessageData = ProposePayload.readFrom(rlpInput);
     final SECPSignature signature = readSignature(rlpInput);
     rlpInput.leaveList();
 
@@ -47,15 +47,15 @@ public class PayloadDeserializers {
    * @param rlpInput the rlp input
    * @return the signed data
    */
-//  public static SignedData<PreparePayload> readSignedPreparePayloadFrom(final RLPInput rlpInput) {
+  public static SignedData<VotePayload> readSignedVotePayloadFrom(final RLPInput rlpInput) {
 
-//    rlpInput.enterList();
-//    final PreparePayload unsignedMessageData = PreparePayload.readFrom(rlpInput);
-//    final SECPSignature signature = readSignature(rlpInput);
-//    rlpInput.leaveList();
-//
-//    return from(unsignedMessageData, signature);
-//  }
+    rlpInput.enterList();
+    final VotePayload unsignedMessageData = VotePayload.readFrom(rlpInput);
+    final SECPSignature signature = readSignature(rlpInput);
+    rlpInput.leaveList();
+
+    return from(unsignedMessageData, signature);
+  }
 
   /**
    * Read signed commit payload from rlp input.
@@ -79,16 +79,16 @@ public class PayloadDeserializers {
    * @param rlpInput the rlp input
    * @return the signed data
    */
-//  public static SignedData<RoundChangePayload> readSignedRoundChangePayloadFrom(
-//      final RLPInput rlpInput) {
-//
-//    rlpInput.enterList();
-//    final RoundChangePayload unsignedMessageData = RoundChangePayload.readFrom(rlpInput);
-//    final SECPSignature signature = readSignature(rlpInput);
-//    rlpInput.leaveList();
-//
-//    return from(unsignedMessageData, signature);
-//  }
+  public static SignedData<ViewChangePayload> readSignedViewChangePayloadFrom(
+      final RLPInput rlpInput) {
+
+    rlpInput.enterList();
+    final ViewChangePayload unsignedMessageData = ViewChangePayload.readFrom(rlpInput);
+    final SECPSignature signature = readSignature(rlpInput);
+    rlpInput.leaveList();
+
+    return from(unsignedMessageData, signature);
+  }
 
   /**
    * Create signed payload data from unsigned message data.

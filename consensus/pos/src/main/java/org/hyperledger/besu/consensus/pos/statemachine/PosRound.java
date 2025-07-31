@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
@@ -23,15 +24,27 @@ import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
+import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
+import org.hyperledger.besu.consensus.pos.PosBlockCreator;
+import org.hyperledger.besu.consensus.pos.PosBlockImporter;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.StakeInfo;
-import org.hyperledger.besu.consensus.pos.payload.MessageFactory;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
+import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
+import org.hyperledger.besu.consensus.pos.payload.PosPayload;
+import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.core.Block;
@@ -44,6 +57,7 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.worldstate.WorldState;
+import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.hyperledger.besu.util.Subscribers;
 
 import org.slf4j.Logger;
@@ -52,15 +66,17 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.Set;
 
 /** The Pos round. */
+@Setter
 public class PosRound {
 
   private static final Logger LOG = LoggerFactory.getLogger(PosRound.class);
 
   private final Subscribers<MinedBlockObserver> observers;
   private final RoundState roundState;
-  private final BlockCreator blockCreator;
+  private final PosBlockCreator blockCreator;
 
   /** The protocol context. */
   protected final ProtocolContext protocolContext;
@@ -70,10 +86,13 @@ public class PosRound {
 
   private final ProtocolSchedule protocolSchedule;
   private final NodeKey nodeKey;
-  private final MessageFactory messageFactory; // used only to create stored local msgs
-//  private final PosMessageTransmitter transmitter;
+  private final PosRoundFactory.MessageFactory messageFactory; // used only to create stored local msgs
+  private final PosMessageTransmitter transmitter;
   private final BftExtraDataCodec bftExtraDataCodec;
-  private final BlockHeader parentHeader;
+  private final PosBlockHeader parentHeader;
+  
+  private Propose propose;
+  private PosProposerSelector posProposerSelector;
 
   /**
    * Instantiates a new Pos round.
@@ -92,16 +111,16 @@ public class PosRound {
    */
   public PosRound(
           final RoundState roundState,
-          final BlockCreator blockCreator,
+          final PosBlockCreator blockCreator,
           final ProtocolContext protocolContext,
           final ProtocolSchedule protocolSchedule,
           final Subscribers<MinedBlockObserver> observers,
           final NodeKey nodeKey,
-          final MessageFactory messageFactory,
-//          final PosMessageTransmitter transmitter,
+          final PosRoundFactory.MessageFactory messageFactory,
+          final PosMessageTransmitter transmitter,
           final RoundTimer roundTimer,
           final BftExtraDataCodec bftExtraDataCodec,
-          final BlockHeader parentHeader,
+          final PosBlockHeader parentHeader,
           final ContractCaller contractCaller, NodeSet nodeSet
   ) {
     this.roundState = roundState;
@@ -111,7 +130,7 @@ public class PosRound {
     this.observers = observers;
     this.nodeKey = nodeKey;
     this.messageFactory = messageFactory;
-//    this.transmitter = transmitter;
+    this.transmitter = transmitter;
     this.bftExtraDataCodec = bftExtraDataCodec;
     this.parentHeader = parentHeader;
       this.contractCaller = contractCaller;
@@ -135,7 +154,7 @@ public class PosRound {
    */
   public void createAndSendProposalMessage(final long headerTimeStampSeconds) {
     final Block block =
-            blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader).getBlock();
+            blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
     importBlockToChain(block);
     updateRound(block);
@@ -242,7 +261,7 @@ public class PosRound {
 //      blockToPublish = blockCreator.createBlock(headerTimestamp, this.parentHeader).getBlock();
 //    } else {
 //      LOG.debug(
-//              "Sending proposal from PreparedCertificate. round={}", roundState.getRoundIdentifier());
+//              "Sending proposal from VotedCertificate. round={}", roundState.getRoundIdentifier());
 //
 //      final BftBlockInterface bftBlockInterface =
 //              protocolContext.getConsensusContext(BftContext.class).getBlockInterface();
@@ -256,146 +275,171 @@ public class PosRound {
 //    updateStateWithProposalAndTransmit(blockToPublish, Optional.of(roundChangeCertificate));
 //  }
 
-//  private void updateStateWithProposalAndTransmit(
-//          final Block block, final Optional<RoundChangeCertificate> roundChangeCertificate) {
-//    final Proposal proposal;
-//    try {
-//      proposal = messageFactory.createProposal(getRoundIdentifier(), block, roundChangeCertificate);
-//    } catch (final SecurityModuleException e) {
-//      LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
-//      return;
-//    }
-//
-//    transmitter.multicastProposal(
-//            proposal.getRoundIdentifier(), proposal.getBlock(), proposal.getRoundChangeCertificate());
-//    updateStateWithProposedBlock(proposal);
-//  }
-//
-//  /**
-//   * Handle proposal message.
-//   *
-//   * @param msg the msg
-//   */
-//  public void handleProposalMessage(final Proposal msg) {
-//    LOG.debug("Received a proposal message. round={}", roundState.getRoundIdentifier());
-//    final Block block = msg.getBlock();
-//
-//    if (updateStateWithProposedBlock(msg)) {
-//      LOG.debug("Sending prepare message. round={}", roundState.getRoundIdentifier());
-//      try {
-//        final Prepare localPrepareMessage =
-//                messageFactory.createPrepare(getRoundIdentifier(), block.getHash());
-//        peerIsPrepared(localPrepareMessage);
-//        transmitter.multicastPrepare(
-//                localPrepareMessage.getRoundIdentifier(), localPrepareMessage.getDigest());
-//      } catch (final SecurityModuleException e) {
-//        LOG.warn("Failed to create a signed Prepare; {}", e.getMessage());
-//      }
-//    }
+
+private SignedData<ProposePayload> createProposePayload(PosBlock block) {
+  ProposePayload proposePayload=messageFactory.createProposePayload(block.getHeader().getRoundIdentifier(),block.getHeader().getHeight(),block);
+  return createSignedData(proposePayload);
+}
+
+  private<M extends Payload> SignedData<M> createSignedData(M payload){
+    SECPSignature sign = nodeKey.sign(payload.hashForSignature());
+    return SignedData.create(payload, sign);
+  }
+  /**
+   * Update state with proposal and transmit.
+   *
+   * @param block the block
+   */
+  protected void createProposalAndTransmit(final PosBlock block) {
+    final Propose proposal;
+    try {
+      var proposePayload =createProposePayload(block);
+
+      proposal = messageFactory.createPropose(proposePayload);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
+      return;
+    }
+    transmitter.multicastProposal(proposal);
+  }
+
+  /**
+   * Handle proposal message.
+   *
+   * @param msg the msg
+   */
+  public void handleProposalMessage(final Propose msg) {
+    LOG.debug("Received a proposal message. round={}. author={}", roundState.getRoundIdentifier(),
+            msg.getAuthor());
+    ProposePayload payload=msg.getSignedPayload().getPayload();
+    final PosBlock block = payload.getProposedBlock();
+    if (validateProposer(msg.getSignedPayload())){
+      LOG.debug("Valid a proposal message.");
+      roundState.setProposeMessage(msg);
+      sendVote(block);
+    }else {
+      LOG.debug("Invalid a proposal message.");
+    }
+  }
+  private boolean validateProposer(SignedData<ProposePayload> payload){
+    return payload.getAuthor().equals(posProposerSelector.getCurrentProposer()) &&
+            payload.getPayload().getRoundIdentifier().getRoundNumber() == roundState.getRoundIdentifier().getRoundNumber() &&
+            payload.getPayload().getHeight() == roundState.getHeight();
+
+  }
+
+  public void handleVoteMessage(final Vote msg) {
+    LOG.debug("Received a vote message. round={}. author={}", roundState.getRoundIdentifier(), msg.getAuthor());
+    roundState.addVoteMessage(msg);
+    if(validateBlockHash(msg.getSignedPayload().getPayload().getDigest()) &&
+            checkThreshold(roundState.getVoteMessages()) &&
+            validateHeightAndRound(msg.getSignedPayload().getPayload())
+    ) {
+      sendCommit(roundState.getProposedBlock());
+    }else {
+      LOG.debug("Invalid a vote message.");
+    }
+  }
+  private boolean checkThreshold(Set<?> msg){
+    return msg.size()>=roundState.getQuorum();
+  }
+
+
+  private boolean validateHeightAndRound(PosPayload posPayload) {
+    return posPayload.getHeight()==roundState.getHeight() &&
+            posPayload.getRoundIdentifier().getRoundNumber()==roundState.getRoundIdentifier().getRoundNumber();
+  }
+  private boolean validateBlockHash(Hash blockHash) {
+    PosBlock block=roundState.getProposeMessage().getSignedPayload().getPayload().getProposedBlock();
+    return blockHash.equals(block.getHash());
+  }
+  private void sendVote(final PosBlock block) {
+    LOG.debug("Sending vote message. round={}", roundState.getRoundIdentifier());
+    try {
+      VotePayload unsigned= messageFactory.createVotePayload(block);
+      SignedData<VotePayload> signedData= createSignedData(unsigned);
+      final Vote localVoteMessage = messageFactory.createVote(signedData);
+      roundState.addVoteMessage(localVoteMessage);
+      transmitter.multicastVote(localVoteMessage);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed Vote; {}", e.getMessage());
+    }
+  }
+
+
+  private void sendCommit(final PosBlock block) {
+    LOG.debug("Sending Commit message. round={}", roundState.getRoundIdentifier());
+    try {
+      CommitPayload unsigned= messageFactory.createCommitPayload(block);
+      SignedData<CommitPayload> signedData= createSignedData(unsigned);
+      final Commit localCommitMessage = messageFactory.createCommit(signedData);
+      roundState.addCommitMessage(localCommitMessage);
+      transmitter.multicastCommit(localCommitMessage);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed Commit; {}", e.getMessage());
+    }
+  }
+
+  public void handleCommitMessage(final Commit msg) {
+    LOG.debug("Received a commit message. round={}. author={}", roundState.getRoundIdentifier(),
+            msg.getAuthor());
+    roundState.addCommitMessage(msg);
+    importBlockToChain();
+  }
+
+  private void importBlockToChain() {
+    final Block blockToImport =
+            blockCreator.createSealedBlock(
+                    roundState.getProposedBlock(),
+                    roundState.getRoundIdentifier().getRoundNumber(),
+                    roundState.getCommitSeals(),
+                    posProposerSelector.getCurrentProposer()
+            ).getBesuBlock();
+
+    final long blockNumber = blockToImport.getHeader().getNumber();
+    if (getRoundIdentifier().getRoundNumber() > 0) {
+      LOG.info(
+              "Importing proposed block to chain. round={}, hash={}",
+              getRoundIdentifier(),
+              blockToImport.getHash());
+    } else {
+      LOG.debug(
+              "Importing proposed block to chain. round={}, hash={}",
+              getRoundIdentifier(),
+              blockToImport.getHash());
+    }
+
+    final BlockImporter blockImporter =
+            protocolSchedule.getByBlockHeader(blockToImport.getHeader()).getBlockImporter();
+    final BlockImportResult result =
+            blockImporter.importBlock(protocolContext, blockToImport, HeaderValidationMode.FULL);
+
+    if (!result.isImported()) {
+      LOG.error(
+              "Failed to import proposed block to chain. block={} blockHeader={}",
+              blockNumber,
+              blockToImport.getHeader());
+    } else {
+      notifyNewBlockListeners(blockToImport);
+    }
+  }
+
+//  private SECPSignature createCommitSeal(final PosBlock block) {
+//    final PosBlock commitBlock = createCommitBlock(block);
+//    final Hash commitHash = commitBlock.getHash();
+//    return nodeKey.sign(commitHash);
 //  }
 
-//  /**
-//   * Handle prepare message.
-//   *
-//   * @param msg the msg
-//   */
-//  public void handlePrepareMessage(final Prepare msg) {
-//    LOG.debug("Received a prepare message. round={}", roundState.getRoundIdentifier());
-//    peerIsPrepared(msg);
+//  private PosBlock createCommitBlock(final PosBlock block) {
+//    return blockInterface.replaceRoundInBlock(block, getRoundIdentifier().getRoundNumber());
 //  }
 
-//  /**
-//   * Handle commit message.
-//   *
-//   * @param msg the msg
-//   */
-//  public void handleCommitMessage(final Commit msg) {
-//    LOG.debug("Received a commit message. round={}", roundState.getRoundIdentifier());
-//    peerIsCommitted(msg);
-//  }
 
-//  /**
-//   * Construct prepared round artifacts.
-//   *
-//   * @return the optional prepared round artifacts
-//   */
-//  public Optional<PreparedRoundArtifacts> constructPreparedRoundArtifacts() {
-//    return roundState.constructPreparedRoundArtifacts();
-//  }
-
-//  private boolean updateStateWithProposedBlock(final Proposal msg) {
-//    final boolean wasPrepared = roundState.isPrepared();
-//    final boolean wasCommitted = roundState.isCommitted();
-//    final boolean blockAccepted = roundState.setProposedBlock(msg);
-//
-//    if (blockAccepted) {
-//      final Block block = roundState.getProposedBlock().get();
-//
-//      final SECPSignature commitSeal;
-//      try {
-//        commitSeal = createCommitSeal(block);
-//      } catch (final SecurityModuleException e) {
-//        LOG.warn("Failed to construct commit seal; {}", e.getMessage());
-//        return true;
-//      }
-//
-//      // There are times handling a proposed block is enough to enter prepared.
-//      if (wasPrepared != roundState.isPrepared()) {
-//        LOG.debug("Sending commit message. round={}", roundState.getRoundIdentifier());
-//        transmitter.multicastCommit(getRoundIdentifier(), block.getHash(), commitSeal);
-//      }
-//
-//      // can automatically add _our_ commit message to the roundState
-//      // cannot create a prepare message here, as it may be _our_ proposal, and thus we cannot also
-//      // prepare
-//      try {
-//        final Commit localCommitMessage =
-//                messageFactory.createCommit(
-//                        roundState.getRoundIdentifier(), msg.getBlock().getHash(), commitSeal);
-//        roundState.addCommitMessage(localCommitMessage);
-//      } catch (final SecurityModuleException e) {
-//        LOG.warn("Failed to create signed Commit message; {}", e.getMessage());
-//        return true;
-//      }
-
-      // It is possible sufficient commit seals are now available and the block should be imported
-//      if (wasCommitted != roundState.isCommitted()) {
-//        importBlockToChain();
-//      }
-//    }
-//
-//    return blockAccepted;
-//  }
-
-//  private void peerIsPrepared(final Prepare msg) {
-//    final boolean wasPrepared = roundState.isPrepared();
-//    roundState.addPrepareMessage(msg);
-//    if (wasPrepared != roundState.isPrepared()) {
-//      LOG.debug("Sending commit message. round={}", roundState.getRoundIdentifier());
-//      final Block block = roundState.getProposedBlock().get();
-//      try {
-//        transmitter.multicastCommit(getRoundIdentifier(), block.getHash(), createCommitSeal(block));
-//        // Note: the local-node's commit message was added to RoundState on block acceptance
-//        // and thus does not need to be done again here.
-//      } catch (final SecurityModuleException e) {
-//        LOG.warn("Failed to construct a commit seal: {}", e.getMessage());
-//      }
-//    }
-//  }
-
-//  private void peerIsCommitted(final Commit msg) {
-//    final boolean wasCommitted = roundState.isCommitted();
-//    roundState.addCommitMessage(msg);
-//    if (wasCommitted != roundState.isCommitted()) {
-//      importBlockToChain();
-//    }
-//  }
-
-//  private void importBlockToChain() {
+//  private void importBlockToChain(Block block) {
 //    final Block blockToImport =
 //            BftHelpers.createSealedBlock(
 //                    bftExtraDataCodec,
-//                    roundState.getProposedBlock().get(),
+//                    block,
 //                    roundState.getRoundIdentifier().getRoundNumber(),
 //                    roundState.getCommitSeals());
 //
@@ -428,43 +472,6 @@ public class PosRound {
 //    }
 //  }
 
-  private void importBlockToChain(Block block) {
-    final Block blockToImport =
-            BftHelpers.createSealedBlock(
-                    bftExtraDataCodec,
-                    block,
-                    roundState.getRoundIdentifier().getRoundNumber(),
-                    roundState.getCommitSeals());
-
-    final long blockNumber = blockToImport.getHeader().getNumber();
-    final BftExtraData extraData = bftExtraDataCodec.decode(blockToImport.getHeader());
-    if (getRoundIdentifier().getRoundNumber() > 0) {
-      LOG.info(
-              "Importing block to chain. round={}, hash={}",
-              getRoundIdentifier(),
-              blockToImport.getHash());
-    } else {
-      LOG.debug(
-              "Importing block to chain. round={}, hash={}",
-              getRoundIdentifier(),
-              blockToImport.getHash());
-    }
-    LOG.trace("Importing block with extraData={}", extraData);
-    final BlockImporter blockImporter =
-            protocolSchedule.getByBlockHeader(blockToImport.getHeader()).getBlockImporter();
-    final BlockImportResult result =
-            blockImporter.importBlock(protocolContext, blockToImport, HeaderValidationMode.FULL);
-    if (!result.isImported()) {
-      LOG.error(
-              "Failed to import block to chain. block={} extraData={} blockHeader={}",
-              blockNumber,
-              extraData,
-              blockToImport.getHeader());
-    } else {
-      notifyNewBlockListeners(blockToImport);
-    }
-  }
-
   private SECPSignature createCommitSeal(final Block block) {
     final BlockHeader proposedHeader = block.getHeader();
     final BftExtraData extraData = bftExtraDataCodec.decode(proposedHeader);
@@ -488,5 +495,14 @@ public class PosRound {
 
   private void updateRound(Block block){
     updateNodes(block);
+    Address leader= posProposerSelector.selectLeader();
+    if (nodeIsleader(leader)){
+
+    }
   }
+
+  private boolean nodeIsleader(Address leader){
+    return leader.equals(Util.publicKeyToAddress(nodeKey.getPublicKey()));
+  }
+
 }

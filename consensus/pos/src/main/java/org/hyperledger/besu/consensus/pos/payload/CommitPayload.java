@@ -14,9 +14,11 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import lombok.EqualsAndHashCode;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
-import org.hyperledger.besu.consensus.pos.messagedata.Pos;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Hash;
@@ -27,26 +29,16 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 /** The Commit payload. */
+@EqualsAndHashCode(callSuper = true)
 public class CommitPayload extends PosPayload {
-  private static final int TYPE = Pos.COMMIT;
-  private final ConsensusRoundIdentifier roundIdentifier;
-  private final Hash digest;
-  private final SECPSignature commitSeal;
+  private static final int TYPE = PosMessage.BLOCK_ANNOUNCE.getCode();
+//  private final ConsensusRoundIdentifier roundIdentifier;
+  private final PosBlock block;
+//  private final SECPSignature commitSeal;//todo
 
-  /**
-   * Instantiates a new Commit payload.
-   *
-   * @param roundIdentifier the round identifier
-   * @param digest the digest
-   * @param commitSeal the commit seal
-   */
-  public CommitPayload(
-      final ConsensusRoundIdentifier roundIdentifier,
-      final Hash digest,
-      final SECPSignature commitSeal) {
-    this.roundIdentifier = roundIdentifier;
-    this.digest = digest;
-    this.commitSeal = commitSeal;
+  public CommitPayload(ConsensusRoundIdentifier roundIdentifier, long height,PosBlock block) {
+    super(roundIdentifier, height);
+    this.block = block;
   }
 
   /**
@@ -63,7 +55,7 @@ public class CommitPayload extends PosPayload {
         rlpInput.readBytes(SignatureAlgorithmFactory.getInstance()::decodeSignature);
     rlpInput.leaveList();
 
-    return new CommitPayload(roundIdentifier, digest, commitSeal);
+    return new CommitPayload(roundIdentifier,height,block);
   }
 
   @Override
@@ -98,36 +90,37 @@ public class CommitPayload extends PosPayload {
     return commitSeal;
   }
 
-  @Override
-  public ConsensusRoundIdentifier getRoundIdentifier() {
-    return roundIdentifier;
-  }
+//  @Override
+//  public ConsensusRoundIdentifier getRoundIdentifier() {
+//    return roundIdentifier;
+//  }
 
-  @Override
-  public boolean equals(final Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    final CommitPayload that = (CommitPayload) o;
-    return Objects.equals(roundIdentifier, that.roundIdentifier)
-        && Objects.equals(digest, that.digest)
-        && Objects.equals(commitSeal, that.commitSeal);
-  }
+//  @Override
+//  public boolean equals(final Object o) {
+//    if (this == o) {
+//      return true;
+//    }
+//    if (o == null || getClass() != o.getClass()) {
+//      return false;
+//    }
+//    final CommitPayload that = (CommitPayload) o;
+//    return Objects.equals(
+////            roundIdentifier, that.roundIdentifier)
+//            Objects.equals(digest, that.digest)
+//        && Objects.equals(commitSeal, that.commitSeal);
+//  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(roundIdentifier, digest, commitSeal);
-  }
-
-  @Override
-  public String toString() {
-    return new StringJoiner(", ", CommitPayload.class.getSimpleName() + "[", "]")
-        .add("roundIdentifier=" + roundIdentifier)
-        .add("digest=" + digest)
-        .add("commitSeal=" + commitSeal)
-        .toString();
-  }
+//  @Override
+//  public int hashCode() {
+//    return Objects.hash( digest, commitSeal);
+//  }
+//
+//  @Override
+//  public String toString() {
+//    return new StringJoiner(", ", CommitPayload.class.getSimpleName() + "[", "]")
+////        .add("roundIdentifier=" + roundIdentifier)
+//        .add("digest=" + digest)
+//        .add("commitSeal=" + commitSeal)
+//        .toString();
+//  }
 }

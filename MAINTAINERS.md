@@ -81,28 +81,28 @@ The requirement to be able to be proposed as a maintainer is:
 The following steps must occur for a contributor to be "upgraded" as a maintainer:
 
 - The proposed maintainer has the sponsorship of at least one other maintainer.
-  - This sponsoring maintainer will create a proposal PR modifying the list of
-    maintainers. (see [proposal PR template](#proposal-pr-template).)
+  - This sponsoring maintainer will create a propose PR modifying the list of
+    maintainers. (see [propose PR template](#propose-pr-template).)
   - The proposed maintainer accepts the nomination and expresses a willingness
-    to be a long-term (more than 6 month) committer by adding a comment in the proposal PR.
+    to be a long-term (more than 6 month) committer by adding a comment in the propose PR.
   - The PR will be communicated in all appropriate communication channels
     including at least [besu-contributors channel on Discord](https://discord.com/invite/hyperledger),
     the [mailing list](https://lists.hyperledger.org/g/besu)
     and any maintainer/community call.
-- Approval by at least 3 current maintainers within two weeks of the proposal or
+- Approval by at least 3 current maintainers within two weeks of the propose or
   an absolute majority (half the total + 1) of current maintainers.
-  - Maintainers will vote by approving the proposal PR.
+  - Maintainers will vote by approving the propose PR.
 - No veto raised by another maintainer within the voting timeframe.
   - All vetoes must be accompanied by a public explanation as a comment in the
-    proposal PR.
+    propose PR.
   - The explanation of the veto must be reasonable and follow the [Besu code of conduct](https://wiki.hyperledger.org/display/BESU/Code+of+Conduct).
   - A veto can be retracted, in that case the voting timeframe is reset and all approvals are removed.
   - It is bad form to veto, retract, and veto again.
   
 The proposed maintainer becomes a maintainer either:
 
-  - when two weeks have passed without veto since the third approval of the proposal PR,
-  - or an absolute majority of maintainers approved the proposal PR.
+  - when two weeks have passed without veto since the third approval of the propose PR,
+  - or an absolute majority of maintainers approved the propose PR.
 
 In either case, no maintainer raised and stood by a veto.
 

@@ -14,44 +14,49 @@
  */
 package org.hyperledger.besu.consensus.pos.messagedata;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-//import org.hyperledger.besu.consensus.ibft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
-import org.apache.tuweni.bytes.Bytes;
+/** The ViewChange message data. */
+public class ViewChangeMessageData extends AbstractBftMessageData {
 
-/** The Proposal message data. */
-public class ProposalMessageData extends AbstractBftMessageData {
+  private static final int MESSAGE_CODE = PosMessage.VIEW_CHANGE.getCode();
 
-  private static final int MESSAGE_CODE = PosMessage.PROPOSE.getCode();
-
-  private ProposalMessageData(final Bytes data) {
+  private ViewChangeMessageData(final Bytes data) {
     super(data);
   }
 
   /**
-   * From message data create proposal message data.
+   * Instantiate ViewChangeMessageData from message data.
    *
    * @param messageData the message data
-   * @return the proposal message data
+   * @return the ViewChange message data
    */
-  public static ProposalMessageData fromMessageData(final MessageData messageData) {
+  public static ViewChangeMessageData fromMessageData(final MessageData messageData) {
     return fromMessageData(
-        messageData, MESSAGE_CODE, ProposalMessageData.class, ProposalMessageData::new);
+        messageData, MESSAGE_CODE, ViewChangeMessageData.class, ViewChangeMessageData::new);
   }
 
   /**
    * Decode.
    *
-   * @return the proposal
+   * @return the ViewChange
    */
-  public Propose decode() {
-    return Propose.decode(data);
+  public ViewChange decode() {
+    return ViewChange.decode(data);
   }
 
-  public static ProposalMessageData create(final Propose propose) {
-    return new ProposalMessageData(propose.encode());
+  /**
+   * Create ViewChange message data.
+   *
+   * @param viewChange the ViewChange
+   * @return the vote message data
+   */
+  public static ViewChangeMessageData create(final ViewChange viewChange) {
+    return new ViewChangeMessageData(viewChange.encode());
   }
 
   @Override

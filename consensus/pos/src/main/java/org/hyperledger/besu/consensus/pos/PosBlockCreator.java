@@ -14,66 +14,72 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.crypto.SECPSignature;
+import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
 
 import java.util.Collection;
-
+@Data
+@Builder
+//@NoArgsConstructor
+//@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 /** Adaptor class to allow a {@link BlockCreator} to be used as a {@link PosBlockCreator}. */
 public class PosBlockCreator {
 
   private final BlockCreator besuBlockCreator;
-  private final BftExtraDataCodec bftExtraDataCodec;
+  private final PosExtraDataCodec posExtraDataCodec;
 
-  /**
-   * Constructs a new PosBlockCreator
-   *
-   * @param besuBftBlockCreator the Besu BFT block creator
-   * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
-   */
-  public PosBlockCreator(
-      final BlockCreator besuBftBlockCreator, final BftExtraDataCodec bftExtraDataCodec) {
-    this.besuBlockCreator = besuBftBlockCreator;
-    this.bftExtraDataCodec = bftExtraDataCodec;
-  }
 
   public PosBlock createBlock(
-      final long headerTimeStampSeconds, final PosBlockHeader parentHeader) {
-    var blockResult =
-        besuBlockCreator.createBlock(
-            headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
-    return new PosBlock(blockResult.getBlock());
+          final long headerTimeStampSeconds, final PosBlockHeader parentHeader, Address proposer) {
+    var blockResult = besuBlockCreator.createBlock(headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
+    var round=new ConsensusRoundIdentifier(
+            parentHeader.getRoundIdentifier().getSequenceNumber()+1,
+            parentHeader.getRoundIdentifier().getRoundNumber()+1
+    );
+//    PosBlockHeader header=PosBlockHeader.builder()
+//            .besuHeader(blockResult.getBlock().getHeader())
+//            .roundIdentifier(round)
+//            .proposer(proposer)
+//            .build();
+    return new PosBlock(blockResult.getBlock(),round,proposer);
   }
 
   public PosBlock createSealedBlock(
-      final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals) {
+      final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals,Address propser) {
     final Block besuBlock = BlockUtil.toBesuBlock(block);
     final PosBlockHeader initialHeader = block.getHeader();
     final BftExtraData initialExtraData =
-        bftExtraDataCodec.decode(BlockUtil.toBesuBlockHeader(initialHeader));
+        posExtraDataCodec.decode(BlockUtil.toBesuBlockHeader(initialHeader));
 
-    final BftExtraData sealedExtraData =
-        new BftExtraData(
+    final PosExtraData sealedExtraData =
+        new PosExtraData(
             initialExtraData.getVanityData(),
             commitSeals,
             initialExtraData.getVote(),
             roundNumber,
-            initialExtraData.getValidators());
+            initialExtraData.getValidators(),
+            propser
+        );
 
     final BlockHeader sealedHeader =
         BlockHeaderBuilder.fromHeader(BlockUtil.toBesuBlockHeader(initialHeader))
-            .extraData(bftExtraDataCodec.encode(sealedExtraData))
-            .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(bftExtraDataCodec))
+            .extraData(posExtraDataCodec.encode(sealedExtraData))
+            .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(posExtraDataCodec))
             .buildBlockHeader();
     final Block sealedBesuBlock = new Block(sealedHeader, besuBlock.getBody());
-    return new PosBlock(sealedBesuBlock);
+    return new PosBlock(sealedBesuBlock,block.getPosBlockHeader());
   }
 }
