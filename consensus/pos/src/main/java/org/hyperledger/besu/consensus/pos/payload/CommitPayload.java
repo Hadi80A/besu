@@ -15,6 +15,8 @@
 package org.hyperledger.besu.consensus.pos.payload;
 
 import lombok.EqualsAndHashCode;
+import lombok.SneakyThrows;
+import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
@@ -22,6 +24,7 @@ import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
@@ -30,9 +33,9 @@ import java.util.StringJoiner;
 
 /** The Commit payload. */
 @EqualsAndHashCode(callSuper = true)
+@SuperBuilder
 public class CommitPayload extends PosPayload {
   private static final int TYPE = PosMessage.BLOCK_ANNOUNCE.getCode();
-//  private final ConsensusRoundIdentifier roundIdentifier;
   private final PosBlock block;
 //  private final SECPSignature commitSeal;//todo
 
@@ -47,23 +50,25 @@ public class CommitPayload extends PosPayload {
    * @param rlpInput the rlp input
    * @return the commit payload
    */
+  @SneakyThrows
   public static CommitPayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
+    long height = rlpInput.readLong();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final Hash digest = Payload.readDigest(rlpInput);
-    final SECPSignature commitSeal =
-        rlpInput.readBytes(SignatureAlgorithmFactory.getInstance()::decodeSignature);
+    final PosBlock proposedBlock =
+            PosBlock.readFrom(rlpInput);
     rlpInput.leaveList();
 
-    return new CommitPayload(roundIdentifier,height,block);
+    return new CommitPayload(roundIdentifier,height,proposedBlock);
   }
 
+  @SneakyThrows
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
     rlpOutput.startList();
-    roundIdentifier.writeTo(rlpOutput);
-    rlpOutput.writeBytes(digest);
-    rlpOutput.writeBytes(commitSeal.encodedBytes());
+    rlpOutput.writeLong(height);
+    getRoundIdentifier().writeTo(rlpOutput);
+    block.writeTo(rlpOutput);
     rlpOutput.endList();
   }
 
@@ -71,56 +76,4 @@ public class CommitPayload extends PosPayload {
   public int getMessageType() {
     return TYPE;
   }
-
-  /**
-   * Gets digest.
-   *
-   * @return the digest
-   */
-  public Hash getDigest() {
-    return digest;
-  }
-
-  /**
-   * Gets commit seal.
-   *
-   * @return the commit seal
-   */
-  public SECPSignature getCommitSeal() {
-    return commitSeal;
-  }
-
-//  @Override
-//  public ConsensusRoundIdentifier getRoundIdentifier() {
-//    return roundIdentifier;
-//  }
-
-//  @Override
-//  public boolean equals(final Object o) {
-//    if (this == o) {
-//      return true;
-//    }
-//    if (o == null || getClass() != o.getClass()) {
-//      return false;
-//    }
-//    final CommitPayload that = (CommitPayload) o;
-//    return Objects.equals(
-////            roundIdentifier, that.roundIdentifier)
-//            Objects.equals(digest, that.digest)
-//        && Objects.equals(commitSeal, that.commitSeal);
-//  }
-
-//  @Override
-//  public int hashCode() {
-//    return Objects.hash( digest, commitSeal);
-//  }
-//
-//  @Override
-//  public String toString() {
-//    return new StringJoiner(", ", CommitPayload.class.getSimpleName() + "[", "]")
-////        .add("roundIdentifier=" + roundIdentifier)
-//        .add("digest=" + digest)
-//        .add("commitSeal=" + commitSeal)
-//        .toString();
-//  }
 }

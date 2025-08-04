@@ -26,18 +26,26 @@ import org.hyperledger.besu.consensus.pos.PosExtraData;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
+import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
+import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.VoteMessageData;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The Pos controller. */
 public class PosController extends BaseBftController {
+  private static final Logger LOG = LoggerFactory.getLogger(PosController.class);
 
   private BasePosBlockHeightManager currentHeightManager;
   private final PosBlockHeightManagerFactory posBlockHeightManagerFactory;
 //  private StakeManagerInteractor stakeManager;
+  private final Blockchain blockchain;
 
   public PosController(
           final Blockchain blockchain,
@@ -55,59 +63,66 @@ public class PosController extends BaseBftController {
         duplicateMessageTracker,
         futureMessageBuffer,
         synchronizerUpdater);
+
     this.posBlockHeightManagerFactory = posBlockHeightManagerFactory;
 //    this.stakeManager=stakeManager;
+      this.blockchain = blockchain;
   }
 
   @Override
   protected void handleMessage(final Message message) {
     final MessageData messageData = message.getData();
+    LOG.debug("received a message: {}", messageData);
+    PosMessage[] values = PosMessage.values();
+    switch (values[messageData.getCode()]) {
+      case PosMessage.PROPOSE:
+        consumeMessage(
+            message,
+            ProposalMessageData.fromMessageData(messageData).decode(),
+            currentHeightManager::handleProposalMessage);
+        break;
 
-//    switch (messageData.getCode()) {
-//      case Pos.PROPOSAL:
-//        consumeMessage(
-//            message,
-//            ProposalMessageData.fromMessageData(messageData).decode(),
-//            currentHeightManager::handleProposalPayload);
-//        break;
-//
-//      case Pos.PREPARE:
-//        consumeMessage(
-//            message,
-//            PrepareMessageData.fromMessageData(messageData).decode(),
-//            currentHeightManager::handlePreparePayload);
-//        break;
-//
-//      case Pos.COMMIT:
-//        consumeMessage(
-//            message,
-//            CommitMessageData.fromMessageData(messageData).decode(),
-//            currentHeightManager::handleCommitPayload);
-//        break;
-//
+      case PosMessage.VOTE:
+        consumeMessage(
+            message,
+            VoteMessageData.fromMessageData(messageData).decode(),
+            currentHeightManager::handleVoteMessage);
+        break;
+
+      case PosMessage.BLOCK_ANNOUNCE:
+        consumeMessage(
+            message,
+            CommitMessageData.fromMessageData(messageData).decode(),
+            currentHeightManager::handleCommitMessage);
+        break;
+
 //      case Pos.ROUND_CHANGE:
 //        consumeMessage(
 //            message,
 //            RoundChangeMessageData.fromMessageData(messageData).decode(),
 //            currentHeightManager::handleRoundChangePayload);
 //        break;
-//
-//      default:
-//        throw new IllegalArgumentException(
-//            String.format(
-//                "Received message with messageCode=%d does not conform to any recognised IBFT message structure",
-//                message.getData().getCode()));
-//    }
+
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Received message with messageCode=%d does not conform to any recognised IBFT message structure",
+                message.getData().getCode()));
+    }
   }
 
   @Override
   protected void createNewHeightManager(final BlockHeader parentHeader) {
     PosBlockHeader posBlockHeader = getPosBlockHeader(parentHeader);
-    currentHeightManager = posBlockHeightManagerFactory.create(posBlockHeader);
+    currentHeightManager = posBlockHeightManagerFactory.create(posBlockHeader,blockchain);
+
   }
 
   @NotNull
-  private static PosBlockHeader getPosBlockHeader(BlockHeader parentHeader) {
+  private PosBlockHeader getPosBlockHeader(BlockHeader parentHeader) {
+    if(parentHeader.getNumber()<=0) {
+      return new PosBlockHeader(parentHeader,new ConsensusRoundIdentifier(0,0),null);
+    }
     PosExtraData posExtraData = new PosExtraDataCodec().decodePosData(parentHeader.getExtraData());
     ConsensusRoundIdentifier roundIdentifier=new ConsensusRoundIdentifier(0,posExtraData.getRound()); //TODO: sequense
     PosBlockHeader posBlockHeader=new PosBlockHeader(parentHeader,roundIdentifier,posExtraData.getProposer());

@@ -32,10 +32,7 @@ import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import com.google.common.collect.ImmutableBiMap;
 import org.apache.tuweni.bytes.Bytes;
@@ -46,12 +43,15 @@ import org.apache.tuweni.bytes.Bytes;
  */
 public class PosExtraDataCodec extends BftExtraDataCodec {
   private static final ImmutableBiMap<VoteType, Byte> voteToValue =
-      ImmutableBiMap.of(
-          VoteType.ADD, ADD_BYTE_VALUE,
-          VoteType.DROP, DROP_BYTE_VALUE);
+          ImmutableBiMap.of(
+                  VoteType.ADD, ADD_BYTE_VALUE,
+                  VoteType.DROP, DROP_BYTE_VALUE);
 
-  /** Default constructor. */
-  public PosExtraDataCodec() {}
+  /**
+   * Default constructor.
+   */
+  public PosExtraDataCodec() {
+  }
 
   /**
    * Encode from addresses.
@@ -61,13 +61,13 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
    */
   public static Bytes encodeFromAddresses(final Collection<Address> addresses) {
     return new PosExtraDataCodec()
-        .encode(
-            new BftExtraData(
-                Bytes.wrap(new byte[EXTRA_VANITY_LENGTH]),
-                Collections.emptyList(),
-                Optional.empty(),
-                0,
-                addresses));
+            .encode(
+                    new BftExtraData(
+                            Bytes.wrap(new byte[EXTRA_VANITY_LENGTH]),
+                            Collections.emptyList(),
+                            Optional.empty(),
+                            0,
+                            addresses));
   }
 
   /**
@@ -100,8 +100,8 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     }
     final int round = rlpInput.readInt();
     final List<SECPSignature> seals =
-        rlpInput.readList(
-            rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+            rlpInput.readList(
+                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
     rlpInput.leaveList();
 
     return new BftExtraData(vanityData, seals, vote, round, validators);
@@ -123,7 +123,7 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
       encoder.writeInt(bftExtraData.getRound());
       if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS) {
         encoder.writeList(
-            bftExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
+                bftExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
       }
     }
     encoder.endList();
@@ -151,53 +151,115 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     return new Vote(recipient, vote);
   }
 
+//  @SneakyThrows
+//  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType){
+//    final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
+//    encoder.startList();
+//    encoder.writeBytes(posExtraData.getVanityData());
+//    encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+//    if (posExtraData.getVote().isPresent()) {
+//      encodeVote(encoder, posExtraData.getVote().get());
+//    } else {
+//      encoder.writeNull();
+//    }
+//
+//    if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS_AND_ROUND_NUMBER) {
+//      encoder.writeInt(posExtraData.getRound());
+//      if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS) {
+//        encoder.writeList(
+//                posExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
+//      }
+//    }
+//    encoder.endList();
+//    encoder.writeBytes(SerializeUtil.toBytes(posExtraData.getProposer()));
+//    return encoder.encoded();
+//  }
+
+
   @SneakyThrows
-  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType){
+  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType) {
     final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
     encoder.startList();
     encoder.writeBytes(posExtraData.getVanityData());
     encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+
     if (posExtraData.getVote().isPresent()) {
       encodeVote(encoder, posExtraData.getVote().get());
     } else {
       encoder.writeNull();
     }
 
-    if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS_AND_ROUND_NUMBER) {
-      encoder.writeInt(posExtraData.getRound());
-      if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS) {
-        encoder.writeList(
-                posExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
-      }
+    encoder.writeInt(posExtraData.getRound());
+    encoder.writeList(
+            posExtraData.getSeals(),
+            (committer, rlp) -> rlp.writeBytes(committer.encodedBytes())
+    );
+
+    // Handle null proposer (genesis case)
+    if (posExtraData.getProposer() != null) {
+      encoder.writeBytes(posExtraData.getProposer());
+    } else {
+      encoder.writeNull(); // Genesis block marker
     }
+
     encoder.endList();
-    encoder.writeBytes(SerializeUtil.toBytes(posExtraData.getProposer()));
     return encoder.encoded();
   }
+//  @SneakyThrows
+//  public PosExtraData decodePosData(final Bytes input) {
+//    if (input.isEmpty()) {
+//      throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
+//    }
+//
+//    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
+//
+//    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
+//    final Bytes vanityData = rlpInput.readBytes();
+//    final List<Address> validators = rlpInput.readList(Address::readFrom);
+//    final Optional<Vote> vote;
+//    if (rlpInput.nextIsNull()) {
+//      vote = Optional.empty();
+//      rlpInput.skipNext();
+//    } else {
+//      vote = Optional.of(decodeVote(rlpInput));
+//    }
+//    final int round = rlpInput.readInt();
+//    final List<SECPSignature> seals =
+//            rlpInput.readList(
+//                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+//    rlpInput.leaveList();
+//    Address proposer = SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
+//    return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
+//  }
+//}
+
   @SneakyThrows
   public PosExtraData decodePosData(final Bytes input) {
-    if (input.isEmpty()) {
-      throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
-    }
-
     final RLPInput rlpInput = new BytesValueRLPInput(input, false);
+    rlpInput.enterList();
 
-    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
     final Bytes vanityData = rlpInput.readBytes();
     final List<Address> validators = rlpInput.readList(Address::readFrom);
-    final Optional<Vote> vote;
-    if (rlpInput.nextIsNull()) {
-      vote = Optional.empty();
-      rlpInput.skipNext();
-    } else {
-      vote = Optional.of(decodeVote(rlpInput));
-    }
+
+    final Optional<Vote> vote = rlpInput.nextIsNull()
+            ? Optional.empty()
+            : Optional.of(decodeVote(rlpInput));
+
     final int round = rlpInput.readInt();
-    final List<SECPSignature> seals =
-            rlpInput.readList(
-                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+    final List<SECPSignature> seals = rlpInput.readList(
+            rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+
+    // Handle genesis block (no proposer)
+    final Address proposer;
+    if (rlpInput.nextIsNull()) {
+      rlpInput.skipNext();
+      proposer = null;
+    } else {
+      proposer = Address.readFrom(rlpInput);
+    }
+
     rlpInput.leaveList();
-    Address proposer = SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
+    System.out.println("vanityData"+vanityData+", seals"+ seals +", vote"+ vote+ ", round"+ round+"validators,"+ Arrays.toString(validators.toArray()) +" proposer"+proposer);
     return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
   }
 }

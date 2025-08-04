@@ -130,7 +130,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
       final EthProtocolManager ethProtocolManager) {
     final MutableBlockchain blockchain = protocolContext.getBlockchain();
     final BftExecutors bftExecutors =
-        BftExecutors.create(metricsSystem, BftExecutors.ConsensusType.IBFT);
+        BftExecutors.create(metricsSystem, BftExecutors.ConsensusType.POS);
 
     final Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
@@ -215,7 +215,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     NodeSet nodeSet = createNodeSet(protocolContext);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
-    PosProposerSelector  posProposerSelector=new PosProposerSelector();
+    PosProposerSelector  posProposerSelector=new PosProposerSelector(nodeSet);
     final BftEventHandler posController =
         new PosController(
             blockchain,
@@ -231,10 +231,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     messageFactory,
                     bftExtraDataCodec,
                     contractCaller,
-                    nodeSet),
+                    nodeSet,
+                    posProposerSelector),
                 messageValidatorFactory,
                 messageFactory,
-                    posProposerSelector
+                posProposerSelector
             ),
             gossiper,
             duplicateMessageTracker,
@@ -268,10 +269,10 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         syncStatus -> {
           if (syncState.syncTarget().isPresent()) {
             // We're syncing so stop doing other stuff
-            LOG.info("Stopping IBFT mining coordinator while we are syncing");
+            LOG.info("Stopping POS mining coordinator while we are syncing");
             posMiningCoordinator.stop();
           } else {
-            LOG.info("Starting IBFT mining coordinator following sync");
+            LOG.info("Starting POS mining coordinator following sync");
             posMiningCoordinator.enable();
             posMiningCoordinator.start();
           }
@@ -281,7 +282,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         new BesuEvents.InitialSyncCompletionListener() {
           @Override
           public void onInitialSyncCompleted() {
-            LOG.info("Starting IBFT mining coordinator following initial sync");
+            LOG.info("Starting POS mining coordinator following initial sync");
             posMiningCoordinator.enable();
             posMiningCoordinator.start();
           }

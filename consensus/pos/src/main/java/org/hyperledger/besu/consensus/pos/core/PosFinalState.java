@@ -24,15 +24,20 @@ import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
 import java.time.Clock;
 import java.util.Collection;
-
+import java.util.HashMap;
+import java.util.Map;
+@Getter
 /** Besu implementation of PosFinalState for maintaining the state of a QBFT network. */
 public class PosFinalState {
   private final ValidatorProvider validatorProvider;
+
+  final Map<Address, ViewChange> receivedMessages;
     /**
      * -- GETTER --
      *  Gets node key.
@@ -105,7 +110,8 @@ public class PosFinalState {
           final PosBlockCreatorFactory blockCreatorFactory,
           final Clock clock, BftFinalState bftFinalState) {
     this.validatorProvider = validatorProvider;
-    this.nodeKey = nodeKey;
+      this.receivedMessages = new HashMap<>();
+      this.nodeKey = nodeKey;
     this.localAddress = localAddress;
     this.proposerSelector = proposerSelector;
     this.validatorMulticaster = validatorMulticaster;

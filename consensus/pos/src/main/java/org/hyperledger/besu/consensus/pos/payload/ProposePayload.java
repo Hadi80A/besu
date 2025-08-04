@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pos.payload;
 
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
@@ -22,13 +23,14 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.StringJoiner;
 
 /** The Proposal payload. */
 //@AllArgsConstructor
 @Getter
-@Builder
+@SuperBuilder
 @EqualsAndHashCode(callSuper = false)
 public class ProposePayload extends PosPayload {
   private static final int TYPE = PosMessage.PROPOSE.getCode();
@@ -48,15 +50,19 @@ public class ProposePayload extends PosPayload {
    * @param rlpInput the rlp input
    * @return the proposal payload
    */
-  @SneakyThrows
+//  @SneakyThrows
   public static ProposePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
     final long height = rlpInput.readLong();
     rlpInput.leaveList();
-    final PosBlock proposedBlock =
-            PosBlock.readFrom(rlpInput);
-    return new ProposePayload(roundIdentifier,height,proposedBlock);
+      final PosBlock proposedBlock;
+      try {
+          proposedBlock = PosBlock.readFrom(rlpInput);
+      } catch (IOException e) {
+          throw new RuntimeException(e);
+      }
+      return new ProposePayload(roundIdentifier,height,proposedBlock);
   }
 
   @SneakyThrows

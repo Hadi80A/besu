@@ -16,8 +16,10 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
+import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 
+import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,10 +60,10 @@ public class PosBlockHeightManagerFactory {
      * @param parentHeader the parent header
      * @return the base pos block height manager
      */
-    public BasePosBlockHeightManager create(final PosBlockHeader parentHeader) {
+    public BasePosBlockHeightManager create(final PosBlockHeader parentHeader, Blockchain blockchain) {
         if (finalState.isLocalNodeValidator()) {
             LOG.debug("Local node is a validator");
-            return createFullBlockHeightManager(parentHeader);
+            return createFullBlockHeightManager(parentHeader,blockchain);
         } else {
             LOG.debug("Local node is a non-validator");
             return createNoOpBlockHeightManager(parentHeader);
@@ -79,17 +81,16 @@ public class PosBlockHeightManagerFactory {
         return new NoOpBlockHeightManager(parentHeader);
     }
 
-    private BasePosBlockHeightManager createFullBlockHeightManager(final PosBlockHeader parentHeader) {
+    private BasePosBlockHeightManager createFullBlockHeightManager(final PosBlockHeader parentHeader,Blockchain blockchain) {
         return new PosBlockHeightManager(
                 parentHeader,
                 finalState,
-//                new RoundChangeManager(
-//                        BftHelpers.calculateRequiredValidatorQuorum(finalState.getValidators().size()),
-//                        messageValidatorFactory.createRoundChangeMessageValidator(
-//                                parentHeader.getNumber() + 1L, parentHeader)),
                 roundFactory,
                 finalState.getClock(),
                 messageFactory,
-                posProposerSelector);
+                posProposerSelector,
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster()),
+                blockchain
+        );
     }
 }

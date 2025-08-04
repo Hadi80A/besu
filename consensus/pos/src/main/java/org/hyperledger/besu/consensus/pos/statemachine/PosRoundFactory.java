@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
@@ -52,6 +53,7 @@ public class PosRoundFactory {
     private final BftExtraDataCodec bftExtraDataCodec;
     private final ContractCaller contractCaller;
     private final NodeSet nodeSet;
+    private final PosProposerSelector proposerSelector;
 
     /**
      * Instantiates a new Pos round factory.
@@ -71,7 +73,7 @@ public class PosRoundFactory {
             final Subscribers<MinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
-            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet) {
+            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {
         this.finalState = finalState;
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
@@ -82,6 +84,7 @@ public class PosRoundFactory {
         this.bftExtraDataCodec = bftExtraDataCodec;
         this.contractCaller = contractCaller;
         this.nodeSet = nodeSet;
+        this.proposerSelector = proposerSelector;
     }
 
     /**
@@ -118,8 +121,8 @@ public class PosRoundFactory {
         final PosBlockCreator blockCreator =
                 blockCreatorFactory.create(roundState.getRoundIdentifier().getRoundNumber());
 //
-//        final PosMessageTransmitter messageTransmitter =
-//                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster());
+        final PosMessageTransmitter messageTransmitter =
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster());
 
         return new PosRound(
                 roundState,
@@ -129,12 +132,15 @@ public class PosRoundFactory {
                 minedBlockObservers,
                 finalState.getNodeKey(),
                 messageFactory,
-//                messageTransmitter,
+                messageTransmitter,
                 finalState.getRoundTimer(),
                 bftExtraDataCodec,
                 parentHeader,
                 contractCaller,
-                nodeSet);
+                nodeSet,
+                proposerSelector,
+                finalState
+                );
     }
 
     public static class MessageFactory{
@@ -153,8 +159,8 @@ public class PosRoundFactory {
         public CommitPayload createCommitPayload(PosBlock block) {
             return CommitPayload.builder()
                     .block(block)
-                    .round(block.getRound())
-                    .height(block.getHeight())
+                    .roundIdentifier(block.getHeader().getRoundIdentifier())
+                    .height(block.getHeader().getHeight())
                     .build();
         }
 
@@ -168,9 +174,9 @@ public class PosRoundFactory {
 
         public VotePayload createVotePayload(PosBlock block) {
             return VotePayload.builder()
-                    .blockHash(block.getHash())
-                    .round(block.getRound())
-                    .height(block.getHeight())
+                    .digest(block.getHash())
+                    .roundIdentifier(block.getHeader().getRoundIdentifier())
+                    .height(block.getHeader().getHeight())
                     .build();
         }
 

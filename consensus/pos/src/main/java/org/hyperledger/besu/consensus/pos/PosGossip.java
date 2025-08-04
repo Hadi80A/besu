@@ -15,9 +15,14 @@
 package org.hyperledger.besu.consensus.pos;
 
 import org.hyperledger.besu.consensus.common.bft.Gossiper;
+import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.payload.Authored;
-import org.hyperledger.besu.consensus.pos.messagedata.Pos;
+
+import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
+import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.VoteMessageData;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
@@ -48,24 +53,15 @@ public class PosGossip implements Gossiper {
   @Override
   public void send(final Message message) {
     final MessageData messageData = message.getData();
-    final Authored decodedMessage = null;
-//    switch (messageData.getCode()) {
-//      case Pos.PROPOSAL:
-//        decodedMessage = ProposalMessageData.fromMessageData(messageData).decode();
-//        break;
-//      case Pos.PREPARE:
-//        decodedMessage = PrepareMessageData.fromMessageData(messageData).decode();
-//        break;
-//      case Pos.COMMIT:
-//        decodedMessage = CommitMessageData.fromMessageData(messageData).decode();
-//        break;
-//      case Pos.ROUND_CHANGE:
-//        decodedMessage = RoundChangeMessageData.fromMessageData(messageData).decode();
-//        break;
-//      default:
-//        throw new IllegalArgumentException(
-//            "Received message does not conform to any recognised pos message structure.");
-//    }
+    final Authored decodedMessage;
+    PosMessage[] values = PosMessage.values();
+      decodedMessage = switch (values[messageData.getCode()]) {
+          case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
+          case PosMessage.BLOCK_ANNOUNCE -> CommitMessageData.fromMessageData(messageData).decode();
+          case PosMessage.VOTE -> VoteMessageData.fromMessageData(messageData).decode();
+          default -> throw new IllegalArgumentException(
+                  "Received message does not conform to any recognised pos message structure.");
+      };
     final List<Address> excludeAddressesList =
         Lists.newArrayList(
             message.getConnection().getPeerInfo().getAddress(), decodedMessage.getAuthor());

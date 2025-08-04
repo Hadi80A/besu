@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.crypto.SECPSignature;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -85,6 +86,7 @@ public class RoundState {
   }
 
   public Collection<SECPSignature> getCommitSeals() {
+    return Collections.emptyList();//todo
     return commitMessages.stream()
             .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())
             .collect(Collectors.toList());

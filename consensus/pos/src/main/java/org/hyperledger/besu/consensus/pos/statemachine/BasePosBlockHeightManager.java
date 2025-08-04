@@ -15,16 +15,17 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 
 /** The interface Base pos block height manager. */
 public interface BasePosBlockHeightManager extends BaseBlockHeightManager {
 
-  /**
-   * Handle proposal payload.
-   *
-   * @param proposal the proposal
-   */
-//  void handleProposalPayload(Proposal proposal);
+  void handleProposalMessage(final Propose msg);
+  void handleVoteMessage(final Vote msg);
+  void handleCommitMessage(final Commit msg);
 //
 //  /**
 //   * Handle prepare payload.

@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos.payload;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
@@ -31,6 +32,7 @@ import java.util.StringJoiner;
 //@AllArgsConstructor
 @Getter
 @EqualsAndHashCode(callSuper = false)
+@SuperBuilder
 /** The Vote payload. */
 public class VotePayload extends PosPayload {
   private static final int TYPE = PosMessage.VOTE.getCode();

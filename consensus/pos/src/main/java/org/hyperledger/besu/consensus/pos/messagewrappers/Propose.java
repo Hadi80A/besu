@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
@@ -28,6 +29,8 @@ import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The Proposal. */
 
@@ -35,6 +38,7 @@ import org.apache.tuweni.bytes.Bytes;
 public class Propose extends BftMessage<ProposePayload> {
 
   private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
+  private static final Logger LOG = LoggerFactory.getLogger(Propose.class);
 
   /**
    * Instantiates a new Proposal.
@@ -58,13 +62,14 @@ public class Propose extends BftMessage<ProposePayload> {
 //    return roundChangeCertificate;
 //  }
 
-  @SneakyThrows
+//  @SneakyThrows
   @Override
   public Bytes encode() {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
     rlpOut.startList();
     getSignedPayload().writeTo(rlpOut);
     rlpOut.endList();
+    LOG.debug("Encoding Propose payload");
     return rlpOut.encoded();
   }
 

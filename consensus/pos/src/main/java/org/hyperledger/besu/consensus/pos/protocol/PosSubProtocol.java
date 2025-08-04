@@ -14,7 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.protocol;
 
-import org.hyperledger.besu.consensus.pos.messagedata.Pos;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Capability;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.SubProtocol;
 
@@ -48,36 +48,30 @@ public class PosSubProtocol implements SubProtocol {
 
   @Override
   public int messageSpace(final int protocolVersion) {
-    return Pos.MESSAGE_SPACE;
+    return PosMessage.MESSAGE_SPACE.getCode();
   }
 
   @Override
   public boolean isValidMessageCode(final int protocolVersion, final int code) {
-    switch (code) {
-      case Pos.PROPOSAL:
-      case Pos.PREPARE:
-      case Pos.COMMIT:
-      case Pos.ROUND_CHANGE:
-        return true;
-
-      default:
-        return false;
-    }
+    PosMessage[] values = PosMessage.values();
+      return switch (values[code]) {
+          case PosMessage.PROPOSE, PosMessage.VOTE, PosMessage.BLOCK_ANNOUNCE ->
+//      case PosMessage.ROUND_CHANGE:
+                  true;
+          default -> false;
+      };
   }
 
   @Override
   public String messageName(final int protocolVersion, final int code) {
-    switch (code) {
-      case Pos.PROPOSAL:
-        return "Proposal";
-      case Pos.PREPARE:
-        return "Prepare";
-      case Pos.COMMIT:
-        return "Commit";
-      case Pos.ROUND_CHANGE:
-        return "RoundChange";
-      default:
-        return INVALID_MESSAGE_NAME;
-    }
+    PosMessage[] values = PosMessage.values();
+      return switch (values[code]) {
+          case PosMessage.PROPOSE -> "Proposal";
+          case PosMessage.VOTE -> "Prepare";
+          case PosMessage.BLOCK_ANNOUNCE -> "Commit";
+//      case PosMessage.ROUND_CHANGE:
+//        return "RoundChange";
+          default -> INVALID_MESSAGE_NAME;
+      };
   }
 }

@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
-import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 
@@ -25,23 +24,23 @@ import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFa
 public class PosBlockCreatorFactory {
 
   private final BftBlockCreatorFactory<?> posBlockCreatorFactory;
-  private final BftExtraDataCodec bftExtraDataCodec;
+  private final PosExtraDataCodec posExtraDataCodec;
 
   /**
    * Constructs a new PosBlockCreatorFactory
    *
    * @param bftBlockCreatorFactory The Besu QBFT block creator factory
-   * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
+   * @param posExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
    */
   public PosBlockCreatorFactory(
       final BftBlockCreatorFactory<?> bftBlockCreatorFactory,
-      final BftExtraDataCodec bftExtraDataCodec) {
+      final PosExtraDataCodec posExtraDataCodec) {
     this.posBlockCreatorFactory = bftBlockCreatorFactory;
-    this.bftExtraDataCodec = bftExtraDataCodec;
+    this.posExtraDataCodec = posExtraDataCodec;
   }
 
   public PosBlockCreator create(final int roundNumber) {
     return new PosBlockCreator(
-        posBlockCreatorFactory.create(roundNumber), bftExtraDataCodec);
+        posBlockCreatorFactory.create(roundNumber), posExtraDataCodec);
   }
 }

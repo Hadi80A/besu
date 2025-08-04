@@ -14,14 +14,19 @@
  */
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
+import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
+import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
+import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
 /** The Commit. */
 public class Commit extends BftMessage<CommitPayload> {
@@ -35,32 +40,25 @@ public class Commit extends BftMessage<CommitPayload> {
     super(payload);
   }
 
-  /**
-   * Gets commit seal.
-   *
-   * @return the commit seal
-   */
-  public SECPSignature getCommitSeal() {
-    return getPayload().getCommitSeal();
+
+  @SneakyThrows
+  @Override
+  public Bytes encode() {
+    final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
+    rlpOut.startList();
+    getSignedPayload().writeTo(rlpOut);
+    rlpOut.endList();
+    return rlpOut.encoded();
   }
 
-  /**
-   * Gets digest.
-   *
-   * @return the digest
-   */
-  public Hash getDigest() {
-    return getPayload().getDigest();
-  }
 
-  /**
-   * Decode data to Commit.
-   *
-   * @param data the data
-   * @return the commit
-   */
   public static Commit decode(final Bytes data) {
-//    return new Commit(PayloadDeserializers.readSignedCommitPayloadFrom(RLP.input(data)));
-    return null;
+    final RLPInput rlpIn = RLP.input(data);
+    rlpIn.enterList();
+    final SignedData<CommitPayload> payload =
+            PayloadDeserializers.readSignedCommitPayloadFrom(rlpIn);
+
+    rlpIn.leaveList();
+    return new Commit(payload);
   }
 }

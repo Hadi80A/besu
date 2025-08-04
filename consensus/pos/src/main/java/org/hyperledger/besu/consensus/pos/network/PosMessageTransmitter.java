@@ -64,7 +64,7 @@ public class PosMessageTransmitter {
     try {
 
       final ProposalMessageData message = ProposalMessageData.create(propose);
-
+      LOG.debug("multicastProposal: {}", message);
       multicaster.send(message);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Proposal (not sent): {} ", e.getMessage());

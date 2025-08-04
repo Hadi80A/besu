@@ -23,7 +23,7 @@ import org.apache.tuweni.bytes.Bytes;
 /** The Commit message data. */
 public class CommitMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = Pos.COMMIT;
+  private static final int MESSAGE_CODE = PosMessage.BLOCK_ANNOUNCE.getCode();
 
   private CommitMessageData(final Bytes data) {
     super(data);

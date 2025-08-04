@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import lombok.Getter;
 import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
@@ -21,25 +22,16 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHashing;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
-import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
-import org.hyperledger.besu.consensus.pos.PosBlockImporter;
-import org.hyperledger.besu.consensus.pos.core.NodeSet;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
-import org.hyperledger.besu.consensus.pos.core.StakeInfo;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
-import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
-import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
-import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -66,10 +58,13 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.util.Set;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /** The Pos round. */
 @Setter
+@Getter
 public class PosRound {
 
   private static final Logger LOG = LoggerFactory.getLogger(PosRound.class);
@@ -92,7 +87,8 @@ public class PosRound {
   private final PosBlockHeader parentHeader;
   
   private Propose propose;
-  private PosProposerSelector posProposerSelector;
+  private final PosProposerSelector posProposerSelector;
+  private final PosFinalState posFinalState;
 
   /**
    * Instantiates a new Pos round.
@@ -121,7 +117,7 @@ public class PosRound {
           final RoundTimer roundTimer,
           final BftExtraDataCodec bftExtraDataCodec,
           final PosBlockHeader parentHeader,
-          final ContractCaller contractCaller, NodeSet nodeSet
+          final ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector posProposerSelector, PosFinalState posFinalState
   ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
@@ -133,8 +129,10 @@ public class PosRound {
     this.transmitter = transmitter;
     this.bftExtraDataCodec = bftExtraDataCodec;
     this.parentHeader = parentHeader;
-      this.contractCaller = contractCaller;
-      this.nodeSet = nodeSet;
+    this.contractCaller = contractCaller;
+    this.nodeSet = nodeSet;
+    this.posProposerSelector = posProposerSelector;
+      this.posFinalState = posFinalState;
       roundTimer.startTimer(getRoundIdentifier());
   }
 
@@ -152,18 +150,27 @@ public class PosRound {
    *
    * @param headerTimeStampSeconds the header time stamp seconds
    */
-  public void createAndSendProposalMessage(final long headerTimeStampSeconds) {
+//  public void createAndSendProposalMessage(final long headerTimeStampSeconds) {
+//    final Block block =
+//            blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
+//    final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
+//    importBlockToChain(block);
+//    updateRound(block);
+//    printAllStake();
+//    LOG.debug("Creating proposed block. round={}", roundState.getRoundIdentifier());
+//    LOG.trace(
+//            "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
+////    updateStateWithProposalAndTransmit(block, Optional.empty());
+//
+//  }
+
+  public PosBlock createBlock(final long headerTimeStampSeconds) {
     final Block block =
             blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
-    importBlockToChain(block);
-    updateRound(block);
-    printAllStake();
-    LOG.debug("Creating proposed block. round={}", roundState.getRoundIdentifier());
     LOG.trace(
             "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
-//    updateStateWithProposalAndTransmit(block, Optional.empty());
-
+      return new PosBlock(block,roundState.getRoundIdentifier(),posProposerSelector.getCurrentProposer());
   }
 
   private void printStake(Block block){
@@ -242,38 +249,9 @@ public class PosRound {
             contractAccount.getStorageValue(UInt256.valueOf(slotHash.toUnsignedBigInteger()));
     return stakeValue.toBigInteger();
   }
-//
-//  /**
-//   * Start round with.
-//   *
-//   * @param roundChangeArtifacts the round change artifacts
-//   * @param headerTimestamp the header timestamp
-//   */
-//  public void startRoundWith(
-//          /*final RoundChangeArtifacts roundChangeArtifacts,*/ final long headerTimestamp) {
-////    final Optional<Block> bestBlockFromRoundChange = roundChangeArtifacts.getBlock();
-////
-////    final RoundChangeCertificate roundChangeCertificate =
-////            roundChangeArtifacts.getRoundChangeCertificate();
-//    final Block blockToPublish;
-//    if (!bestBlockFromRoundChange.isPresent()) {
-//      LOG.debug("Sending proposal with new block. round={}", roundState.getRoundIdentifier());
-//      blockToPublish = blockCreator.createBlock(headerTimestamp, this.parentHeader).getBlock();
-//    } else {
-//      LOG.debug(
-//              "Sending proposal from VotedCertificate. round={}", roundState.getRoundIdentifier());
-//
-//      final BftBlockInterface bftBlockInterface =
-//              protocolContext.getConsensusContext(BftContext.class).getBlockInterface();
-//      blockToPublish =
-//              bftBlockInterface.replaceRoundInBlock(
-//                      bestBlockFromRoundChange.get(),
-//                      getRoundIdentifier().getRoundNumber(),
-//                      BftBlockHeaderFunctions.forCommittedSeal(bftExtraDataCodec));
-//    }
-//
-//    updateStateWithProposalAndTransmit(blockToPublish, Optional.of(roundChangeCertificate));
-//  }
+
+
+
 
 
 private SignedData<ProposePayload> createProposePayload(PosBlock block) {
@@ -281,20 +259,19 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
   return createSignedData(proposePayload);
 }
 
-  private<M extends Payload> SignedData<M> createSignedData(M payload){
+  public <M extends Payload> SignedData<M> createSignedData(M payload){
+    LOG.debug("createSignedData");
     SECPSignature sign = nodeKey.sign(payload.hashForSignature());
     return SignedData.create(payload, sign);
   }
-  /**
-   * Update state with proposal and transmit.
-   *
-   * @param block the block
-   */
-  protected void createProposalAndTransmit(final PosBlock block) {
+
+
+  protected void createProposalAndTransmit(long headerTimeStampSeconds) {
     final Propose proposal;
     try {
-      var proposePayload =createProposePayload(block);
-
+      PosBlock posBlock = createBlock(headerTimeStampSeconds);
+      var proposePayload =createProposePayload(posBlock);
+      LOG.debug("Creating proposal and transmit for block" );
       proposal = messageFactory.createPropose(proposePayload);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
@@ -303,91 +280,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
     transmitter.multicastProposal(proposal);
   }
 
-  /**
-   * Handle proposal message.
-   *
-   * @param msg the msg
-   */
-  public void handleProposalMessage(final Propose msg) {
-    LOG.debug("Received a proposal message. round={}. author={}", roundState.getRoundIdentifier(),
-            msg.getAuthor());
-    ProposePayload payload=msg.getSignedPayload().getPayload();
-    final PosBlock block = payload.getProposedBlock();
-    if (validateProposer(msg.getSignedPayload())){
-      LOG.debug("Valid a proposal message.");
-      roundState.setProposeMessage(msg);
-      sendVote(block);
-    }else {
-      LOG.debug("Invalid a proposal message.");
-    }
-  }
-  private boolean validateProposer(SignedData<ProposePayload> payload){
-    return payload.getAuthor().equals(posProposerSelector.getCurrentProposer()) &&
-            payload.getPayload().getRoundIdentifier().getRoundNumber() == roundState.getRoundIdentifier().getRoundNumber() &&
-            payload.getPayload().getHeight() == roundState.getHeight();
-
-  }
-
-  public void handleVoteMessage(final Vote msg) {
-    LOG.debug("Received a vote message. round={}. author={}", roundState.getRoundIdentifier(), msg.getAuthor());
-    roundState.addVoteMessage(msg);
-    if(validateBlockHash(msg.getSignedPayload().getPayload().getDigest()) &&
-            checkThreshold(roundState.getVoteMessages()) &&
-            validateHeightAndRound(msg.getSignedPayload().getPayload())
-    ) {
-      sendCommit(roundState.getProposedBlock());
-    }else {
-      LOG.debug("Invalid a vote message.");
-    }
-  }
-  private boolean checkThreshold(Set<?> msg){
-    return msg.size()>=roundState.getQuorum();
-  }
-
-
-  private boolean validateHeightAndRound(PosPayload posPayload) {
-    return posPayload.getHeight()==roundState.getHeight() &&
-            posPayload.getRoundIdentifier().getRoundNumber()==roundState.getRoundIdentifier().getRoundNumber();
-  }
-  private boolean validateBlockHash(Hash blockHash) {
-    PosBlock block=roundState.getProposeMessage().getSignedPayload().getPayload().getProposedBlock();
-    return blockHash.equals(block.getHash());
-  }
-  private void sendVote(final PosBlock block) {
-    LOG.debug("Sending vote message. round={}", roundState.getRoundIdentifier());
-    try {
-      VotePayload unsigned= messageFactory.createVotePayload(block);
-      SignedData<VotePayload> signedData= createSignedData(unsigned);
-      final Vote localVoteMessage = messageFactory.createVote(signedData);
-      roundState.addVoteMessage(localVoteMessage);
-      transmitter.multicastVote(localVoteMessage);
-    } catch (final SecurityModuleException e) {
-      LOG.warn("Failed to create a signed Vote; {}", e.getMessage());
-    }
-  }
-
-
-  private void sendCommit(final PosBlock block) {
-    LOG.debug("Sending Commit message. round={}", roundState.getRoundIdentifier());
-    try {
-      CommitPayload unsigned= messageFactory.createCommitPayload(block);
-      SignedData<CommitPayload> signedData= createSignedData(unsigned);
-      final Commit localCommitMessage = messageFactory.createCommit(signedData);
-      roundState.addCommitMessage(localCommitMessage);
-      transmitter.multicastCommit(localCommitMessage);
-    } catch (final SecurityModuleException e) {
-      LOG.warn("Failed to create a signed Commit; {}", e.getMessage());
-    }
-  }
-
-  public void handleCommitMessage(final Commit msg) {
-    LOG.debug("Received a commit message. round={}. author={}", roundState.getRoundIdentifier(),
-            msg.getAuthor());
-    roundState.addCommitMessage(msg);
-    importBlockToChain();
-  }
-
-  private void importBlockToChain() {
+  public void importBlockToChain() {
     final Block blockToImport =
             blockCreator.createSealedBlock(
                     roundState.getProposedBlock(),
@@ -493,11 +386,12 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
     });
   }
 
-  private void updateRound(Block block){
+  public void updateRound(Block block,long headerTimeStampSeconds){
     updateNodes(block);
     Address leader= posProposerSelector.selectLeader();
     if (nodeIsleader(leader)){
-
+      System.out.println("im leader");
+      createProposalAndTransmit(headerTimeStampSeconds);
     }
   }
 

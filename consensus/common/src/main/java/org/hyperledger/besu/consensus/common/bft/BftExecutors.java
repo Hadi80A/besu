@@ -46,7 +46,8 @@ public class BftExecutors {
     /** Ibft consensus type. */
     IBFT,
     /** Qbft consensus type. */
-    QBFT
+    QBFT,
+    POS
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(BftExecutors.class);
