@@ -69,10 +69,6 @@ public class ViewChangePayload extends PosPayload {
     return TYPE;
   }
 
-  @Override
-  public Hash hashForSignature() {
-    return null;
-  }
 
   protected void writeConsensusRound(final RLPOutput out) {
     out.writeLongScalar(getRoundIdentifier().getSequenceNumber());

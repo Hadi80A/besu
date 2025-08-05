@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
@@ -45,6 +47,7 @@ import org.hyperledger.besu.util.Subscribers;
 /** The Pos round factory. */
 public class PosRoundFactory {
 
+    private static final Logger log = LogManager.getLogger(PosRoundFactory.class);
     private final PosFinalState finalState;
     private final PosBlockCreatorFactory blockCreatorFactory;
     private final ProtocolContext protocolContext;
@@ -170,6 +173,7 @@ public class PosRoundFactory {
         }
 
         public ViewChangePayload createViewChangePayload(ConsensusRoundIdentifier roundIdentifier,long height) {
+            log.debug("createViewChangePayload roundIdentifier={} height={}", roundIdentifier, height);
             return ViewChangePayload.builder()
                     .roundIdentifier(roundIdentifier)
                     .height(height)

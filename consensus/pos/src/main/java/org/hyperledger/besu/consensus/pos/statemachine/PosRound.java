@@ -31,6 +31,7 @@ import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
+import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
@@ -259,8 +260,9 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
   return createSignedData(proposePayload);
 }
 
-  public <M extends Payload> SignedData<M> createSignedData(M payload){
+  public <M extends PosPayload> SignedData<M> createSignedData(M payload){
     LOG.debug("createSignedData");
+    LOG.debug("hashForSignature: {}",payload.hashForSignature());
     SECPSignature sign = nodeKey.sign(payload.hashForSignature());
     return SignedData.create(payload, sign);
   }

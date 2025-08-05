@@ -103,7 +103,7 @@ public class PosController extends BaseBftController {
       default:
         throw new IllegalArgumentException(
             String.format(
-                "Received message with messageCode=%d does not conform to any recognised IBFT message structure",
+                "Received message with messageCode=%d does not conform to any recognised POS message structure",
                 message.getData().getCode()));
     }
   }

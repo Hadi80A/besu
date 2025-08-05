@@ -116,7 +116,6 @@ public class MessageFactory {
   }
 
   private <M extends Payload> SignedData<M> createSignedMessage(final M payload) {
-   log.debug("hashForSignature: {}",payload.hashForSignature());
     final SECPSignature signature = nodeKey.sign(payload.hashForSignature());
     return SignedData.create(payload, signature);
   }

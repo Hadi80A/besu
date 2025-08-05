@@ -19,10 +19,7 @@ import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.payload.Authored;
 
-import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.VoteMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.*;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
@@ -59,6 +56,8 @@ public class PosGossip implements Gossiper {
           case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
           case PosMessage.BLOCK_ANNOUNCE -> CommitMessageData.fromMessageData(messageData).decode();
           case PosMessage.VOTE -> VoteMessageData.fromMessageData(messageData).decode();
+          case PosMessage.VIEW_CHANGE -> ViewChangeMessageData.fromMessageData(messageData).decode();
+
           default -> throw new IllegalArgumentException(
                   "Received message does not conform to any recognised pos message structure.");
       };

@@ -55,7 +55,7 @@ public class PosSubProtocol implements SubProtocol {
   public boolean isValidMessageCode(final int protocolVersion, final int code) {
     PosMessage[] values = PosMessage.values();
       return switch (values[code]) {
-          case PosMessage.PROPOSE, PosMessage.VOTE, PosMessage.BLOCK_ANNOUNCE ->
+        case PosMessage.PROPOSE, PosMessage.VOTE, PosMessage.BLOCK_ANNOUNCE ,PosMessage.VIEW_CHANGE->
 //      case PosMessage.ROUND_CHANGE:
                   true;
           default -> false;
@@ -69,6 +69,7 @@ public class PosSubProtocol implements SubProtocol {
           case PosMessage.PROPOSE -> "Proposal";
           case PosMessage.VOTE -> "Prepare";
           case PosMessage.BLOCK_ANNOUNCE -> "Commit";
+        case PosMessage.VIEW_CHANGE -> "ViewChange";
 //      case PosMessage.ROUND_CHANGE:
 //        return "RoundChange";
           default -> INVALID_MESSAGE_NAME;
