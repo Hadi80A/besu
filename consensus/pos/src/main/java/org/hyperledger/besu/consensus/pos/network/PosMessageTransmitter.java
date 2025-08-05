@@ -92,22 +92,15 @@ public class PosMessageTransmitter {
     }
   }
 
-  /**
-   * Multicast round change.
-   *
-   * @param roundIdentifier the round identifier
-   */
-//  public void multicastRoundChange(
-//      final ConsensusRoundIdentifier roundIdentifier) {
-//    try {
-//      final ViewChange data =
-//          messageFactory.createViewChange(roundIdentifier);
-//
-//      final ViewChangeMessageData message = ViewChangeMessageData.create(data);
-//
-//      multicaster.send(message);
-//    } catch (final SecurityModuleException e) {
-//      LOG.warn("Failed to generate signature for RoundChange (not sent): {} ", e.getMessage());
-//    }
-//  }
+
+  public void multicastRoundChange(ViewChange viewChange) {
+    try {
+
+      final ViewChangeMessageData message = ViewChangeMessageData.create(viewChange);
+
+      multicaster.send(message);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for RoundChange (not sent): {} ", e.getMessage());
+    }
+  }
 }

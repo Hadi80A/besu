@@ -18,6 +18,7 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightMan
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 
 /** The interface Base pos block height manager. */
@@ -26,6 +27,7 @@ public interface BasePosBlockHeightManager extends BaseBlockHeightManager {
   void handleProposalMessage(final Propose msg);
   void handleVoteMessage(final Vote msg);
   void handleCommitMessage(final Commit msg);
+  void handleViewChangePayload(final ViewChange message);
 //
 //  /**
 //   * Handle prepare payload.

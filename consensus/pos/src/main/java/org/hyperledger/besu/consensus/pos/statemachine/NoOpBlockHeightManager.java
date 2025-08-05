@@ -19,6 +19,7 @@ import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
@@ -76,6 +77,11 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
 
   @Override
   public void handleCommitMessage(Commit msg) {
+
+  }
+
+  @Override
+  public void handleViewChangePayload(ViewChange message) {
 
   }
 }

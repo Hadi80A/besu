@@ -28,10 +28,12 @@ import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -155,6 +157,9 @@ public class PosRoundFactory {
         public Commit createCommit(SignedData<CommitPayload> payload) {
             return new Commit(payload);
         }
+        public ViewChange createViewChange(SignedData<ViewChangePayload> payload) {
+            return new ViewChange(payload);
+        }
 
         public CommitPayload createCommitPayload(PosBlock block) {
             return CommitPayload.builder()
@@ -163,6 +168,14 @@ public class PosRoundFactory {
                     .height(block.getHeader().getHeight())
                     .build();
         }
+
+        public ViewChangePayload createViewChangePayload(ConsensusRoundIdentifier roundIdentifier,long height) {
+            return ViewChangePayload.builder()
+                    .roundIdentifier(roundIdentifier)
+                    .height(height)
+                    .build();
+        }
+
 
         public ProposePayload createProposePayload(ConsensusRoundIdentifier round,long height,PosBlock block) {
             return ProposePayload.builder()

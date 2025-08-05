@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.ibft.payload;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
@@ -32,6 +34,7 @@ import java.util.Optional;
 /** The Message factory. */
 public class MessageFactory {
 
+  private static final Logger log = LogManager.getLogger(MessageFactory.class);
   private final NodeKey nodeKey;
 
   /**
@@ -113,6 +116,7 @@ public class MessageFactory {
   }
 
   private <M extends Payload> SignedData<M> createSignedMessage(final M payload) {
+   log.debug("hashForSignature: {}",payload.hashForSignature());
     final SECPSignature signature = nodeKey.sign(payload.hashForSignature());
     return SignedData.create(payload, signature);
   }

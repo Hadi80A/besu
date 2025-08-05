@@ -18,25 +18,19 @@ import com.google.common.annotations.VisibleForTesting;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
-import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
-import org.hyperledger.besu.consensus.pos.payload.PosPayload;
-import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
-import org.hyperledger.besu.consensus.pos.payload.VotePayload;
-import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
+import org.hyperledger.besu.consensus.pos.payload.*;
 
 import java.time.Clock;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -72,6 +66,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
     private final Blockchain blockchain;
     private Optional<PosRound> currentRound = Optional.empty();
     private boolean isEarlyRoundChangeEnabled = false;
+    private final RoundChangeManager roundChangeManager;
 
     // Store only 1 round change per round per validator
     @VisibleForTesting
@@ -93,7 +88,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             final PosFinalState finalState,
             final PosRoundFactory posRoundFactory,
             final Clock clock,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, Blockchain blockchain
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, Blockchain blockchain, RoundChangeManager roundChangeManager
     ) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
@@ -109,6 +104,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                                 finalState.getQuorum(),
                                 infoMap.get("height"));
         this.blockchain = blockchain;
+        this.roundChangeManager = roundChangeManager;
 
         final long nextBlockHeight = getChainHeight();
         final ConsensusRoundIdentifier roundIdentifier =
@@ -209,7 +205,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
 //        updateStateWithProposalAndTransmit(blockToPublish, Optional.of(roundChangeCertificate));
 //    }
 
-    public void handleRoundChangePayload(final ViewChange message) {
+    public void handleViewChangePayload(final ViewChange message) {
     final ConsensusRoundIdentifier targetRound = message.getRoundIdentifier();
 
     LOG.debug(
@@ -219,7 +215,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             message.getRoundIdentifier().getRoundNumber());
 
     final PosBlockHeightManager.MessageAge messageAge =
-            PosBlockHeightManager.determineAgeOfPayload(message.getRoundIdentifier().getRoundNumber());
+            determineAgeOfPayload(message.getRoundIdentifier().getRoundNumber());
     if (messageAge == PosBlockHeightManager.MessageAge.PRIOR_ROUND) {
         LOG.debug("Received RoundChange Payload for a prior round. targetRound={}", targetRound);
         return;
@@ -260,9 +256,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             startNewRound(currentRoundNumber);
         }
 
-//        doRoundChange(currentRoundNumber+1);
+        doRoundChange(currentRoundNumber+1);
         // check if f+1 RC messages for future rounds are received
-          PosRound posRound = currentRound.get();
+          PosRound posRound = currentRound.get();//todo
           Optional<Integer> nextHigherRound =
                   roundChangeManager.futureRCQuorumReceived(posRound.getRoundIdentifier());
           if (nextHigherRound.isPresent()) {
@@ -277,37 +273,30 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
 
 
     private synchronized void doRoundChange(final int newRoundNumber) {
-//    if (currentRound.isPresent()
-//            && currentRound.get().getRoundIdentifier().getRoundNumber() >= newRoundNumber) {
-//      return;
-//    }
-//    LOG.debug(
-//            "Round has expired or changing based on RC quorum, creating VotedCertificate and notifying peers. round={}",
-//            currentRound.get().getRoundIdentifier());
-//    final Optional<VotedCertificate> preparedCertificate = currentRound.get().constructVotedCertificate();
-//
-//    if (preparedCertificate.isPresent()) {
-//      latestVotedCertificate = preparedCertificate;
-//    }
-//
-//    startNewRound(newRoundNumber);
-//    if (currentRound.isEmpty()) {
-//      LOG.info("Failed to start round ");
-//      return;
-//    }
-//    PosRound posRoundNew = currentRound.get();
-//
-//    try {
-//      final RoundChange localRoundChange =
-//              messageFactory.createRoundChange(
-//                      posRoundNew.getRoundIdentifier(), latestVotedCertificate);
-//
-//      handleRoundChangePayload(localRoundChange);
-//    } catch (final SecurityModuleException e) {
-//      LOG.warn("Failed to create signed RoundChange message.", e);
-//    }
-//
-//    transmitter.multicastRoundChange(posRoundNew.getRoundIdentifier(), latestVotedCertificate);
+    if (currentRound.isPresent() && currentRound.get().getRoundIdentifier().getRoundNumber() >= newRoundNumber) {
+      return;
+    }
+    LOG.debug(
+            "Round has expired or changing based on RC quorum, round={}", currentRound.get().getRoundIdentifier());
+
+    startNewRound(newRoundNumber);
+    if (currentRound.isEmpty()) {
+      LOG.info("Failed to start round ");
+      return;
+    }
+    PosRound posRoundNew = currentRound.get();
+
+    try {
+        ViewChangePayload unsigned= messageFactory.createViewChangePayload(posRoundNew.getRoundIdentifier(),posRoundNew.getRoundState().getHeight());
+        SignedData<ViewChangePayload> signedData= currentRound.get().createSignedData(unsigned);
+        final ViewChange localViewChangeMessage = messageFactory.createViewChange(signedData);
+
+      handleViewChangePayload(localViewChangeMessage);
+
+      transmitter.multicastRoundChange(localViewChangeMessage);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create signed RoundChange message.", e);
+    }
     }
 
     private RoundState getRoundState(){
@@ -449,7 +438,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         return parentHeader.getBesuHeader();
     }
 
-    public static MessageAge determineAgeOfPayload(final int messageRoundNumber) {
+    public MessageAge determineAgeOfPayload(final int messageRoundNumber) {
     final int currentRoundNumber = currentRound.map(r -> r.getRoundIdentifier().getRoundNumber()).orElse(-1);
     if (messageRoundNumber > currentRoundNumber) {
       return MessageAge.FUTURE_ROUND;

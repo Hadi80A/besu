@@ -90,7 +90,8 @@ public class PosBlockHeightManagerFactory {
                 messageFactory,
                 posProposerSelector,
                 new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster()),
-                blockchain
+                blockchain,
+                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress())
         );
     }
 }

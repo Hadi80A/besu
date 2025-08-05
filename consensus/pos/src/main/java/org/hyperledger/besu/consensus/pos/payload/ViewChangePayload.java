@@ -14,45 +14,37 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
+import java.io.IOException;
 import java.util.Objects;
 
 import com.google.common.base.MoreObjects;
 
+@SuperBuilder
+@EqualsAndHashCode(callSuper = false)
 /** The Round change payload. */
-public class ViewChangePayload implements Payload {
+public class ViewChangePayload extends PosPayload {
   private static final int TYPE = PosMessage.VIEW_CHANGE.getCode();
-  private final ConsensusRoundIdentifier roundChangeIdentifier;
 
-  /**
-   * Instantiates a new Round change payload.
-   *
-   * @param roundChangeIdentifier the round change identifier
-   */
-  public ViewChangePayload(
-      final ConsensusRoundIdentifier roundChangeIdentifier){
-    this.roundChangeIdentifier = roundChangeIdentifier;
-  }
-
-  @Override
-  public ConsensusRoundIdentifier getRoundIdentifier() {
-    return roundChangeIdentifier;
+  protected ViewChangePayload(ConsensusRoundIdentifier roundIdentifier, long height  ) {
+    super(roundIdentifier, height);
   }
 
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
-    // RLP encode of the message data content (round identifier and prepared certificate)
     rlpOutput.startList();
-    writeConsensusRound(rlpOutput);
-
-    rlpOutput.startList();
-    rlpOutput.endList();
+    getRoundIdentifier().writeTo(rlpOutput);
+    rlpOutput.writeLong(getHeight());
 
     rlpOutput.endList();
   }
@@ -65,10 +57,11 @@ public class ViewChangePayload implements Payload {
    */
   public static ViewChangePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
-    final ConsensusRoundIdentifier roundIdentifier = readConsensusRound(rlpInput);
-
+    final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
+    final long height = rlpInput.readLong();
     rlpInput.leaveList();
-    return new ViewChangePayload(roundIdentifier);
+
+    return new ViewChangePayload(roundIdentifier,height);
   }
 
   @Override
@@ -96,27 +89,4 @@ public class ViewChangePayload implements Payload {
     return new ConsensusRoundIdentifier(in.readLongScalar(), in.readIntScalar());
   }
 
-  @Override
-  public boolean equals(final Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ViewChangePayload that = (ViewChangePayload) o;
-    return Objects.equals(roundChangeIdentifier, that.roundChangeIdentifier);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(roundChangeIdentifier);
-  }
-
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("roundChangeIdentifier", roundChangeIdentifier)
-        .toString();
-  }
 }

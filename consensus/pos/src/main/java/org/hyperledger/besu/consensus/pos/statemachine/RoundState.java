@@ -87,10 +87,12 @@ public class RoundState {
 
   public Collection<SECPSignature> getCommitSeals() {
     return Collections.emptyList();//todo
-    return commitMessages.stream()
-            .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())
-            .collect(Collectors.toList());
+//    return commitMessages.stream()
+//            .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())
+//            .collect(Collectors.toList());
   }
+
+
 
   public PosBlock getProposedBlock() {
     return proposeMessage.getSignedPayload().getPayload().getProposedBlock();

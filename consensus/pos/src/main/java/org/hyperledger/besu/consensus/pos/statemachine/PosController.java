@@ -26,10 +26,7 @@ import org.hyperledger.besu.consensus.pos.PosExtraData;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
-import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.VoteMessageData;
+import org.hyperledger.besu.consensus.pos.messagedata.*;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
@@ -96,12 +93,12 @@ public class PosController extends BaseBftController {
             currentHeightManager::handleCommitMessage);
         break;
 
-//      case Pos.ROUND_CHANGE:
-//        consumeMessage(
-//            message,
-//            RoundChangeMessageData.fromMessageData(messageData).decode(),
-//            currentHeightManager::handleRoundChangePayload);
-//        break;
+      case PosMessage.VIEW_CHANGE:
+        consumeMessage(
+            message,
+            ViewChangeMessageData.fromMessageData(messageData).decode(),
+            currentHeightManager::handleViewChangePayload);
+        break;
 
       default:
         throw new IllegalArgumentException(

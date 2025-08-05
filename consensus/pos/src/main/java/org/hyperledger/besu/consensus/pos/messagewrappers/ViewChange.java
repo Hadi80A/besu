@@ -33,24 +33,15 @@ import org.apache.tuweni.bytes.Bytes;
 @Getter
 public class ViewChange extends BftMessage<ViewChangePayload> {
 
-    /**
-     * -- GETTER --
-     *  Gets proposed block.
-     *
-     */
-    private final Optional<PosBlock> proposedBlock;
 
   /**
    * Instantiates a new Round change.
    *
    * @param payload the payload
-   * @param proposedBlock the proposed block
    */
   public ViewChange(
-      final SignedData<ViewChangePayload> payload,
-      final Optional<PosBlock> proposedBlock) {
+      final SignedData<ViewChangePayload> payload) {
     super(payload);
-    this.proposedBlock = proposedBlock;
   }
 
     @Override
@@ -58,13 +49,6 @@ public class ViewChange extends BftMessage<ViewChangePayload> {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
     rlpOut.startList();
     getSignedPayload().writeTo(rlpOut);
-    proposedBlock.ifPresentOrElse(pb -> {
-        try {
-            pb.writeTo(rlpOut);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }, rlpOut::writeEmptyList);
     rlpOut.endList();
     return rlpOut.encoded();
   }
@@ -82,16 +66,8 @@ public class ViewChange extends BftMessage<ViewChangePayload> {
     rlpIn.enterList();
     final SignedData<ViewChangePayload> payload = readPayload(rlpIn, ViewChangePayload::readFrom);
 
-    final Optional<PosBlock> block;
-    if (rlpIn.nextIsList() && rlpIn.nextSize() == 0) {
-      rlpIn.skipNext();
-      block = Optional.empty();
-    } else {
-      block = Optional.of(PosBlock.readFrom(rlpIn));
-    }
-
     rlpIn.leaveList();
 
-    return new ViewChange(payload, block);
+    return new ViewChange(payload);
   }
 }
