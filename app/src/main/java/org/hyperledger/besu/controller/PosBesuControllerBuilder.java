@@ -40,6 +40,8 @@ import org.hyperledger.besu.consensus.pos.core.StakeInfo;
 import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
+import org.hyperledger.besu.consensus.qbft.adaptor.QbftProtocolScheduleAdaptor;
+import org.hyperledger.besu.consensus.qbft.core.types.QbftProtocolSchedule;
 import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -134,6 +136,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     final Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
+    PosProtocolSchedule posProtocolSchedule =
+            new PosProtocolSchedule(bftProtocolSchedule, protocolContext);
     final BftBlockCreatorFactory<?> bftblockCreatorFactory =
         new BftBlockCreatorFactory<>(
             transactionPool,
@@ -225,7 +229,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                 new PosRoundFactory(
                     posFinalState,
                     protocolContext,
-                    bftProtocolSchedule,
+                    posProtocolSchedule,
                     minedBlockObservers,
                     messageValidatorFactory,
                     messageFactory,

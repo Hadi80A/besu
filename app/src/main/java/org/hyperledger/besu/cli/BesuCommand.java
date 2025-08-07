@@ -1507,6 +1507,9 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
         } else if (genesisConfigOptions.isQbft()) {
           epochLength = genesisConfigOptions.getQbftConfigOptions().getEpochLength();
           consensusMechanism = "QBFT";
+        } else if (genesisConfigOptions.isPos()) {
+          epochLength = genesisConfigOptions.getPosConfigOptions().getEpochLength();
+          consensusMechanism = "POS";
         } else if (genesisConfigOptions.isClique()) {
           epochLength = genesisConfigOptions.getCliqueConfigOptions().getEpochLength();
           consensusMechanism = "Clique";
@@ -1981,6 +1984,10 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
 
     if (genesisConfigOptions.isQbft()) {
       return OptionalInt.of(genesisConfigOptions.getQbftConfigOptions().getBlockPeriodSeconds());
+    }
+
+    if (genesisConfigOptions.isPos()) {
+      return OptionalInt.of(genesisConfigOptions.getPosConfigOptions().getBlockPeriodSeconds());
     }
 
     return OptionalInt.empty();

@@ -27,6 +27,8 @@ import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
+import org.hyperledger.besu.consensus.pos.PosBlockImporter;
+import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
@@ -80,7 +82,7 @@ public class PosRound {
   protected final NodeSet nodeSet;
   protected final ContractCaller contractCaller;
 
-  private final ProtocolSchedule protocolSchedule;
+  private final PosProtocolSchedule protocolSchedule;
   private final NodeKey nodeKey;
   private final PosRoundFactory.MessageFactory messageFactory; // used only to create stored local msgs
   private final PosMessageTransmitter transmitter;
@@ -110,7 +112,7 @@ public class PosRound {
           final RoundState roundState,
           final PosBlockCreator blockCreator,
           final ProtocolContext protocolContext,
-          final ProtocolSchedule protocolSchedule,
+          final PosProtocolSchedule protocolSchedule,
           final Subscribers<MinedBlockObserver> observers,
           final NodeKey nodeKey,
           final PosRoundFactory.MessageFactory messageFactory,
@@ -283,15 +285,15 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
   }
 
   public void importBlockToChain() {
-    final Block blockToImport =
+    final PosBlock blockToImport =
             blockCreator.createSealedBlock(
                     roundState.getProposedBlock(),
                     roundState.getRoundIdentifier().getRoundNumber(),
                     roundState.getCommitSeals(),
                     posProposerSelector.getCurrentProposer()
-            ).getBesuBlock();
+            );
 
-    final long blockNumber = blockToImport.getHeader().getNumber();
+    final long blockNumber = blockToImport.getHeader().getBesuBlockHeader().getNumber();
     if (getRoundIdentifier().getRoundNumber() > 0) {
       LOG.info(
               "Importing proposed block to chain. round={}, hash={}",
@@ -304,18 +306,18 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
               blockToImport.getHash());
     }
 
-    final BlockImporter blockImporter =
-            protocolSchedule.getByBlockHeader(blockToImport.getHeader()).getBlockImporter();
-    final BlockImportResult result =
-            blockImporter.importBlock(protocolContext, blockToImport, HeaderValidationMode.FULL);
+    final PosBlockImporter blockImporter =
+            protocolSchedule.getBlockImporter(blockToImport.getHeader());
+    final boolean isSuccess =
+            blockImporter.importBlock(blockToImport);
 
-    if (!result.isImported()) {
+    if (!isSuccess) {
       LOG.error(
               "Failed to import proposed block to chain. block={} blockHeader={}",
               blockNumber,
               blockToImport.getHeader());
     } else {
-      notifyNewBlockListeners(blockToImport);
+      notifyNewBlockListeners(blockToImport.getBesuBlock());
     }
   }
 

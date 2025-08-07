@@ -80,7 +80,7 @@ public interface GenesisConfigOptions {
    * @return the boolean
    */
   default boolean isConsensusMigration() {
-    return (isIbft2() || isIbftLegacy()) && isQbft();
+    return (isIbft2() || isIbftLegacy() || isPos()) && isQbft();
   }
 
   /**

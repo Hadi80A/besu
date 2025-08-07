@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
+import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
@@ -51,7 +52,7 @@ public class PosRoundFactory {
     private final PosFinalState finalState;
     private final PosBlockCreatorFactory blockCreatorFactory;
     private final ProtocolContext protocolContext;
-    private final BftProtocolSchedule protocolSchedule;
+    private final PosProtocolSchedule protocolSchedule;
     private final Subscribers<MinedBlockObserver> minedBlockObservers;
     private final MessageValidatorFactory messageValidatorFactory;
     private final MessageFactory messageFactory;
@@ -74,7 +75,7 @@ public class PosRoundFactory {
     public PosRoundFactory(
             final PosFinalState finalState,
             final ProtocolContext protocolContext,
-            final BftProtocolSchedule protocolSchedule,
+            final PosProtocolSchedule protocolSchedule,
             final Subscribers<MinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
