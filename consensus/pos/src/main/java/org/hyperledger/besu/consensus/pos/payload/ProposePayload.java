@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
@@ -44,13 +45,7 @@ public class ProposePayload extends PosPayload {
     super(roundIdentifier, height);
     this.proposedBlock = proposedBlock;
   }
-  /**
-   * Read from rlp input and return proposal payload.
-   *
-   * @param rlpInput the rlp input
-   * @return the proposal payload
-   */
-//  @SneakyThrows
+
   public static ProposePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
@@ -65,15 +60,19 @@ public class ProposePayload extends PosPayload {
       return new ProposePayload(roundIdentifier,height,proposedBlock);
   }
 
-  @SneakyThrows
+
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
     rlpOutput.startList();
     getRoundIdentifier().writeTo(rlpOutput);
     rlpOutput.writeLong(getHeight());
-    proposedBlock.writeTo(rlpOutput);
+      try {
+          proposedBlock.writeTo(rlpOutput);
+      } catch (JsonProcessingException e) {
+          throw new RuntimeException(e);
+      }
 
-    rlpOutput.endList();
+      rlpOutput.endList();
   }
 
   /**

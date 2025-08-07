@@ -25,7 +25,7 @@ public enum PosMessage {
   PRE_VOTE(4),
   MAIN_VOTE(5),
   DECIDE(6),
-  MESSAGE_SPACE(7);
+  MESSAGE_SPACE(0x16);
 
   private final int code;
 

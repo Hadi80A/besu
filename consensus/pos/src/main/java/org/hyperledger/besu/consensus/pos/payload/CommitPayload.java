@@ -14,8 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.EqualsAndHashCode;
-import lombok.SneakyThrows;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
@@ -28,6 +28,7 @@ import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.StringJoiner;
 
@@ -50,26 +51,32 @@ public class CommitPayload extends PosPayload {
    * @param rlpInput the rlp input
    * @return the commit payload
    */
-  @SneakyThrows
   public static CommitPayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     long height = rlpInput.readLong();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final PosBlock proposedBlock =
-            PosBlock.readFrom(rlpInput);
-    rlpInput.leaveList();
+      final PosBlock proposedBlock;
+      try {
+          proposedBlock = PosBlock.readFrom(rlpInput);
+      } catch (IOException e) {
+          throw new RuntimeException(e);
+      }
+      rlpInput.leaveList();
 
     return new CommitPayload(roundIdentifier,height,proposedBlock);
   }
 
-  @SneakyThrows
   @Override
   public void writeTo(final RLPOutput rlpOutput) {
     rlpOutput.startList();
     rlpOutput.writeLong(height);
     getRoundIdentifier().writeTo(rlpOutput);
-    block.writeTo(rlpOutput);
-    rlpOutput.endList();
+      try {
+          block.writeTo(rlpOutput);
+      } catch (JsonProcessingException e) {
+          throw new RuntimeException(e);
+      }
+      rlpOutput.endList();
   }
 
   @Override

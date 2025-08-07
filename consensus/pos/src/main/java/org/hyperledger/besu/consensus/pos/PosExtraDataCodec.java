@@ -16,8 +16,6 @@ package org.hyperledger.besu.consensus.pos;
 
 import static org.hyperledger.besu.consensus.common.bft.Vote.ADD_BYTE_VALUE;
 import static org.hyperledger.besu.consensus.common.bft.Vote.DROP_BYTE_VALUE;
-
-import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.Vote;
@@ -151,7 +149,6 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     return new Vote(recipient, vote);
   }
 
-//  @SneakyThrows
 //  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType){
 //    final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
 //    encoder.startList();
@@ -175,8 +172,6 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
 //    return encoder.encoded();
 //  }
 
-
-  @SneakyThrows
   private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType) {
     final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
     encoder.startList();
@@ -205,7 +200,6 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     encoder.endList();
     return encoder.encoded();
   }
-//  @SneakyThrows
 //  public PosExtraData decodePosData(final Bytes input) {
 //    if (input.isEmpty()) {
 //      throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
@@ -233,7 +227,6 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
 //  }
 //}
 
-  @SneakyThrows
   public PosExtraData decodePosData(final Bytes input) {
     final RLPInput rlpInput = new BytesValueRLPInput(input, false);
     rlpInput.enterList();

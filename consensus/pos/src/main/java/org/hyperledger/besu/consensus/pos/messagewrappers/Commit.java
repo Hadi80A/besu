@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
-import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
@@ -40,8 +39,6 @@ public class Commit extends BftMessage<CommitPayload> {
     super(payload);
   }
 
-
-  @SneakyThrows
   @Override
   public Bytes encode() {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();

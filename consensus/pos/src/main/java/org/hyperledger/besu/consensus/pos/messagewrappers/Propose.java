@@ -15,7 +15,6 @@
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
@@ -62,7 +61,6 @@ public class Propose extends BftMessage<ProposePayload> {
 //    return roundChangeCertificate;
 //  }
 
-//  @SneakyThrows
   @Override
   public Bytes encode() {
     final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
@@ -73,13 +71,6 @@ public class Propose extends BftMessage<ProposePayload> {
     return rlpOut.encoded();
   }
 
-  /**
-   * Decode.
-   *
-   * @param data the data
-   * @return the proposal
-   */
-  @SneakyThrows
   public static Propose decode(final Bytes data) {
     final RLPInput rlpIn = RLP.input(data);
     rlpIn.enterList();

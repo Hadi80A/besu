@@ -16,7 +16,6 @@ package org.hyperledger.besu.consensus.pos.messagewrappers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
@@ -53,13 +52,7 @@ public class ViewChange extends BftMessage<ViewChangePayload> {
     return rlpOut.encoded();
   }
 
-  /**
-   * Decode.
-   *
-   * @param data the data
-   * @return the round change
-   */
-  @SneakyThrows
+
   public static ViewChange decode(final Bytes data) {
 
     final RLPInput rlpIn = RLP.input(data);
