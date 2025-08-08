@@ -18,6 +18,10 @@ import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Capability;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.SubProtocol;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 /** The Ibft sub protocol. */
 public class PosSubProtocol implements SubProtocol {
 
@@ -28,6 +32,11 @@ public class PosSubProtocol implements SubProtocol {
   public static final Capability POS = Capability.create(NAME, 1);
 
   private static final PosSubProtocol INSTANCE = new PosSubProtocol();
+
+  // Precomputed map for fast lookup by code
+  private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
+          Arrays.stream(PosMessage.values())
+                  .collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
   /** Default constructor. */
   public PosSubProtocol() {}
@@ -53,26 +62,29 @@ public class PosSubProtocol implements SubProtocol {
 
   @Override
   public boolean isValidMessageCode(final int protocolVersion, final int code) {
-    PosMessage[] values = PosMessage.values();
-      return switch (values[code]) {
-        case PosMessage.PROPOSE, PosMessage.VOTE, PosMessage.BLOCK_ANNOUNCE ,PosMessage.VIEW_CHANGE->
-//      case PosMessage.ROUND_CHANGE:
-                  true;
-          default -> false;
-      };
+    PosMessage message = CODE_TO_MESSAGE.get(code);
+    if (message == null) {
+      return false;
+    }
+    return switch (message) {
+      case PROPOSE, VOTE, BLOCK_ANNOUNCE, VIEW_CHANGE -> true;
+      default -> false;
+    };
   }
 
   @Override
   public String messageName(final int protocolVersion, final int code) {
-    PosMessage[] values = PosMessage.values();
-      return switch (values[code]) {
-          case PosMessage.PROPOSE -> "Proposal";
-          case PosMessage.VOTE -> "Prepare";
-          case PosMessage.BLOCK_ANNOUNCE -> "Commit";
-        case PosMessage.VIEW_CHANGE -> "ViewChange";
-//      case PosMessage.ROUND_CHANGE:
-//        return "RoundChange";
-          default -> INVALID_MESSAGE_NAME;
-      };
+    PosMessage message = CODE_TO_MESSAGE.get(code);
+    if (message == null) {
+      return INVALID_MESSAGE_NAME;
+    }
+    return switch (message) {
+      case PROPOSE -> "Proposal";
+      case VOTE -> "Vote";
+      case BLOCK_ANNOUNCE -> "Commit";
+      case VIEW_CHANGE -> "ViewChange";
+      default -> INVALID_MESSAGE_NAME;
+    };
   }
+
 }

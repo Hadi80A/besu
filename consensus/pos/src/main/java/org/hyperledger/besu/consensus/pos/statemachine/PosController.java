@@ -35,6 +35,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 /** The Pos controller. */
 public class PosController extends BaseBftController {
   private static final Logger LOG = LoggerFactory.getLogger(PosController.class);
@@ -69,9 +73,12 @@ public class PosController extends BaseBftController {
   @Override
   protected void handleMessage(final Message message) {
     final MessageData messageData = message.getData();
+    Map<Integer, PosMessage> CODE_TO_MESSAGE =
+            Arrays.stream(PosMessage.values())
+                    .collect(Collectors.toMap(PosMessage::getCode, m -> m));
+
     LOG.debug("received a message: {}", messageData);
-    PosMessage[] values = PosMessage.values();
-    switch (values[messageData.getCode()]) {
+    switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
       case PosMessage.PROPOSE:
         consumeMessage(
             message,

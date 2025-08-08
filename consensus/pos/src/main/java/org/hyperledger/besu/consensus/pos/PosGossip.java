@@ -24,7 +24,10 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
 
@@ -51,8 +54,10 @@ public class PosGossip implements Gossiper {
   public void send(final Message message) {
     final MessageData messageData = message.getData();
     final Authored decodedMessage;
-    PosMessage[] values = PosMessage.values();
-      decodedMessage = switch (values[messageData.getCode()]) {
+      Map<Integer, PosMessage> CODE_TO_MESSAGE =
+              Arrays.stream(PosMessage.values())
+                      .collect(Collectors.toMap(PosMessage::getCode, m -> m));
+      decodedMessage = switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
           case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
           case PosMessage.BLOCK_ANNOUNCE -> CommitMessageData.fromMessageData(messageData).decode();
           case PosMessage.VOTE -> VoteMessageData.fromMessageData(messageData).decode();
