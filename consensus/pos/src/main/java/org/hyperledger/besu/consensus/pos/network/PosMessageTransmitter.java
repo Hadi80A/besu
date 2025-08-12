@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
 import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
+import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.PosRoundFactory;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
@@ -66,6 +67,8 @@ public class PosMessageTransmitter {
       final ProposalMessageData message = ProposalMessageData.create(propose);
       LOG.debug("multicastProposal: {}", message);
       multicaster.send(message);
+
+
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Proposal (not sent): {} ", e.getMessage());
     }

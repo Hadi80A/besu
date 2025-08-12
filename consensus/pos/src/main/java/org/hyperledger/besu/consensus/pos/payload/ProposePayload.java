@@ -50,13 +50,14 @@ public class ProposePayload extends PosPayload {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
     final long height = rlpInput.readLong();
-    rlpInput.leaveList();
       final PosBlock proposedBlock;
       try {
           proposedBlock = PosBlock.readFrom(rlpInput);
       } catch (IOException e) {
           throw new RuntimeException(e);
       }
+      rlpInput.leaveList();
+
       return new ProposePayload(roundIdentifier,height,proposedBlock);
   }
 

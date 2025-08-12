@@ -16,6 +16,7 @@ package org.hyperledger.besu.consensus.pos.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Address;
@@ -65,16 +66,38 @@ public class PosBlockHeader{
   }
 
   public void writeTo(RLPOutput rlpOutput) throws JsonProcessingException {
-    besuHeader.writeTo(rlpOutput);
+    rlpOutput.startList();
+    // consensus round + sequence
     rlpOutput.writeInt(roundIdentifier.getRoundNumber());
     rlpOutput.writeLong(roundIdentifier.getSequenceNumber());
-    rlpOutput.writeBytes(SerializeUtil.toBytes(proposer));
+
+    // write raw address bytes (20 bytes)
+    // use Bytes.fromHexString to convert "0x..." -> raw bytes
+    rlpOutput.writeBytes(Bytes.fromHexString(proposer.toHexString()));
+
+    rlpOutput.endList();
   }
 
+
   public static PosBlockHeader readFrom(RLPInput rlpInput, BlockHeader besuHeader) throws IOException {
-    ConsensusRoundIdentifier round = new ConsensusRoundIdentifier(rlpInput.readLong(),rlpInput.readInt());
-    Address proposer=  SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
-    return new PosBlockHeader(besuHeader,round,proposer);
+    rlpInput.enterList();
+
+    int roundNumber = rlpInput.readInt();
+    long sequenceNumber = rlpInput.readLong();
+    ConsensusRoundIdentifier round = new ConsensusRoundIdentifier(sequenceNumber, roundNumber);
+
+    // read raw 20 bytes
+    Bytes addressBytes = rlpInput.readBytes();
+    // Prefer Address.wrap if available (no extra hex conversions)
+    // If Address.wrap(Bytes) exists:
+    // Address proposer = Address.wrap(addressBytes);
+    //
+    // Otherwise convert bytes -> hex string and use Address.fromHexString(...)
+    Address proposer = Address.fromHexString(addressBytes.toHexString());
+
+    rlpInput.leaveList();
+    return new PosBlockHeader(besuHeader, round, proposer);
   }
+
 
 }

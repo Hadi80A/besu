@@ -38,7 +38,6 @@ import com.google.common.collect.Maps;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
-import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
@@ -124,19 +123,19 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
       return;
     }
 //
-    startNewRound(0);
-    long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
-
-    Block lastBlock = blockchain.getChainHeadBlock();
-    currentRound.get().updateRound(lastBlock,headerTimeStampSeconds);
+//    long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+//    Block lastBlock = blockchain.getChainHeadBlock();
+//    currentRound.get().updateRound(lastBlock,headerTimeStampSeconds);
 //
+    startNewRound(roundIdentifier.getRoundNumber());
     final PosRound posRound = currentRound.get();
 //
 //    logValidatorChanges(posRound);
 //
     if (roundIdentifier.equals(posRound.getRoundIdentifier())) {
-      posRound.createProposalAndTransmit(headerTimeStampSeconds);
-    } else {
+        refreshRound();
+
+    }else {
       LOG.trace(
               "Block timer expired for a round ({}) other than current ({})",
               roundIdentifier,
@@ -221,7 +220,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         return;
     }
     Optional<Collection<ViewChange>> result=Optional.empty();
-    finalState.getReceivedMessages().put(finalState.getLocalAddress(),message);
+    finalState.getReceivedMessages().put(message.getAuthor(),message);
+        LOG.debug("finalState.getReceivedMessages().size() {}", finalState.getReceivedMessages().size());
+        LOG.debug("finalState.getQuorum() {}",finalState.getQuorum());
     if(finalState.getReceivedMessages().size()>=finalState.getQuorum()){
         result = Optional.of(finalState.getReceivedMessages().values());
     }
@@ -232,18 +233,29 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                     "Received sufficient RoundChange messages to change round to targetRound={}", targetRound);
             if (messageAge == PosBlockHeightManager.MessageAge.FUTURE_ROUND) {
                 startNewRound(targetRound.getRoundNumber());
+                refreshRound();
+
             }
             var proposer=proposerSelector.selectLeader();
+            LOG.debug("proposer {}", proposer);
+
             if (proposer.equals(finalState.getLocalAddress())) {
                 if (currentRound.isEmpty()) {
                     startNewRound(0);
+                    refreshRound();
+
+                    LOG.debug("startNewRound ");
                 }
                     startNewRound(currentRound.get().getRoundIdentifier().getRoundNumber());
+                    refreshRound();
+                    LOG.debug("startNewRound with round{} ",currentRound.get().getRoundIdentifier().getRoundNumber());
             }
         }
     } else {
         if (currentRound.isEmpty()) {
             startNewRound(0);
+            refreshRound();
+            LOG.debug("startNewRound is empty ");
         }
         int currentRoundNumber = currentRound.get().getRoundIdentifier().getRoundNumber();
         // If this node is proposer for the current round, check if quorum is achieved for RC messages
@@ -254,6 +266,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                 && result.isPresent()) {
 
             startNewRound(currentRoundNumber);
+            refreshRound();
         }
 
         doRoundChange(currentRoundNumber+1);
@@ -261,6 +274,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
           PosRound posRound = currentRound.get();//todo
           Optional<Integer> nextHigherRound =
                   roundChangeManager.futureRCQuorumReceived(posRound.getRoundIdentifier());
+          LOG.debug("nextHigherRound {} ", nextHigherRound);
           if (nextHigherRound.isPresent()) {
             LOG.info(
                     "Received sufficient RoundChange messages to change round to targetRound={}",
@@ -280,6 +294,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             "Round has expired or changing based on RC quorum, round={}", currentRound.get().getRoundIdentifier());
 
     startNewRound(newRoundNumber);
+    refreshRound();
     if (currentRound.isEmpty()) {
       LOG.info("Failed to start round ");
       return;
@@ -308,8 +323,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
      * @param msg the msg
      */
     public void handleProposalMessage(final Propose msg) {
-        LOG.debug("Received a proposal message. round={}. author={}", currentRound.get().getRoundState(),
-                msg.getAuthor());
+        LOG.debug("Received a proposal message. round={}. author={}",msg.getRoundIdentifier(),msg.getAuthor());
         ProposePayload payload=msg.getSignedPayload().getPayload();
         final PosBlock block = payload.getProposedBlock();
         if (validateProposer(msg.getSignedPayload())){
@@ -321,6 +335,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         }
     }
     private boolean validateProposer(SignedData<ProposePayload> payload){
+        LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ",payload.getPayload().getRoundIdentifier().getRoundNumber());
+        LOG.debug(" getRoundState().getRoundIdentifier().getRoundNumber() {} ",getRoundState().getRoundIdentifier().getRoundNumber());
         return payload.getAuthor().equals(proposerSelector.getCurrentProposer()) &&
                 payload.getPayload().getRoundIdentifier().getRoundNumber() == getRoundState().getRoundIdentifier().getRoundNumber() &&
                 payload.getPayload().getHeight() == getRoundState().getHeight();
@@ -384,7 +400,10 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         LOG.debug("Received a commit message. round={}. author={}", getRoundState().getRoundIdentifier(),
                 msg.getAuthor());
         getRoundState().addCommitMessage(msg);
-        currentRound.get().importBlockToChain();
+        if(proposerSelector.getCurrentProposer().equals(msg.getAuthor())){
+            currentRound.get().importBlockToChain();
+        }
+
     }
 
 
@@ -425,8 +444,14 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
     } else {
       currentRound = Optional.of(roundFactory.createNewRound(parentHeader, roundNumber));
     }
+
 //    // discard roundChange messages from the current and previous rounds
 //    roundChangeManager.discardRoundsPriorTo(currentRound.get().getRoundIdentifier());
+    }
+
+    private void refreshRound() {
+        long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+        currentRound.get().updateRound(blockchain.getChainHeadBlock(),headerTimeStampSeconds);
     }
 
 

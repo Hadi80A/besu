@@ -17,18 +17,12 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
-import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
 import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
-import org.hyperledger.besu.consensus.pos.core.NodeSet;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
-import org.hyperledger.besu.consensus.pos.core.PosFinalState;
+import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
@@ -40,9 +34,7 @@ import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
 import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
-import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.util.Subscribers;
 
 /** The Pos round factory. */
@@ -53,7 +45,7 @@ public class PosRoundFactory {
     private final PosBlockCreatorFactory blockCreatorFactory;
     private final ProtocolContext protocolContext;
     private final PosProtocolSchedule protocolSchedule;
-    private final Subscribers<MinedBlockObserver> minedBlockObservers;
+    private final Subscribers<PosMinedBlockObserver> minedBlockObservers;
     private final MessageValidatorFactory messageValidatorFactory;
     private final MessageFactory messageFactory;
     private final BftExtraDataCodec bftExtraDataCodec;
@@ -76,7 +68,7 @@ public class PosRoundFactory {
             final PosFinalState finalState,
             final ProtocolContext protocolContext,
             final PosProtocolSchedule protocolSchedule,
-            final Subscribers<MinedBlockObserver> minedBlockObservers,
+            final Subscribers<PosMinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
             final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {

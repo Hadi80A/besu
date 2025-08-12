@@ -16,6 +16,10 @@ package org.hyperledger.besu.consensus.pos;
 
 import static org.hyperledger.besu.consensus.common.bft.Vote.ADD_BYTE_VALUE;
 import static org.hyperledger.besu.consensus.common.bft.Vote.DROP_BYTE_VALUE;
+
+import lombok.extern.log4j.Log4j;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.Vote;
@@ -39,11 +43,13 @@ import org.apache.tuweni.bytes.Bytes;
  * Represents the data structure stored in the extraData field of the BlockHeader used when
  * operating under an BFT consensus mechanism.
  */
+
 public class PosExtraDataCodec extends BftExtraDataCodec {
   private static final ImmutableBiMap<VoteType, Byte> voteToValue =
           ImmutableBiMap.of(
                   VoteType.ADD, ADD_BYTE_VALUE,
                   VoteType.DROP, DROP_BYTE_VALUE);
+  private static final Logger log = LogManager.getLogger(PosExtraDataCodec.class);
 
   /**
    * Default constructor.
@@ -83,26 +89,26 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     if (input.isEmpty()) {
       throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
     }
-
-    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
-
-    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
-    final Bytes vanityData = rlpInput.readBytes();
-    final List<Address> validators = rlpInput.readList(Address::readFrom);
-    final Optional<Vote> vote;
-    if (rlpInput.nextIsNull()) {
-      vote = Optional.empty();
-      rlpInput.skipNext();
-    } else {
-      vote = Optional.of(decodeVote(rlpInput));
-    }
-    final int round = rlpInput.readInt();
-    final List<SECPSignature> seals =
-            rlpInput.readList(
-                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
-    rlpInput.leaveList();
-
-    return new BftExtraData(vanityData, seals, vote, round, validators);
+    return decodePosData(input);
+//    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
+//
+//    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
+//    final Bytes vanityData = rlpInput.readBytes();
+//    final List<Address> validators = rlpInput.readList(Address::readFrom);
+//    final Optional<Vote> vote;
+//    if (rlpInput.nextIsNull()) {
+//      vote = Optional.empty();
+//      rlpInput.skipNext();
+//    } else {
+//      vote = Optional.of(decodeVote(rlpInput));
+//    }
+//    final int round = rlpInput.readInt();
+//    final List<SECPSignature> seals =
+//            rlpInput.readList(
+//                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+//    rlpInput.leaveList();
+//
+//    return new BftExtraData(vanityData, seals, vote, round, validators);
   }
 
   @Override
@@ -149,30 +155,9 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     return new Vote(recipient, vote);
   }
 
-//  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType){
-//    final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
-//    encoder.startList();
-//    encoder.writeBytes(posExtraData.getVanityData());
-//    encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
-//    if (posExtraData.getVote().isPresent()) {
-//      encodeVote(encoder, posExtraData.getVote().get());
-//    } else {
-//      encoder.writeNull();
-//    }
-//
-//    if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS_AND_ROUND_NUMBER) {
-//      encoder.writeInt(posExtraData.getRound());
-//      if (encodingType != EncodingType.EXCLUDE_COMMIT_SEALS) {
-//        encoder.writeList(
-//                posExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
-//      }
-//    }
-//    encoder.endList();
-//    encoder.writeBytes(SerializeUtil.toBytes(posExtraData.getProposer()));
-//    return encoder.encoded();
-//  }
 
-  private Bytes encodePosData(final PosExtraData posExtraData, final EncodingType encodingType) {
+
+  public Bytes encodePosData(final PosExtraData posExtraData) {
     final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
     encoder.startList();
     encoder.writeBytes(posExtraData.getVanityData());
@@ -192,7 +177,7 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
 
     // Handle null proposer (genesis case)
     if (posExtraData.getProposer() != null) {
-      encoder.writeBytes(posExtraData.getProposer());
+      encoder.writeBytes(Bytes.fromHexString(posExtraData.getProposer().toHexString()));
     } else {
       encoder.writeNull(); // Genesis block marker
     }
@@ -200,59 +185,74 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     encoder.endList();
     return encoder.encoded();
   }
-//  public PosExtraData decodePosData(final Bytes input) {
-//    if (input.isEmpty()) {
-//      throw new IllegalArgumentException("Invalid Bytes supplied - Bft Extra Data required.");
-//    }
-//
-//    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
-//
-//    rlpInput.enterList(); // This accounts for the "root node" which contains BFT data items.
-//    final Bytes vanityData = rlpInput.readBytes();
-//    final List<Address> validators = rlpInput.readList(Address::readFrom);
-//    final Optional<Vote> vote;
-//    if (rlpInput.nextIsNull()) {
-//      vote = Optional.empty();
-//      rlpInput.skipNext();
-//    } else {
-//      vote = Optional.of(decodeVote(rlpInput));
-//    }
-//    final int round = rlpInput.readInt();
-//    final List<SECPSignature> seals =
-//            rlpInput.readList(
-//                    rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
-//    rlpInput.leaveList();
-//    Address proposer = SerializeUtil.toObject(rlpInput.readBytes(),Address.class);
-//    return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
-//  }
-//}
 
-  public PosExtraData decodePosData(final Bytes input) {
-    final RLPInput rlpInput = new BytesValueRLPInput(input, false);
-    rlpInput.enterList();
+public PosExtraData decodePosData(final Bytes input) {
+  if (input == null || input.isEmpty()) {
+    throw new IllegalArgumentException("Invalid Bytes supplied - Pos Extra Data required.");
+  }
 
-    final Bytes vanityData = rlpInput.readBytes();
-    final List<Address> validators = rlpInput.readList(Address::readFrom);
+  final RLPInput rlpInput = new BytesValueRLPInput(input, false);
+  rlpInput.enterList();
 
-    final Optional<Vote> vote = rlpInput.nextIsNull()
-            ? Optional.empty()
-            : Optional.of(decodeVote(rlpInput));
+  // 1. vanity
+  final Bytes vanityData = rlpInput.readBytes();
 
-    final int round = rlpInput.readInt();
-    final List<SECPSignature> seals = rlpInput.readList(
-            rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+  // 2. validators list (may be empty list)
+  final List<Address> validators = rlpInput.readList(Address::readFrom);
 
-    // Handle genesis block (no proposer)
-    final Address proposer;
+  // 3. optional vote (either null or a Vote list structure)
+  final Optional<Vote> vote;
+  if (rlpInput.isEndOfCurrentList()) {
+    // defensive: nothing more in list (shouldn't happen if encoder wrote round/seals)
+    vote = Optional.empty();
+    // we'll let following reads fail with informative logs if structure is wrong
+  } else if (rlpInput.nextIsNull()) {
+    rlpInput.skipNext();
+    vote = Optional.empty();
+  } else {
+    // next element should be the Vote list
+    vote = Optional.of(decodeVote(rlpInput));
+  }
+
+  // 4. round (int) — must exist according to encoder
+  if (rlpInput.isEndOfCurrentList()) {
+    throw new RLPException("PosExtraData missing round number");
+  }
+  final int round = rlpInput.readInt();
+
+  // 5. seals list
+  final List<SECPSignature> seals =
+          rlpInput.readList(rlp -> SignatureAlgorithmFactory.getInstance().decodeSignature(rlp.readBytes()));
+
+  // 6. optional proposer (nullable, present if encoder wrote it)
+  Address proposer = null;
+  if (!rlpInput.isEndOfCurrentList()) {
     if (rlpInput.nextIsNull()) {
       rlpInput.skipNext();
       proposer = null;
     } else {
-      proposer = Address.readFrom(rlpInput);
+      final Bytes addressBytes = rlpInput.readBytes();
+      // prefer Address.wrap if available; otherwise use fromHexString
+      // Address.wrap(Address) exists in newer Besu versions; use accordingly.
+      proposer = Address.fromHexString(addressBytes.toHexString());
     }
-
-    rlpInput.leaveList();
-    System.out.println("vanityData"+vanityData+", seals"+ seals +", vote"+ vote+ ", round"+ round+"validators,"+ Arrays.toString(validators.toArray()) +" proposer"+proposer);
-    return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
+  } else {
+    // end of list -> proposer absent (genesis or encoder omitted proposer)
+    proposer = null;
   }
+
+  rlpInput.leaveList();
+  // Optional: log debug data to help find encoder/decoder mismatches
+  log.debug(
+          "Decoded PosExtraData: vanityLen={}, validators={}, votePresent={}, round={}, seals={}, proposer={}",
+          vanityData.size(),
+          validators.size(),
+          vote.isPresent(),
+          round,
+          seals.size(),
+          proposer);
+
+  return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
+}
+
 }

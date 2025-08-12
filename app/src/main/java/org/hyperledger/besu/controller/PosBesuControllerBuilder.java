@@ -33,15 +33,10 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffe
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidatorProvider;
 import org.hyperledger.besu.consensus.pos.*;
-import org.hyperledger.besu.consensus.pos.core.Node;
-import org.hyperledger.besu.consensus.pos.core.NodeSet;
-import org.hyperledger.besu.consensus.pos.core.PosFinalState;
-import org.hyperledger.besu.consensus.pos.core.StakeInfo;
+import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
-import org.hyperledger.besu.consensus.qbft.adaptor.QbftProtocolScheduleAdaptor;
-import org.hyperledger.besu.consensus.qbft.core.types.QbftProtocolSchedule;
 import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -203,9 +198,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         new MessageValidatorFactory(
             proposerSelector, bftProtocolSchedule, protocolContext, bftExtraDataCodec);
 
-    final Subscribers<MinedBlockObserver> minedBlockObservers = Subscribers.create();
-    minedBlockObservers.subscribe(ethProtocolManager);
-    minedBlockObservers.subscribe(blockLogger(transactionPool, localAddress));
+    final Subscribers<PosMinedBlockObserver> minedBlockObservers = Subscribers.create();
+    minedBlockObservers.subscribe(posBlock -> ethProtocolManager.blockMined(BlockUtil.toBesuBlock(posBlock)));
+    minedBlockObservers.subscribe(posBlock ->
+            blockLogger(transactionPool, localAddress)
+                    .blockMined(BlockUtil.toBesuBlock(posBlock)));
 
     final FutureMessageBuffer futureMessageBuffer =
         new FutureMessageBuffer(

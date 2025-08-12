@@ -72,7 +72,7 @@ public class PosRound {
 
   private static final Logger LOG = LoggerFactory.getLogger(PosRound.class);
 
-  private final Subscribers<MinedBlockObserver> observers;
+  private final Subscribers<PosMinedBlockObserver> observers;
   private final RoundState roundState;
   private final PosBlockCreator blockCreator;
 
@@ -113,7 +113,7 @@ public class PosRound {
           final PosBlockCreator blockCreator,
           final ProtocolContext protocolContext,
           final PosProtocolSchedule protocolSchedule,
-          final Subscribers<MinedBlockObserver> observers,
+          final Subscribers<PosMinedBlockObserver> observers,
           final NodeKey nodeKey,
           final PosRoundFactory.MessageFactory messageFactory,
           final PosMessageTransmitter transmitter,
@@ -282,6 +282,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
       return;
     }
     transmitter.multicastProposal(proposal);
+    roundState.setProposeMessage(proposal);
   }
 
   public void importBlockToChain() {
@@ -317,7 +318,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
               blockNumber,
               blockToImport.getHeader());
     } else {
-      notifyNewBlockListeners(blockToImport.getBesuBlock());
+      notifyNewBlockListeners(blockToImport);
     }
   }
 
@@ -378,7 +379,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
     return nodeKey.sign(commitHash);
   }
 
-  private void notifyNewBlockListeners(final Block block) {
+  private void notifyNewBlockListeners(final PosBlock block) {
     observers.forEach(obs -> obs.blockMined(block));
   }
 

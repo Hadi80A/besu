@@ -76,7 +76,7 @@ public class PosBlockCreator {
 
     final BlockHeader sealedHeader =
         BlockHeaderBuilder.fromHeader(BlockUtil.toBesuBlockHeader(initialHeader))
-            .extraData(posExtraDataCodec.encode(sealedExtraData))
+            .extraData(posExtraDataCodec.encodePosData(sealedExtraData))
             .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(posExtraDataCodec))
             .buildBlockHeader();
     final Block sealedBesuBlock = new Block(sealedHeader, besuBlock.getBody());
