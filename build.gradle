@@ -52,7 +52,7 @@ project.tasks["sonar"].dependsOn "testCodeCoverageReport"
 
 if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
   throw new GradleException("Java 21 or later is required to build Besu.\n" +
-  "  Detected version ${JavaVersion.current()}")
+          "  Detected version ${JavaVersion.current()}")
 }
 
 group = 'org.hyperledger.besu'
@@ -60,13 +60,13 @@ group = 'org.hyperledger.besu'
 defaultTasks 'build', 'checkLicense', 'javadoc'
 
 def buildAliases = [
-  'dev': [
-    'spotlessApply',
-    'build',
-    'checkLicense',
-    'javadoc'
-  ],
-  'build': ['spotlessCheck', 'build']
+        'dev': [
+                'spotlessApply',
+                'build',
+                'checkLicense',
+                'javadoc'
+        ],
+        'build': ['spotlessCheck', 'build']
 ]
 
 def expandedTaskList = []
@@ -112,23 +112,24 @@ licenseReport {
   allowedLicensesFile = new File("$rootDir/gradle/allowed-licenses.json")
 
   excludes = [
-    // only used for static analysis, not actually shipped
-    'com.google.errorprone:javac',
-    'org.checkerframework:dataflow-shaded',
-    'org.checkerframework:dataflow-errorprone',
-    // exclude Kotlin multiplatform dependencies container, they have the same license of what they contain
-    'com.squareup.okio:okio',
-    'org.jetbrains.kotlinx:kotlinx-coroutines-core',
-    'com.google.dagger:dagger',
-    'com.google.auto.service:auto-service',
-    'com.google.auto.service:auto-service-annotations',
-    'com.graphql-java:java-dataloader',
-    'com.squareup.okhttp3:logging-interceptor',
-    'com.squareup.okhttp3:okhttp',
-    'com.squareup.okio:okio-jvm',
-    'info.picocli:picocli',
-    'io.consensys.protocols:jc-kzg-4844',
-    'io.github.adraffy:ens-normalize',
+          // only used for static analysis, not actually shipped
+          'com.google.errorprone:javac',
+          'net.i2p.crypto:eddsa',
+          'org.checkerframework:dataflow-shaded',
+          'org.checkerframework:dataflow-errorprone',
+          // exclude Kotlin multiplatform dependencies container, they have the same license of what they contain
+          'com.squareup.okio:okio',
+          'org.jetbrains.kotlinx:kotlinx-coroutines-core',
+          'com.google.dagger:dagger',
+          'com.google.auto.service:auto-service',
+          'com.google.auto.service:auto-service-annotations',
+          'com.graphql-java:java-dataloader',
+          'com.squareup.okhttp3:logging-interceptor',
+          'com.squareup.okhttp3:okhttp',
+          'com.squareup.okio:okio-jvm',
+          'info.picocli:picocli',
+          'io.consensys.protocols:jc-kzg-4844',
+          'io.github.adraffy:ens-normalize',
           'org.slf4j:slf4j-api',
           'org.jupnp:org.jupnp.support',
           'org.jupnp:org.jupnp',
@@ -140,54 +141,54 @@ licenseReport {
           'io.vertx:vertx-unit','io.vertx:vertx-codegen','io.vertx:vertx-bridge-common','io.vertx:vertx-auth-jwt',
           'io.vertx:vertx-auth-common','com.google.guava:listenablefuture',
           'com.github.oshi:oshi-core',
-    'io.grpc:grpc-api',
-    'io.grpc:grpc-context',
-    'io.grpc:grpc-core',
-    'io.grpc:grpc-netty',
-    'io.grpc:grpc-util',
-    'io.opentelemetry.semconv:opentelemetry-semconv',
-    'io.opentelemetry.semconv:opentelemetry-semconv-incubating',
-    'io.opentelemetry:opentelemetry-api',
-    'io.opentelemetry:opentelemetry-context',
-    'io.opentelemetry:opentelemetry-exporter-common',
-    'io.opentelemetry:opentelemetry-exporter-otlp',
-    'io.opentelemetry:opentelemetry-exporter-otlp-common',
-    'io.opentelemetry:opentelemetry-exporter-sender-okhttp',
-    'io.opentelemetry:opentelemetry-extension-trace-propagators',
-    'io.opentelemetry:opentelemetry-sdk',
-    'io.opentelemetry:opentelemetry-sdk-common',
-    'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure',
-    'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi',
-    'io.opentelemetry:opentelemetry-sdk-logs',
-    'io.opentelemetry:opentelemetry-sdk-metrics',
-    'io.perfmark:perfmark-api',
-    'io.projectreactor:reactor-core',
-    'io.reactivex.rxjava2:rxjava',
-    'io.vertx:vertx-stack-depchain',
-    'javax.inject:javax.inject',
-    'net.java.dev.jna:jna',
-    'net.java.dev.jna:jna-platform',
-    'org.bouncycastle:bcpkix-jdk18on',
-    'org.bouncycastle:bcprov-jdk18on',
-    'org.bouncycastle:bcutil-jdk18on',
-    'org.hamcrest:hamcrest',
-    'org.immutables:value-annotations',
-    'org.jetbrains.kotlin:kotlin-stdlib', // Note: Multiple versions, plugin matching might handle this
-    'org.jetbrains.kotlin:kotlin-stdlib-common', // Note: Multiple versions
-    'org.jetbrains.kotlin:kotlin-stdlib-jdk7',
-    'org.jetbrains.kotlin:kotlin-stdlib-jdk8',
-    'org.reactivestreams:reactive-streams', // Note: Multiple versions
-    'org.rocksdb:rocksdbjni',
-    'org.springframework.security:spring-security-crypto',
-    'org.web3j:abi', // Note: Multiple versions
-    'org.web3j:besu',
-    'org.web3j:core', // Note: Multiple versions
-    'org.web3j:crypto', // Note: Multiple versions
-    'org.web3j:eea',
-    'org.web3j:rlp', // Note: Multiple versions
-    'org.web3j:tuples', // Note: Multiple versions
-    'org.web3j:utils', // Note: Multiple versions
-    'tech.pegasys.discovery:discovery'
+          'io.grpc:grpc-api',
+          'io.grpc:grpc-context',
+          'io.grpc:grpc-core',
+          'io.grpc:grpc-netty',
+          'io.grpc:grpc-util',
+          'io.opentelemetry.semconv:opentelemetry-semconv',
+          'io.opentelemetry.semconv:opentelemetry-semconv-incubating',
+          'io.opentelemetry:opentelemetry-api',
+          'io.opentelemetry:opentelemetry-context',
+          'io.opentelemetry:opentelemetry-exporter-common',
+          'io.opentelemetry:opentelemetry-exporter-otlp',
+          'io.opentelemetry:opentelemetry-exporter-otlp-common',
+          'io.opentelemetry:opentelemetry-exporter-sender-okhttp',
+          'io.opentelemetry:opentelemetry-extension-trace-propagators',
+          'io.opentelemetry:opentelemetry-sdk',
+          'io.opentelemetry:opentelemetry-sdk-common',
+          'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure',
+          'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi',
+          'io.opentelemetry:opentelemetry-sdk-logs',
+          'io.opentelemetry:opentelemetry-sdk-metrics',
+          'io.perfmark:perfmark-api',
+          'io.projectreactor:reactor-core',
+          'io.reactivex.rxjava2:rxjava',
+          'io.vertx:vertx-stack-depchain',
+          'javax.inject:javax.inject',
+          'net.java.dev.jna:jna',
+          'net.java.dev.jna:jna-platform',
+          'org.bouncycastle:bcpkix-jdk18on',
+          'org.bouncycastle:bcprov-jdk18on',
+          'org.bouncycastle:bcutil-jdk18on',
+          'org.hamcrest:hamcrest',
+          'org.immutables:value-annotations',
+          'org.jetbrains.kotlin:kotlin-stdlib', // Note: Multiple versions, plugin matching might handle this
+          'org.jetbrains.kotlin:kotlin-stdlib-common', // Note: Multiple versions
+          'org.jetbrains.kotlin:kotlin-stdlib-jdk7',
+          'org.jetbrains.kotlin:kotlin-stdlib-jdk8',
+          'org.reactivestreams:reactive-streams', // Note: Multiple versions
+          'org.rocksdb:rocksdbjni',
+          'org.springframework.security:spring-security-crypto',
+          'org.web3j:abi', // Note: Multiple versions
+          'org.web3j:besu',
+          'org.web3j:core', // Note: Multiple versions
+          'org.web3j:crypto', // Note: Multiple versions
+          'org.web3j:eea',
+          'org.web3j:rlp', // Note: Multiple versions
+          'org.web3j:tuples', // Note: Multiple versions
+          'org.web3j:utils', // Note: Multiple versions
+          'tech.pegasys.discovery:discovery'
 
   ]
 
@@ -195,7 +196,7 @@ licenseReport {
   excludeBoms = true
 
   filters = [
-    new LicenseBundleNormalizer(bundlePath: "$rootDir/gradle/license-normalizer-bundle.json")
+          new LicenseBundleNormalizer(bundlePath: "$rootDir/gradle/license-normalizer-bundle.json")
   ]
 }
 
@@ -345,13 +346,13 @@ configure(allprojects - project(':platform')) {
 
   tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += [
-      '-Xlint:unchecked',
-      '-Xlint:cast',
-      '-Xlint:rawtypes',
-      '-Xlint:overloads',
-      '-Xlint:divzero',
-      '-Xlint:finally',
-      '-Xlint:static',
+            '-Xlint:unchecked',
+            '-Xlint:cast',
+            '-Xlint:rawtypes',
+            '-Xlint:overloads',
+            '-Xlint:divzero',
+            '-Xlint:finally',
+            '-Xlint:static',
 //      '-Werror',
     ]
 
@@ -420,40 +421,40 @@ configure(allprojects - project(':platform')) {
    */
   test {
     jvmArgs += [
-      '-Xmx4g',
-      '-XX:-UseGCOverheadLimit',
-      // Mockito and jackson-databind do some strange reflection during tests.
-      // This suppresses an illegal access warning.
-      '--add-opens',
-      'java.base/java.util=ALL-UNNAMED',
-      '--add-opens',
-      'java.base/java.util.concurrent=ALL-UNNAMED',
-      '--add-opens',
-      'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
-      // errorprone tests need access to the javac compiler
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
+            '-Xmx4g',
+            '-XX:-UseGCOverheadLimit',
+            // Mockito and jackson-databind do some strange reflection during tests.
+            // This suppresses an illegal access warning.
+            '--add-opens',
+            'java.base/java.util=ALL-UNNAMED',
+            '--add-opens',
+            'java.base/java.util.concurrent=ALL-UNNAMED',
+            '--add-opens',
+            'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+            // errorprone tests need access to the javac compiler
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
     ]
     Set toImport = [
-      'test.ethereum.include',
-      'test.ethereum.state.eip',
-      'root.log.level',
-      'evm.log.level',
-      'acctests.keepLogsOfPassingTests'
+            'test.ethereum.include',
+            'test.ethereum.state.eip',
+            'root.log.level',
+            'evm.log.level',
+            'acctests.keepLogsOfPassingTests'
     ]
     for (String name : toImport) {
       if (System.getProperty(name) != null) {
@@ -468,59 +469,59 @@ configure(allprojects - project(':platform')) {
     options.addBooleanOption('Xdoclint:all', true)
     // disable doc lint checking for generated code and acceptance tests dsl.
     options.addBooleanOption('Xdoclint/package:' +
-      '-org.hyperledger.besu.tests.acceptance.*,' +
-      '-org.hyperledger.besu.tests.web3j.generated,' +
-      // TODO: these are temporary excluded from lint (ethereum sub modules), it should be removed in a future PR.
-      // ethereum api module
-      '-org.hyperledger.besu.ethereum.api.handlers,' +
-      '-org.hyperledger.besu.ethereum.api.jsonrpc,' +
-      '-org.hyperledger.besu.ethereum.api.jsonrpc.*,' +
-      '-org.hyperledger.besu.ethereum.api.query,' +
-      '-org.hyperledger.besu.ethereum.api.query.*,' +
-      '-org.hyperledger.besu.ethereum.api.tls,' +
-      '-org.hyperledger.besu.ethereum.api.util,' +
-      // ethereum blockcreation module
-      '-org.hyperledger.besu.ethereum.blockcreation,' +
-      '-org.hyperledger.besu.ethereum.blockcreation.*,' +
-      // ethereum core module
-      '-org.hyperledger.besu.ethereum.chain,' +
-      '-org.hyperledger.besu.ethereum.core,' +
-      '-org.hyperledger.besu.ethereum.core.*,' +
-      '-org.hyperledger.besu.ethereum.debug,' +
-      '-org.hyperledger.besu.ethereum.difficulty.fixed,' +
-      '-org.hyperledger.besu.ethereum.forkid,' +
-      '-org.hyperledger.besu.ethereum.mainnet,' +
-      '-org.hyperledger.besu.ethereum.mainnet.*,' +
-      '-org.hyperledger.besu.ethereum.processing,' +
-      '-org.hyperledger.besu.ethereum.proof,' +
-      '-org.hyperledger.besu.ethereum.storage,' +
-      '-org.hyperledger.besu.ethereum.storage.*,' +
-      '-org.hyperledger.besu.ethereum.transaction,' +
-      '-org.hyperledger.besu.ethereum.trie.*,' +
-      '-org.hyperledger.besu.ethereum.util,' +
-      '-org.hyperledger.besu.ethereum.vm,' +
-      '-org.hyperledger.besu.ethereum.worldstate,' +
-      // ethereum eth module
-      '-org.hyperledger.besu.ethereum.eth.*,' +
-      '-org.hyperledger.besu.ethereum.eth,' +
-      '-org.hyperledger.besu.consensus.merge,' +
-      // p2p module
-      '-org.hyperledger.besu.ethereum.p2p,' +
-      '-org.hyperledger.besu.ethereum.p2p.*,' +
-      // permissioning module
-      '-org.hyperledger.besu.ethereum.permissioning,' +
-      '-org.hyperledger.besu.ethereum.permissioning.*,' +
-      // referencetests module
-      '-org.hyperledger.besu.ethereum.referencetests,' +
-      //rlp module
-      '-org.hyperledger.besu.ethereum.rlp,' +
-      // trie module
-      '-org.hyperledger.besu.ethereum.trie.*,' +
-      '-org.hyperledger.besu.ethereum.trie,' +
-      // verkle trie module
-      '-org.hyperledger.besu.ethereum.verkletrie,' +
-      '-org.hyperledger.besu.ethereum.verkletrie.*',
-      true)
+            '-org.hyperledger.besu.tests.acceptance.*,' +
+            '-org.hyperledger.besu.tests.web3j.generated,' +
+            // TODO: these are temporary excluded from lint (ethereum sub modules), it should be removed in a future PR.
+            // ethereum api module
+            '-org.hyperledger.besu.ethereum.api.handlers,' +
+            '-org.hyperledger.besu.ethereum.api.jsonrpc,' +
+            '-org.hyperledger.besu.ethereum.api.jsonrpc.*,' +
+            '-org.hyperledger.besu.ethereum.api.query,' +
+            '-org.hyperledger.besu.ethereum.api.query.*,' +
+            '-org.hyperledger.besu.ethereum.api.tls,' +
+            '-org.hyperledger.besu.ethereum.api.util,' +
+            // ethereum blockcreation module
+            '-org.hyperledger.besu.ethereum.blockcreation,' +
+            '-org.hyperledger.besu.ethereum.blockcreation.*,' +
+            // ethereum core module
+            '-org.hyperledger.besu.ethereum.chain,' +
+            '-org.hyperledger.besu.ethereum.core,' +
+            '-org.hyperledger.besu.ethereum.core.*,' +
+            '-org.hyperledger.besu.ethereum.debug,' +
+            '-org.hyperledger.besu.ethereum.difficulty.fixed,' +
+            '-org.hyperledger.besu.ethereum.forkid,' +
+            '-org.hyperledger.besu.ethereum.mainnet,' +
+            '-org.hyperledger.besu.ethereum.mainnet.*,' +
+            '-org.hyperledger.besu.ethereum.processing,' +
+            '-org.hyperledger.besu.ethereum.proof,' +
+            '-org.hyperledger.besu.ethereum.storage,' +
+            '-org.hyperledger.besu.ethereum.storage.*,' +
+            '-org.hyperledger.besu.ethereum.transaction,' +
+            '-org.hyperledger.besu.ethereum.trie.*,' +
+            '-org.hyperledger.besu.ethereum.util,' +
+            '-org.hyperledger.besu.ethereum.vm,' +
+            '-org.hyperledger.besu.ethereum.worldstate,' +
+            // ethereum eth module
+            '-org.hyperledger.besu.ethereum.eth.*,' +
+            '-org.hyperledger.besu.ethereum.eth,' +
+            '-org.hyperledger.besu.consensus.merge,' +
+            // p2p module
+            '-org.hyperledger.besu.ethereum.p2p,' +
+            '-org.hyperledger.besu.ethereum.p2p.*,' +
+            // permissioning module
+            '-org.hyperledger.besu.ethereum.permissioning,' +
+            '-org.hyperledger.besu.ethereum.permissioning.*,' +
+            // referencetests module
+            '-org.hyperledger.besu.ethereum.referencetests,' +
+            //rlp module
+            '-org.hyperledger.besu.ethereum.rlp,' +
+            // trie module
+            '-org.hyperledger.besu.ethereum.trie.*,' +
+            '-org.hyperledger.besu.ethereum.trie,' +
+            // verkle trie module
+            '-org.hyperledger.besu.ethereum.verkletrie,' +
+            '-org.hyperledger.besu.ethereum.verkletrie.*',
+            true)
     options.addStringOption('Xmaxerrs','65535')
     options.addStringOption('Xmaxwarns','65535')
 //    options.addStringOption('Xwerror', '-html5')
@@ -539,8 +540,8 @@ task checkMavenCoordinateCollisions {
           def coordinate = it.publishing?.publications[0].coordinates
           if (coordinate.toString().startsWith("org") && coordinates.containsKey(coordinate)) {
             throw new GradleException("Duplicate maven coordinates detected, ${coordinate} is used by " +
-            "both ${coordinates[coordinate]} and ${it.path}.\n" +
-            "Prefer automatic artifactId creation or if not possible disambiguate manually.")
+                    "both ${coordinates[coordinate]} and ${it.path}.\n" +
+                    "Prefer automatic artifactId creation or if not possible disambiguate manually.")
           }
           coordinates[coordinate] = it.path
         }
@@ -598,10 +599,10 @@ subprojects {
       description = "Runs the Besu integration tests"
 
       jvmArgs = [
-        '--add-opens',
-        'java.base/java.util=ALL-UNNAMED',
-        '--add-opens',
-        'java.base/java.util.concurrent=ALL-UNNAMED'
+              '--add-opens',
+              'java.base/java.util=ALL-UNNAMED',
+              '--add-opens',
+              'java.base/java.util.concurrent=ALL-UNNAMED'
       ]
       testClassesDirs = sourceSets.integrationTest.output.classesDirs
       classpath = sourceSets.integrationTest.runtimeClasspath
@@ -704,15 +705,15 @@ subprojects {
     apply plugin: 'me.champeau.jmh'
     tasks.named("jmh") {
       description = "Usage: gradle jmh -Pf=2 -Pwi=3 -Pi=5 -Pincludes=MyBench -PasyncProfiler=<libPath> -PasyncProfilerOptions=<options>\n" +
-        "\nRun JMH benchmarks in each of the projects. Allows for controlling JMH execution directly from the command line.\n" +
-        "\t-Pf=<forks>\tHow many times to fork a single benchmark. Use 0 to disable forking altogether. Defaults to 2 forks.\n" +
-        "\t-Pwf=<warmupForks>\tHow many warmup forks to make for a single benchmark. 0 to disable warmup forks. Defaults to 0 forks.\n" +
-        "\t-Pwi=<warmupIterations>\tNumber of warmup iterations to do. Defaults to 1 iteration.\n" +
-        "\t-Pi=<iterations>\tNumber of measurement iterations to do. Defaults to 10 iterations.\n" +
-        "\t-Pbm=<benchmarkMode>\tBenchmark mode. Available modes are: [Throughput/thrpt, AverageTime/avgt, SampleTime/sample, SingleShotTime/ss, All/all]. Defaults to `avgt`.\n" +
-        "\t-Pincludes=<includePattern>\tInclude pattern (regular expression) for benchmarks to be executed. Defaults to including all benchmarks.\n" +
-        "\t-PasyncProfiler=<libPath>\tLibrary path to fetch the Async profiler from. Default is to disable profiling.\n" +
-        "\t-PasyncProfilerOptions=<asyncProfilerOptions>\tOptions to pass on to the Async profiler separated by ';'. Default is to produce a flamegraph with all other default profiler options.\n"
+              "\nRun JMH benchmarks in each of the projects. Allows for controlling JMH execution directly from the command line.\n" +
+              "\t-Pf=<forks>\tHow many times to fork a single benchmark. Use 0 to disable forking altogether. Defaults to 2 forks.\n" +
+              "\t-Pwf=<warmupForks>\tHow many warmup forks to make for a single benchmark. 0 to disable warmup forks. Defaults to 0 forks.\n" +
+              "\t-Pwi=<warmupIterations>\tNumber of warmup iterations to do. Defaults to 1 iteration.\n" +
+              "\t-Pi=<iterations>\tNumber of measurement iterations to do. Defaults to 10 iterations.\n" +
+              "\t-Pbm=<benchmarkMode>\tBenchmark mode. Available modes are: [Throughput/thrpt, AverageTime/avgt, SampleTime/sample, SingleShotTime/ss, All/all]. Defaults to `avgt`.\n" +
+              "\t-Pincludes=<includePattern>\tInclude pattern (regular expression) for benchmarks to be executed. Defaults to including all benchmarks.\n" +
+              "\t-PasyncProfiler=<libPath>\tLibrary path to fetch the Async profiler from. Default is to disable profiling.\n" +
+              "\t-PasyncProfilerOptions=<asyncProfilerOptions>\tOptions to pass on to the Async profiler separated by ';'. Default is to produce a flamegraph with all other default profiler options.\n"
     }
 
     jmh {
@@ -727,12 +728,12 @@ subprojects {
       var asyncProfilerOptions = _strCmdArg('asyncProfilerOptions', 'output=flamegraph')
       if (asyncProfiler != null) {
         profilers = [
-          'async:libPath=' + asyncProfiler + ';' + asyncProfilerOptions
+                'async:libPath=' + asyncProfiler + ';' + asyncProfilerOptions
         ]
       }
       duplicateClassesStrategy = DuplicatesStrategy.WARN
       jvmArgs = [
-        '-XX:+EnableDynamicAgentLoading'
+              '-XX:+EnableDynamicAgentLoading'
       ]
     }
 
@@ -755,29 +756,29 @@ apply plugin: 'application'
 application {
   mainClass = 'org.hyperledger.besu.Besu'
   applicationDefaultJvmArgs = [
-    '-Dvertx.disableFileCPResolving=true',
-    // BESU_HOME is replaced by a doFirst block in the run task.
-    '-Dbesu.home=BESU_HOME',
-    // We shutdown log4j ourselves, as otherwise this shutdown hook runs before our own and whatever
-    // happens during shutdown is not logged.
-    '-Dlog4j.shutdownHookEnabled=false',
-    // Disable JNI lookups in log4j messages to improve security
-    '-Dlog4j2.formatMsgNoLookups=true',
-    // Redirect java.util.logging loggers to use log4j2.
-    '-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager',
-    // Suppress Java JPMS warnings.  Document the reason for each suppression.
-    // Bouncy Castle needs access to sun.security.provider, which is not open by default.
-    '--add-opens',
-    'java.base/sun.security.provider=ALL-UNNAMED',
-    // Jackson likes to access java.util.OptionalLong's constructor
-    '--add-opens',
-    'java.base/java.util=ALL-UNNAMED',
-    // suppress netty specific module warnings in debug
-    "-Dio.netty.tryReflectionSetAccessible=true",
-    "--add-exports",
-    "java.base/jdk.internal.misc=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.nio=ALL-UNNAMED"
+          '-Dvertx.disableFileCPResolving=true',
+          // BESU_HOME is replaced by a doFirst block in the run task.
+          '-Dbesu.home=BESU_HOME',
+          // We shutdown log4j ourselves, as otherwise this shutdown hook runs before our own and whatever
+          // happens during shutdown is not logged.
+          '-Dlog4j.shutdownHookEnabled=false',
+          // Disable JNI lookups in log4j messages to improve security
+          '-Dlog4j2.formatMsgNoLookups=true',
+          // Redirect java.util.logging loggers to use log4j2.
+          '-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager',
+          // Suppress Java JPMS warnings.  Document the reason for each suppression.
+          // Bouncy Castle needs access to sun.security.provider, which is not open by default.
+          '--add-opens',
+          'java.base/sun.security.provider=ALL-UNNAMED',
+          // Jackson likes to access java.util.OptionalLong's constructor
+          '--add-opens',
+          'java.base/java.util=ALL-UNNAMED',
+          // suppress netty specific module warnings in debug
+          "-Dio.netty.tryReflectionSetAccessible=true",
+          "--add-exports",
+          "java.base/jdk.internal.misc=ALL-UNNAMED",
+          "--add-opens",
+          "java.base/java.nio=ALL-UNNAMED"
   ]
 }
 
@@ -800,19 +801,19 @@ def tweakStartScript(createScriptTask) {
 
   // Prevent the error originating from the 8191 chars limit on Windows
   createScriptTask.windowsScript.text =
-    createScriptTask.windowsScript
-    .readLines()
-    .collect(shortenWindowsClasspath)
-    .join('\r\n')
+          createScriptTask.windowsScript
+                  .readLines()
+                  .collect(shortenWindowsClasspath)
+                  .join('\r\n')
 }
 
 startScripts {
   defaultJvmOpts = application.applicationDefaultJvmArgs + [
-    "-XX:G1ConcRefinementThreads=2",
-    "-XX:G1HeapWastePercent=15",
-    "-XX:MaxGCPauseMillis=100",
-    "-XX:StartFlightRecording,settings=default.jfc",
-    "-Xlog:jfr*=off"
+          "-XX:G1ConcRefinementThreads=2",
+          "-XX:G1HeapWastePercent=15",
+          "-XX:MaxGCPauseMillis=100",
+          "-XX:StartFlightRecording,settings=default.jfc",
+          "-Xlog:jfr*=off"
   ]
   unixStartScriptGenerator.template = resources.text.fromFile("${projectDir}/app/src/main/scripts/unixStartScript.txt")
   windowsStartScriptGenerator.template = resources.text.fromFile("${projectDir}/app/src/main/scripts/windowsStartScript.txt")
@@ -835,7 +836,7 @@ task evmToolStartScripts(type: CreateStartScripts) {
   outputDir = startScripts.outputDir
   applicationName = 'evmtool'
   defaultJvmOpts = [
-    "-Dsecp256k1.randomize=false"
+          "-Dsecp256k1.randomize=false"
   ]
   unixStartScriptGenerator.template = resources.text.fromFile("${projectDir}/app/src/main/scripts/unixStartScript.txt")
   windowsStartScriptGenerator.template = resources.text.fromFile("${projectDir}/app/src/main/scripts/windowsStartScript.txt")
@@ -1033,8 +1034,8 @@ task dockerUploadRelease {
 task manifestDocker {
   def image = "${dockerImageName}:${dockerBuildVersion}"
   def archs = [
-    "arm64",
-    "amd64"] //TODO: this assumes dockerUpload task has already been run on 2 different archs!
+          "arm64",
+          "amd64"] //TODO: this assumes dockerUpload task has already been run on 2 different archs!
   doLast {
     exec {
       def targets = ""
@@ -1155,8 +1156,8 @@ def getGitCommitDetails(length = 8) {
 // Takes the version and if it contains SNAPSHOT, alpha, beta or RC in version then return true indicating an interim build
 def isInterimBuild(dockerBuildVersion) {
   return (dockerBuildVersion ==~ /.*-SNAPSHOT/) || (dockerBuildVersion ==~ /.*-alpha/)
-  || (dockerBuildVersion ==~ /.*-beta/) || (dockerBuildVersion ==~ /.*-RC.*/)
-  || (dockerBuildVersion ==~ /.*develop.*/)
+          || (dockerBuildVersion ==~ /.*-beta/) || (dockerBuildVersion ==~ /.*-RC.*/)
+          || (dockerBuildVersion ==~ /.*develop.*/)
 }
 
 tasks.register("verifyDistributions") {
