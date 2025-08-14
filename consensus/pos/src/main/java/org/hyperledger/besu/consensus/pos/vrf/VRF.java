@@ -1,290 +1,244 @@
 package org.hyperledger.besu.consensus.pos.vrf;
 
-import net.i2p.crypto.eddsa.math.Curve;
-import net.i2p.crypto.eddsa.math.Field;
-import net.i2p.crypto.eddsa.math.GroupElement;
-import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
-import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
+import org.hyperledger.besu.crypto.*;
+import org.hyperledger.besu.cryptoservices.NodeKey;
 
+import java.lang.reflect.Method;
 import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class VRF {
+/**
+ * ===================== IMPORTANT =====================
+ * This is a VRF-shaped construction using secp256k1 ECDSA via NodeKey.
+ * It is publicly verifiable and compact, but it is NOT a standards-compliant EC-VRF
+ * (because NodeKey does not expose "return x*P as an EC point" to build Γ = x·H(m)).
+ *
+ * Determinism/Uniqueness: If the security module uses deterministic ECDSA (RFC6979),
+ * the signature (and thus y) is unique for (sk, seed). If it randomizes nonces,
+ * multiple valid (π, y) values may exist for the same (sk, seed); verification and
+ * leader election still work, but formal VRF uniqueness is weakened.
+ * =====================================================
+ */
+public final class VRF {
 
-    private static final byte SUITE = 0x03;
-    private static final int cLen = 16;
-    private static final int qLen = 32;
-    private static final int ptLen = 32;
-    private static final int LIMIT = 256;
-    private static final String QS =
-            "1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed";
+    // ---- Suite/domain labels (ASCII, explicit UTF-8) ----
+    public static final String SUITE_LABEL = "NEXUS-VRF-SECP256K1-ECDSA-KECCAK-V1";
+    private static final byte[] SUITE_LABEL_BYTES = SUITE_LABEL.getBytes(StandardCharsets.UTF_8);
+    private static final byte[] OUT_LABEL_BYTES   = "VRF-OUT".getBytes(StandardCharsets.UTF_8);
 
-    private static final EdDSANamedCurveSpec spec =
-            EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
-    private static final Curve curve = spec.getCurve();
-    private static final Field field = curve.getField();
-    private static final GroupElement B = spec.getB();
-    private static final BigInteger q = new BigInteger(QS, 16);
+    // Besu signature algorithm handle (secp256k1)
+    private static final SignatureAlgorithm SIG = SignatureAlgorithmFactory.getInstance();
 
-    public static final int PublicKeySize = 32;
-    public static final int PrivateKeySize = 32; // ✅ فقط seed 32 بایتی
-    public static final int ProofSize = ptLen + cLen + qLen; // 80
+    // secp256k1 curve order n (BigInteger)
+    private static final BigInteger SECP256K1_N =
+            new BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16);
 
-    // Add near top of class:
-    private static final byte[] IDENTITY_ENC = B.scalarMultiply(new byte[32]).toByteArray();
+    // Proof format: r(32) || s(32) || v(1)
+    public static final int PROOF_SIZE = 65;
 
-    private static boolean isIdentity(GroupElement P) {
-        return Arrays.equals(P.toByteArray(), IDENTITY_ENC);
+    private VRF() {}
+
+    /** Opaque proof: 65 bytes (r||s||v). */
+    public static final class Proof {
+        private final byte[] bytes;
+
+        public Proof(final byte[] bytes) {
+            if (bytes == null || bytes.length != PROOF_SIZE) {
+                throw new IllegalArgumentException("invalid proof length (need 65 bytes r||s||v)");
+            }
+            this.bytes = Arrays.copyOf(bytes, PROOF_SIZE);
+        }
+
+        public byte[] bytes() { return Arrays.copyOf(bytes, PROOF_SIZE); }
     }
 
-    // Optional (defense-in-depth): reject points that collapse under cofactor
-    private static boolean isSmallSubgroup(GroupElement P) {
-        return isIdentity(cofactorMultiply(P));
+    /** Prover result: (π, y). */
+    public static final class Result {
+        private final Proof proof;
+        private final Bytes32 output;
+
+        public Result(final Proof proof, final Bytes32 output) {
+            this.proof = proof;
+            this.output = output;
+        }
+        public Proof proof()   { return proof; }
+        public Bytes32 output(){ return output; }
     }
 
-
-    private static MessageDigest sha512() throws NoSuchAlgorithmException {
-        return MessageDigest.getInstance("SHA-512");
+    /**
+     * Compute the message hash to be signed by NodeKey:
+     *   dataHash = keccak256( SUITE_LABEL || pkCompressed || seed )
+     */
+    private static Bytes32 messageHash(final SECPPublicKey pk, final Bytes32 seed) {
+        final byte[] pkc = compressKey(pk.getEncodedBytes().toArray());
+        return Hash.keccak256(Bytes.concatenate(
+                Bytes.wrap(SUITE_LABEL_BYTES),
+                Bytes.wrap(pkc),
+                seed
+        ));
     }
 
-    private static byte[] intToLE(BigInteger v, int len) {
-        if (v.signum() < 0) v = v.add(q);
-        byte[] be = v.toByteArray();
-        if (be.length > len && be[0] == 0) be = Arrays.copyOfRange(be, 1, be.length);
-        if (be.length > len) throw new IllegalArgumentException("Integer too large");
-        byte[] out = new byte[len];
-        for (int i = 0; i < be.length; i++) out[i] = be[be.length - 1 - i];
+    /**
+     * Compute the VRF output:
+     *   y = keccak256( "VRF-OUT" || pkCompressed || seed || r || s )
+     */
+    private static Bytes32 outputHash(final SECPPublicKey pk, final Bytes32 seed, final SECPSignature sig) {
+        final byte[] pkc = compressKey(pk.getEncodedBytes().toArray());
+        final byte[] r = i2be(sig.getR(), 32);
+        final byte[] s = i2be(sig.getS(), 32);
+        return Hash.keccak256(Bytes.concatenate(
+                Bytes.wrap(OUT_LABEL_BYTES),
+                Bytes.wrap(pkc),
+                seed,
+                Bytes.wrap(r),
+                Bytes.wrap(s)
+        ));
+    }
+
+    /**
+     * Prover (local node): use NodeKey to sign the domain-separated message and
+     * emit (π, y). π carries (r,s,v) so remote verifiers can reconstruct the signature.
+     */
+    public static Result prove(final NodeKey nodeKey, final Bytes32 seed) {
+        if (nodeKey == null) throw new IllegalArgumentException("nodeKey null");
+        if (seed == null) throw new IllegalArgumentException("seed null");
+
+        final SECPPublicKey pk = nodeKey.getPublicKey();
+        final Bytes32 dataHash = messageHash(pk, seed);
+
+        // Besu NodeKey.sign returns a normalized low-s signature and a recovery id (v/recId).
+        final SECPSignature sig = nodeKey.sign(dataHash);
+
+        final byte[] proofBytes = encodeProof(sig);
+        final Bytes32 y = outputHash(pk, seed, sig);
+        return new Result(new Proof(proofBytes), y);
+    }
+
+    /**
+     * Verifier (remote): check π against (pk, seed).
+     * If true, both sides derive the same y with {@link #hash(SECPPublicKey, Bytes32, Proof)}.
+     */
+    public static boolean verify(final SECPPublicKey pk, final Bytes32 seed, final Proof proof) {
+        if (pk == null || seed == null || proof == null) return false;
+        final SECPSignature sig = decodeProof(proof.bytes());
+        final Bytes32 dataHash = messageHash(pk, seed);
+        return SIG.verify(dataHash, sig,pk );
+    }
+
+    /** Deterministically derive y from a verified proof. */
+    public static Bytes32 hash(final SECPPublicKey pk, final Bytes32 seed, final Proof proof) {
+        final SECPSignature sig = decodeProof(proof.bytes());
+        return outputHash(pk, seed, sig);
+    }
+
+    // ---------------- Encoding helpers ----------------
+
+    private static byte[] encodeProof(final SECPSignature sig) {
+        final byte[] out = new byte[PROOF_SIZE];
+        final byte[] r = i2be(sig.getR(), 32);
+        final byte[] s = i2be(sig.getS(), 32);
+
+        // Use reflection to get recovery id if present (avoid compile-time dependency on method presence).
+        byte recId = 0;
+        try {
+            // Try getRecId()
+            final Method m = SECPSignature.class.getMethod("getRecId");
+            final Object vObj = m.invoke(sig);
+            if (vObj instanceof Number) {
+                recId = ((Number) vObj).byteValue();
+            }
+        } catch (NoSuchMethodException nsme) {
+            // If method doesn't exist, try fallback "getV" if some builds expose it.
+            try {
+                final Method m2 = SECPSignature.class.getMethod("getV");
+                final Object vObj = m2.invoke(sig);
+                if (vObj instanceof Number) {
+                    byte vv = ((Number) vObj).byteValue();
+                    if (vv == 27 || vv == 28) recId = (byte) (vv - 27);
+                    else recId = vv;
+                }
+            } catch (ReflectiveOperationException ignore) {
+                // no method available -> fall through to default recId=0
+            } catch (Throwable t) {
+                // any other issue -> default
+            }
+        } catch (ReflectiveOperationException roe) {
+            // invocation failed -> default
+        } catch (Throwable t) {
+            // other unexpected error -> default
+        }
+
+        System.arraycopy(r, 0, out, 0, 32);
+        System.arraycopy(s, 0, out, 32, 32);
+        out[64] = recId;
         return out;
     }
 
-    private static BigInteger leToInt(byte[] le) {
-        byte[] be = new byte[le.length];
-        for (int i = 0; i < le.length; i++) be[i] = le[le.length - 1 - i];
-        return new BigInteger(1, be);
-    }
-
-    private static byte[] point_to_string(GroupElement P) {
-        return P.toByteArray();
-    }
-
-    private static GroupElement string_to_point(byte[] enc) {
-        if (enc.length != ptLen) return null;
-        try {
-            return curve.createPoint(enc, true);
-        } catch (IllegalArgumentException ex) {
-            return null;
+    private static SECPSignature decodeProof(final byte[] proof65) {
+        if (proof65 == null || proof65.length != PROOF_SIZE) {
+            throw new IllegalArgumentException("bad proof length; need 65 bytes r||s||v");
         }
+        final byte[] r = Arrays.copyOfRange(proof65, 0, 32);
+        final byte[] s = Arrays.copyOfRange(proof65, 32, 64);
+        final byte v   = proof65[64];
+
+        // Fix for your error: supply recId and the curve order.
+        // recId is not used for verification-with-known-pk, but the factory demands it.
+        final byte recId = normalizeRecId(v);
+        return SECPSignature.create(new BigInteger(1, r), new BigInteger(1, s), recId, SECP256K1_N);
     }
 
-    private static GroupElement cofactorMultiply(GroupElement P) {
-        GroupElement R = P;
-        R = R.dbl().toP3(); // *2
-        R = R.dbl().toP3(); // *4
-        R = R.dbl().toP3(); // *8
-        return R;
+    private static byte normalizeRecId(final byte v) {
+        if (v == 27 || v == 28) return (byte) (v - 27);
+        if (v == 0 || v == 1) return v;
+        // Unknown encodings: clamp to 0 (safe; verify() does not use recId when pk is provided).
+        return 0;
     }
 
-    private static byte[] expandSecretScalar(byte[] seed32) throws NoSuchAlgorithmException {
-        MessageDigest d = sha512();
-        byte[] seed = Arrays.copyOf(seed32, 32);
-        byte[] h = d.digest(seed);
-        h[0] &= (byte) 248;
-        h[31] &= (byte) 127;
-        h[31] |= (byte) 64;
-        return Arrays.copyOf(h, 32);
-    }
-
-    private static BigInteger nonceRFC8032(byte[] seed32, byte[] h_string) throws NoSuchAlgorithmException {
-        MessageDigest d = sha512();
-        byte[] hashed = d.digest(Arrays.copyOf(seed32, 32));
-        byte[] prefix = Arrays.copyOfRange(hashed, 32, 64);
-        d.reset();
-        d.update(prefix);
-        d.update(h_string);
-        byte[] k_string = d.digest();
-        BigInteger k = leToInt(k_string);
-        return k.mod(q);
-    }
-
-    private static GroupElement encodeToCurveTAI(byte[] encode_to_curve_salt, byte[] alpha) throws Exception {
-        for (int ctr = 0; ctr < LIMIT; ctr++) {
-            MessageDigest h = sha512();
-            h.update(SUITE);
-            h.update((byte) 0x01);
-            h.update(encode_to_curve_salt);
-            h.update(alpha);
-            h.update((byte) (ctr & 0xFF));
-            h.update((byte) 0x00);
-            byte[] digest = h.digest();
-            byte[] attempt = Arrays.copyOfRange(digest, 0, 32);
-            GroupElement P = string_to_point(attempt);
-            if (P != null) return P;
+    private static byte[] i2be(final BigInteger v, final int len) {
+        final byte[] be = v.toByteArray();
+        if (be.length == len) return be;
+        if (be.length == len + 1 && be[0] == 0x00) {
+            return Arrays.copyOfRange(be, 1, be.length);
         }
-        throw new Exception("ECVRF: encode_to_curve failed");
+        if (be.length > len) throw new IllegalArgumentException("integer too large");
+        final byte[] out = new byte[len];
+        System.arraycopy(be, 0, out, len - be.length, be.length);
+        return out;
     }
 
-    private static BigInteger challenge(GroupElement Y, GroupElement H, GroupElement Gamma,
-                                        GroupElement U, GroupElement V) throws NoSuchAlgorithmException {
-        MessageDigest h = sha512();
-        h.update(SUITE);
-        h.update((byte) 0x02);
-        h.update(point_to_string(Y));
-        h.update(point_to_string(H));
-        h.update(point_to_string(Gamma));
-        h.update(point_to_string(U));
-        h.update(point_to_string(V));
-        h.update((byte) 0x00);
-        byte[] c_string = h.digest();
-        byte[] truncated = Arrays.copyOfRange(c_string, 0, cLen);
-        return leToInt(truncated);
-    }
+    /**
+     * Compress a secp256k1 pubkey to 33 bytes.
+     * Accepts:
+     *  - 33-byte compressed (0x02/0x03 || X)
+     *  - 65-byte uncompressed (0x04 || X(32) || Y(32))
+     *  - 64-byte raw XY        (      X(32) || Y(32))
+     */
+    private static byte[] compressKey(final byte[] enc) {
+        if (enc == null) throw new IllegalArgumentException("pk bytes null");
 
-    private static byte[] proof_to_hash_from_gamma(GroupElement Gamma) throws NoSuchAlgorithmException {
-        MessageDigest h = sha512();
-        h.update(SUITE);
-        h.update((byte) 0x03);
-        h.update(point_to_string(cofactorMultiply(Gamma)));
-        h.update((byte) 0x00);
-        return h.digest();
-    }
-
-    // 32-بایتی و معتبر
-    private static byte[] normalizePublicKey(byte[] pkInput) throws Exception {
-        if (pkInput == null || pkInput.length != 32)
-            throw new Exception("ECVRF: malformed public key");
-        if (string_to_point(pkInput) == null)
-            throw new Exception("ECVRF: invalid public key encoding");
-        return pkInput;
-    }
-
-    // فقط seed 32-بایتی + تطابق با pk
-    private static byte[] extractSeed32(byte[] skInput, byte[] normalizedPk) throws Exception {
-        if (skInput == null || skInput.length != 32)
-            throw new Exception("ECVRF: malformed private key");
-        byte[] x_le = expandSecretScalar(skInput);
-        GroupElement Y = B.scalarMultiply(x_le);
-        if (!Arrays.equals(point_to_string(Y), normalizedPk))
-            throw new Exception("ECVRF: SK does not match PK");
-        return skInput;
-    }
-
-    public static byte[] Hash(byte[] pi) throws Exception {
-        DecodedProof dp = decodeProof(pi);
-        if (dp == null) throw new Exception("ECVRF: decode error");
-        return proof_to_hash_from_gamma(dp.Gamma);
-    }
-
-    public static class Result {
-        public final byte[] pi;
-        public final byte[] hash;
-        public Result(byte[] pi, byte[] hash) { this.pi = pi; this.hash = hash; }
-    }
-
-    public static Result Prove(byte[] pkInput, byte[] skInput, byte[] m) throws Exception {
-        byte[] pk = normalizePublicKey(pkInput);
-        byte[] seed32 = extractSeed32(skInput, pk);
-
-        byte[] x_le = expandSecretScalar(seed32);
-        GroupElement Y = B.scalarMultiply(x_le);
-        byte[] Yenc = point_to_string(Y);
-        if (!Arrays.equals(Yenc, pk)) throw new Exception("ECVRF: SK does not match PK (seed mismatch)");
-
-        GroupElement H = encodeToCurveTAI(pk, m);
-        byte[] h_string = point_to_string(H);
-
-        GroupElement Gamma = H.scalarMultiply(x_le);
-
-        BigInteger k = nonceRFC8032(seed32, h_string);
-        byte[] k_le = intToLE(k, qLen);
-
-        GroupElement kB = B.scalarMultiply(k_le);
-        GroupElement kH = H.scalarMultiply(k_le);
-
-        BigInteger c = challenge(Y, H, Gamma, kB, kH);
-
-        BigInteger xBig = leToInt(x_le);
-        BigInteger s = k.add(c.multiply(xBig)).mod(q);
-
-        byte[] pi = new byte[ProofSize];
-        byte[] gamma_enc = point_to_string(Gamma);
-        byte[] c_le_16 = intToLE(c, cLen);
-        byte[] s_le_32 = intToLE(s, qLen);
-        System.arraycopy(gamma_enc, 0, pi, 0, ptLen);
-        System.arraycopy(c_le_16, 0, pi, ptLen, cLen);
-        System.arraycopy(s_le_32, 0, pi, ptLen + cLen, qLen);
-
-        byte[] beta = proof_to_hash_from_gamma(Gamma);
-        return new Result(pi, beta);
-    }
-
-    public static boolean Verify(byte[] pkInput, byte[] pi, byte[] m) throws Exception {
-        byte[] pk = normalizePublicKey(pkInput);
-
-        GroupElement Y = string_to_point(pk);
-        if (Y == null) throw new Exception("ECVRF: malformed input (pk)");
-
-        // RFC 9381 §5.3 step 3: validate key
-        if (isSmallSubgroup(Y)) return false;
-
-        DecodedProof dp = decodeProof(pi);
-        if (dp == null) return false;
-
-        GroupElement Gamma = dp.Gamma;
-        BigInteger c = dp.c;
-        BigInteger s = dp.s;
-
-        // Optional hardening: ensure Gamma isn't small-subgroup
-        if (isSmallSubgroup(Gamma)) return false;
-
-        GroupElement H = encodeToCurveTAI(pk, m);
-
-        // U = sB - cY == sB + (q-c)Y
-        byte[] s_le = intToLE(s, qLen);
-        byte[] negc_le = intToLE(q.subtract(c).mod(q), qLen);
-
-        GroupElement Pc = Y.scalarMultiply(negc_le);                // P3
-        GroupElement GsCached = B.scalarMultiply(s_le).toCached();   // Cached
-        GroupElement U = Pc.add(GsCached);                           // P3.add(Cached)
-
-        // V = sH - cΓ == sH + (q-c)Γ
-        GroupElement GammaC = Gamma.scalarMultiply(negc_le);         // P3
-        GroupElement HsCached = H.scalarMultiply(s_le).toCached();   // Cached
-        GroupElement V = GammaC.add(HsCached);                       // P3.add(Cached)
-
-        BigInteger cPrime = challenge(Y, H, Gamma, U, V);
-        return cPrime.compareTo(c) == 0;
-    }
-
-    private static class DecodedProof {
-        final GroupElement Gamma;
-        final BigInteger c;
-        final BigInteger s;
-        DecodedProof(GroupElement G, BigInteger c, BigInteger s) {
-            this.Gamma = G; this.c = c; this.s = s;
+        if (enc.length == 33 && (enc[0] == 0x02 || enc[0] == 0x03)) {
+            return Arrays.copyOf(enc, 33);
         }
-    }
 
-    private static DecodedProof decodeProof(byte[] pi) throws Exception {
-        if (pi == null || pi.length != ProofSize) throw new Exception("ECVRF: decode error");
+        byte[] x, y;
+        if (enc.length == 65 && enc[0] == 0x04) {
+            x = Arrays.copyOfRange(enc, 1, 33);
+            y = Arrays.copyOfRange(enc, 33, 65);
+        } else if (enc.length == 64) {
+            x = Arrays.copyOfRange(enc, 0, 32);
+            y = Arrays.copyOfRange(enc, 32, 64);
+        } else {
+            throw new IllegalArgumentException("unsupported pubkey encoding; expected 33/64/65 bytes");
+        }
 
-        byte[] gamma_enc = Arrays.copyOfRange(pi, 0, ptLen);
-        byte[] c_enc = Arrays.copyOfRange(pi, ptLen, ptLen + cLen);
-        byte[] s_enc = Arrays.copyOfRange(pi, ptLen + cLen, ptLen + cLen + qLen);
-
-        GroupElement Gamma = string_to_point(gamma_enc);
-        if (Gamma == null) throw new Exception("ECVRF: decode error (Gamma)");
-
-        BigInteger c = leToInt(c_enc);
-        BigInteger s = leToInt(s_enc);
-        if (s.compareTo(q) >= 0) throw new Exception("ECVRF: decode error (s out of range)");
-
-        return new DecodedProof(Gamma, c, s);
-    }
-
-    public static byte[] HashToCurve(byte[] pkInput, byte[] m) throws Exception {
-        byte[] pk = normalizePublicKey(pkInput);
-        return point_to_string(encodeToCurveTAI(pk, m));
+        final boolean yIsOdd = (y[31] & 1) == 1;
+        final byte[] out = new byte[33];
+        out[0] = (byte) (yIsOdd ? 0x03 : 0x02);
+        System.arraycopy(x, 0, out, 1, 32);
+        return out;
     }
 }

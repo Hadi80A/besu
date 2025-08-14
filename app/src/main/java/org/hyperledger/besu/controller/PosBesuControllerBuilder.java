@@ -85,6 +85,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   private ValidatorPeers peers;
   private PosExtraDataCodec bftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
+  private Address localAddress;
 
   /** Default Constructor */
   public PosBesuControllerBuilder() {}
@@ -129,7 +130,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     final BftExecutors bftExecutors =
         BftExecutors.create(metricsSystem, BftExecutors.ConsensusType.POS);
 
-    final Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
+    Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
     PosProtocolSchedule posProtocolSchedule =
             new PosProtocolSchedule(bftProtocolSchedule, protocolContext);
@@ -216,7 +217,10 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     NodeSet nodeSet = createNodeSet(protocolContext);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
-    PosProposerSelector  posProposerSelector=new PosProposerSelector(nodeSet);
+
+
+    PosProposerSelector  posProposerSelector=new PosProposerSelector(nodeSet,nodeKey,
+            nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount());
     final BftEventHandler posController =
         new PosController(
             blockchain,

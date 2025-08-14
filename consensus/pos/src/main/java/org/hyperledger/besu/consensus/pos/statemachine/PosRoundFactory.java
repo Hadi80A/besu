@@ -33,6 +33,7 @@ import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
 import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
+import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.util.Subscribers;
@@ -174,11 +175,12 @@ public class PosRoundFactory {
         }
 
 
-        public ProposePayload createProposePayload(ConsensusRoundIdentifier round,long height,PosBlock block) {
+        public ProposePayload createProposePayload(ConsensusRoundIdentifier round, long height, PosBlock block, VRF.Result vrf) {
             return ProposePayload.builder()
                     .roundIdentifier(round)
                     .height(height)
                     .proposedBlock(block)
+                    .vrfResult(vrf)
                     .build();
         }
 

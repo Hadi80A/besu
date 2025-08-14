@@ -35,6 +35,7 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -92,6 +93,7 @@ public class PosRound {
   private Propose propose;
   private final PosProposerSelector posProposerSelector;
   private final PosFinalState posFinalState;
+  private final Address localAddress;
 
   /**
    * Instantiates a new Pos round.
@@ -134,6 +136,7 @@ public class PosRound {
     this.parentHeader = parentHeader;
     this.contractCaller = contractCaller;
     this.nodeSet = nodeSet;
+    this.localAddress=Util.publicKeyToAddress(nodeKey.getPublicKey());
     this.posProposerSelector = posProposerSelector;
       this.posFinalState = posFinalState;
       roundTimer.startTimer(getRoundIdentifier());
@@ -173,7 +176,7 @@ public class PosRound {
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
     LOG.trace(
             "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
-      return new PosBlock(block,roundState.getRoundIdentifier(),posProposerSelector.getCurrentProposer());
+      return new PosBlock(block,roundState.getRoundIdentifier(),localAddress);
   }
 
   private void printStake(Block block){
@@ -257,8 +260,8 @@ public class PosRound {
 
 
 
-private SignedData<ProposePayload> createProposePayload(PosBlock block) {
-  ProposePayload proposePayload=messageFactory.createProposePayload(block.getHeader().getRoundIdentifier(),block.getHeader().getHeight(),block);
+private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Result vrf) {
+  ProposePayload proposePayload=messageFactory.createProposePayload(block.getHeader().getRoundIdentifier(),block.getHeader().getHeight(),block,vrf);
   return createSignedData(proposePayload);
 }
 
@@ -270,11 +273,11 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
   }
 
 
-  protected void createProposalAndTransmit(long headerTimeStampSeconds) {
+  protected void createProposalAndTransmit(long headerTimeStampSeconds,VRF.Result vrf) {
     final Propose proposal;
     try {
       PosBlock posBlock = createBlock(headerTimeStampSeconds);
-      var proposePayload =createProposePayload(posBlock);
+      var proposePayload =createProposePayload(posBlock,vrf);
       LOG.debug("Creating proposal and transmit for block" );
       proposal = messageFactory.createPropose(proposePayload);
     } catch (final SecurityModuleException e) {
@@ -291,7 +294,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
                     roundState.getProposedBlock(),
                     roundState.getRoundIdentifier().getRoundNumber(),
                     roundState.getCommitSeals(),
-                    posProposerSelector.getCurrentProposer()
+                    posProposerSelector.getCurrentProposer().get()
             );
 
     final long blockNumber = blockToImport.getHeader().getBesuBlockHeader().getNumber();
@@ -391,12 +394,12 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block) {
     });
   }
 
-  public void updateRound(Block block,long headerTimeStampSeconds){
+  public void updateRound(Block block,long headerTimeStampSeconds,int roundNumber){
     updateNodes(block);
-    Address leader= posProposerSelector.selectLeader();
-    if (nodeIsleader(leader)){
+    var leaderVRF= posProposerSelector.selectLeader(roundNumber, Bytes32.wrap(block.getHash().toArray()));
+    if (leaderVRF.isPresent()){
       System.out.println("im leader");
-      createProposalAndTransmit(headerTimeStampSeconds);
+      createProposalAndTransmit(headerTimeStampSeconds,leaderVRF.get());
     }
   }
 

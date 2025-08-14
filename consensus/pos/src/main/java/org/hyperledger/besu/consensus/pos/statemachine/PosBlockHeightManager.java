@@ -133,7 +133,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
 //    logValidatorChanges(posRound);
 //
     if (roundIdentifier.equals(posRound.getRoundIdentifier())) {
-        refreshRound();
+        refreshRound(roundIdentifier.getRoundNumber());
 
     }else {
       LOG.trace(
@@ -233,28 +233,28 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                     "Received sufficient RoundChange messages to change round to targetRound={}", targetRound);
             if (messageAge == PosBlockHeightManager.MessageAge.FUTURE_ROUND) {
                 startNewRound(targetRound.getRoundNumber());
-                refreshRound();
+                refreshRound(targetRound.getRoundNumber());
 
             }
-            var proposer=proposerSelector.selectLeader();
+            var proposer=proposerSelector.selectLeader(targetRound.getRoundNumber(),blockchain.getChainHeadHash());
             LOG.debug("proposer {}", proposer);
 
             if (proposer.equals(finalState.getLocalAddress())) {
                 if (currentRound.isEmpty()) {
-                    startNewRound(0);
-                    refreshRound();
+                    startNewRound(0);//TODO not zero!
+                    refreshRound(targetRound.getRoundNumber());
 
                     LOG.debug("startNewRound ");
                 }
                     startNewRound(currentRound.get().getRoundIdentifier().getRoundNumber());
-                    refreshRound();
+                    refreshRound(currentRound.get().getRoundIdentifier().getRoundNumber());
                     LOG.debug("startNewRound with round{} ",currentRound.get().getRoundIdentifier().getRoundNumber());
             }
         }
     } else {
         if (currentRound.isEmpty()) {
-            startNewRound(0);
-            refreshRound();
+            startNewRound(0);//todo: not zero
+            refreshRound(targetRound.getRoundNumber());
             LOG.debug("startNewRound is empty ");
         }
         int currentRoundNumber = currentRound.get().getRoundIdentifier().getRoundNumber();
@@ -266,7 +266,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                 && result.isPresent()) {
 
             startNewRound(currentRoundNumber);
-            refreshRound();
+            refreshRound(currentRoundNumber);
         }
 
         doRoundChange(currentRoundNumber+1);
@@ -294,7 +294,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             "Round has expired or changing based on RC quorum, round={}", currentRound.get().getRoundIdentifier());
 
     startNewRound(newRoundNumber);
-    refreshRound();
+    refreshRound(newRoundNumber);
     if (currentRound.isEmpty()) {
       LOG.info("Failed to start round ");
       return;
@@ -337,7 +337,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
     private boolean validateProposer(SignedData<ProposePayload> payload){
         LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ",payload.getPayload().getRoundIdentifier().getRoundNumber());
         LOG.debug(" getRoundState().getRoundIdentifier().getRoundNumber() {} ",getRoundState().getRoundIdentifier().getRoundNumber());
-        return payload.getAuthor().equals(proposerSelector.getCurrentProposer()) &&
+        return payload.getAuthor().equals(proposerSelector.getCurrentProposer().get()) &&
                 payload.getPayload().getRoundIdentifier().getRoundNumber() == getRoundState().getRoundIdentifier().getRoundNumber() &&
                 payload.getPayload().getHeight() == getRoundState().getHeight();
 
@@ -449,9 +449,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
 //    roundChangeManager.discardRoundsPriorTo(currentRound.get().getRoundIdentifier());
     }
 
-    private void refreshRound() {
+    private void refreshRound(int roundNumber) {
         long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
-        currentRound.get().updateRound(blockchain.getChainHeadBlock(),headerTimeStampSeconds);
+        currentRound.get().updateRound(blockchain.getChainHeadBlock(),headerTimeStampSeconds,roundNumber);
     }
 
 

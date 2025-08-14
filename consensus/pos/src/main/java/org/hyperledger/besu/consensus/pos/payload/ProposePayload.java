@@ -17,16 +17,16 @@ package org.hyperledger.besu.consensus.pos.payload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.io.IOException;
-import java.util.Objects;
-import java.util.StringJoiner;
 
 /** The Proposal payload. */
 //@AllArgsConstructor
@@ -39,11 +39,12 @@ public class ProposePayload extends PosPayload {
 //  private long height = -1;
   private PosBlock proposedBlock;
 
-//  private vrf leader
+  private VRF.Result vrfResult;
 
-  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ) {
+  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ,VRF.Result vrfResult) {
     super(roundIdentifier, height);
     this.proposedBlock = proposedBlock;
+    this.vrfResult = vrfResult;
   }
 
   public static ProposePayload readFrom(final RLPInput rlpInput) {
@@ -56,9 +57,13 @@ public class ProposePayload extends PosPayload {
       } catch (IOException e) {
           throw new RuntimeException(e);
       }
+      Bytes proofBytes = rlpInput.readBytes();
+      Bytes32 y = rlpInput.readBytes32();
+
+      final VRF.Result vrfResult=new VRF.Result(new VRF.Proof(proofBytes.toArray()), y);
       rlpInput.leaveList();
 
-      return new ProposePayload(roundIdentifier,height,proposedBlock);
+      return new ProposePayload(roundIdentifier,height,proposedBlock,vrfResult);
   }
 
 
@@ -72,7 +77,8 @@ public class ProposePayload extends PosPayload {
       } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
       }
-
+      rlpOutput.writeBytes(Bytes.wrap(vrfResult.proof().bytes()));
+      rlpOutput.writeBytes(vrfResult.output());
       rlpOutput.endList();
   }
 
