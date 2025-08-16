@@ -36,6 +36,7 @@ import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -63,6 +64,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -89,11 +92,13 @@ public class PosRound {
   private final PosMessageTransmitter transmitter;
   private final BftExtraDataCodec bftExtraDataCodec;
   private final PosBlockHeader parentHeader;
-  
+  private final PeerPublicKeyFetcher  peerPublicKeyFetcher;
   private Propose propose;
   private final PosProposerSelector posProposerSelector;
   private final PosFinalState posFinalState;
   private final Address localAddress;
+
+  private static String ALGORITHM = "ECDSA";
 
   /**
    * Instantiates a new Pos round.
@@ -122,7 +127,7 @@ public class PosRound {
           final RoundTimer roundTimer,
           final BftExtraDataCodec bftExtraDataCodec,
           final PosBlockHeader parentHeader,
-          final ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector posProposerSelector, PosFinalState posFinalState
+          final ContractCaller contractCaller, NodeSet nodeSet, PeerPublicKeyFetcher peerPublicKeyFetcher, PosProposerSelector posProposerSelector, PosFinalState posFinalState
   ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
@@ -137,7 +142,8 @@ public class PosRound {
     this.contractCaller = contractCaller;
     this.nodeSet = nodeSet;
     this.localAddress=Util.publicKeyToAddress(nodeKey.getPublicKey());
-    this.posProposerSelector = posProposerSelector;
+      this.peerPublicKeyFetcher = peerPublicKeyFetcher;
+      this.posProposerSelector = posProposerSelector;
       this.posFinalState = posFinalState;
       roundTimer.startTimer(getRoundIdentifier());
   }
@@ -260,8 +266,8 @@ public class PosRound {
 
 
 
-private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Result vrf) {
-  ProposePayload proposePayload=messageFactory.createProposePayload(block.getHeader().getRoundIdentifier(),block.getHeader().getHeight(),block,vrf);
+private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proof proof) {
+  ProposePayload proposePayload=messageFactory.createProposePayload(block.getHeader().getRoundIdentifier(),block.getHeader().getHeight(),block,proof);
   return createSignedData(proposePayload);
 }
 
@@ -273,11 +279,11 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Resu
   }
 
 
-  protected void createProposalAndTransmit(long headerTimeStampSeconds,VRF.Result vrf) {
+  protected void createProposalAndTransmit(long headerTimeStampSeconds,VRF.Proof proof) {
     final Propose proposal;
     try {
       PosBlock posBlock = createBlock(headerTimeStampSeconds);
-      var proposePayload =createProposePayload(posBlock,vrf);
+      var proposePayload =createProposePayload(posBlock,proof);
       LOG.debug("Creating proposal and transmit for block" );
       proposal = messageFactory.createPropose(proposePayload);
     } catch (final SecurityModuleException e) {
@@ -387,10 +393,16 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Resu
   }
 
   private void updateNodes(Block currentBlock){
+    Map<Address,Bytes> publicKeyMap=peerPublicKeyFetcher.getConnectedPeerNodeIdsMap();
+
     nodeSet.getAllNodes().forEach(node -> {
       BigInteger newStake= contractCaller.getValidatorStake(node.getAddress(),currentBlock);
       StakeInfo stakeInfo = new StakeInfo(newStake.longValue());
-      node.setStakeInfo(stakeInfo);
+//      node.setStakeInfo(stakeInfo); //TODO uncomment
+      if(publicKeyMap.containsKey(node.getAddress()) && node.getPublicKey()==null) {
+        Bytes publicKeyByte = publicKeyMap.get(node.getAddress());
+        node.setPublicKey(SECPPublicKey.create(publicKeyByte, ALGORITHM));
+      }
     });
   }
 
@@ -399,7 +411,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Resu
     var leaderVRF= posProposerSelector.selectLeader(roundNumber, Bytes32.wrap(block.getHash().toArray()));
     if (leaderVRF.isPresent()){
       System.out.println("im leader");
-      createProposalAndTransmit(headerTimeStampSeconds,leaderVRF.get());
+      createProposalAndTransmit(headerTimeStampSeconds,leaderVRF.get().proof());
     }
   }
 

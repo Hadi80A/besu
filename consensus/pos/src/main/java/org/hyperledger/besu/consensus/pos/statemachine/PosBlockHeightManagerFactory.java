@@ -33,7 +33,7 @@ public class PosBlockHeightManagerFactory {
     private final MessageValidatorFactory messageValidatorFactory;
     private final PosRoundFactory.MessageFactory messageFactory;
     private final PosProposerSelector posProposerSelector;
-
+    private final PeerPublicKeyFetcher peerPublicKeyFetcher;
     /**
      * Instantiates a new Pos block height manager factory.
      *
@@ -46,12 +46,13 @@ public class PosBlockHeightManagerFactory {
             final PosFinalState finalState,
             final PosRoundFactory roundFactory,
             final MessageValidatorFactory messageValidatorFactory,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector) {
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, PeerPublicKeyFetcher peerPublicKeyFetcher) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
         this.messageFactory = messageFactory;
         this.posProposerSelector = posProposerSelector;
+        this.peerPublicKeyFetcher = peerPublicKeyFetcher;
     }
 
     /**
@@ -91,7 +92,8 @@ public class PosBlockHeightManagerFactory {
                 posProposerSelector,
                 new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster()),
                 blockchain,
-                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress())
-        );
+                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
+                peerPublicKeyFetcher
+                );
     }
 }

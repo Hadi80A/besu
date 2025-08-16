@@ -1,9 +1,7 @@
 package org.hyperledger.besu.consensus.pos.core;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.datatypes.Address;
 
 /**
@@ -18,7 +16,8 @@ public class Node {
   /** Unique identifier for the validator (e.g., public key or address). */
   private String id;
   private Address address;
-
+  @Setter
+  private SECPPublicKey  publicKey;
   /** Stake information associated with this validator. */
   private StakeInfo stakeInfo;
 

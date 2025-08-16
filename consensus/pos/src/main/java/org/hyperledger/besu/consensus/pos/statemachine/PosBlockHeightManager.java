@@ -27,18 +27,17 @@ import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 
 import java.time.Clock;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import com.google.common.collect.Maps;
+import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +70,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
     @VisibleForTesting
     final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
 
+    private final PeerPublicKeyFetcher peerPublicKeyFetcher;
 
 
     /**
@@ -87,7 +87,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             final PosFinalState finalState,
             final PosRoundFactory posRoundFactory,
             final Clock clock,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, Blockchain blockchain, RoundChangeManager roundChangeManager
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, Blockchain blockchain, RoundChangeManager roundChangeManager, PeerPublicKeyFetcher peerPublicKeyFetcher
     ) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
@@ -104,6 +104,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
                                 infoMap.get("height"));
         this.blockchain = blockchain;
         this.roundChangeManager = roundChangeManager;
+        this.peerPublicKeyFetcher = peerPublicKeyFetcher;
 
         final long nextBlockHeight = getChainHeight();
         final ConsensusRoundIdentifier roundIdentifier =
@@ -239,7 +240,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
             var proposer=proposerSelector.selectLeader(targetRound.getRoundNumber(),blockchain.getChainHeadHash());
             LOG.debug("proposer {}", proposer);
 
-            if (proposer.equals(finalState.getLocalAddress())) {
+            if (proposer.isPresent()&& proposer.get().equals(finalState.getLocalAddress())) {
                 if (currentRound.isEmpty()) {
                     startNewRound(0);//TODO not zero!
                     refreshRound(targetRound.getRoundNumber());
@@ -326,6 +327,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         LOG.debug("Received a proposal message. round={}. author={}",msg.getRoundIdentifier(),msg.getAuthor());
         ProposePayload payload=msg.getSignedPayload().getPayload();
         final PosBlock block = payload.getProposedBlock();
+
+        LOG.debug("publickeys: {}", Arrays.toString(peerPublicKeyFetcher.getConnectedPeerNodeIdsHex().toArray()));
+
         if (validateProposer(msg.getSignedPayload())){
             LOG.debug("Valid a proposal message.");
             getRoundState().setProposeMessage(msg);
@@ -335,11 +339,15 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager  {
         }
     }
     private boolean validateProposer(SignedData<ProposePayload> payload){
-        LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ",payload.getPayload().getRoundIdentifier().getRoundNumber());
+        int roundNumber = payload.getPayload().getRoundIdentifier().getRoundNumber();
+        LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ", roundNumber);
         LOG.debug(" getRoundState().getRoundIdentifier().getRoundNumber() {} ",getRoundState().getRoundIdentifier().getRoundNumber());
-        return payload.getAuthor().equals(proposerSelector.getCurrentProposer().get()) &&
-                payload.getPayload().getRoundIdentifier().getRoundNumber() == getRoundState().getRoundIdentifier().getRoundNumber() &&
-                payload.getPayload().getHeight() == getRoundState().getHeight();
+
+        var seed =PosProposerSelector.seed(roundNumber,blockchain.getChainHeadHash());
+        var publicKey= currentRound.get().getNodeSet().getNode(payload.getAuthor()).get().getPublicKey();
+        return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
+                payload.getPayload().getHeight() == getRoundState().getHeight() &&
+                VRF.verify(publicKey,seed,payload.getPayload().getProof());
 
     }
 

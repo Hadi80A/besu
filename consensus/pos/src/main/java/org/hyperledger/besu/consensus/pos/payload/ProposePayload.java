@@ -39,12 +39,12 @@ public class ProposePayload extends PosPayload {
 //  private long height = -1;
   private PosBlock proposedBlock;
 
-  private VRF.Result vrfResult;
+  private VRF.Proof proof;
 
-  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ,VRF.Result vrfResult) {
+  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ,VRF.Proof proof) {
     super(roundIdentifier, height);
     this.proposedBlock = proposedBlock;
-    this.vrfResult = vrfResult;
+    this.proof = proof;
   }
 
   public static ProposePayload readFrom(final RLPInput rlpInput) {
@@ -58,12 +58,11 @@ public class ProposePayload extends PosPayload {
           throw new RuntimeException(e);
       }
       Bytes proofBytes = rlpInput.readBytes();
-      Bytes32 y = rlpInput.readBytes32();
 
-      final VRF.Result vrfResult=new VRF.Result(new VRF.Proof(proofBytes.toArray()), y);
+      final VRF.Proof proof=new VRF.Proof(proofBytes.toArray());
       rlpInput.leaveList();
 
-      return new ProposePayload(roundIdentifier,height,proposedBlock,vrfResult);
+      return new ProposePayload(roundIdentifier,height,proposedBlock,proof);
   }
 
 
@@ -77,8 +76,7 @@ public class ProposePayload extends PosPayload {
       } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
       }
-      rlpOutput.writeBytes(Bytes.wrap(vrfResult.proof().bytes()));
-      rlpOutput.writeBytes(vrfResult.output());
+      rlpOutput.writeBytes(Bytes.wrap(proof.bytes()));
       rlpOutput.endList();
   }
 

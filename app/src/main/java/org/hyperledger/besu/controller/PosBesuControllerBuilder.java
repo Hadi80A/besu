@@ -134,6 +134,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
     PosProtocolSchedule posProtocolSchedule =
             new PosProtocolSchedule(bftProtocolSchedule, protocolContext);
+    PeerPublicKeyFetcher peerPublicKeyFetcher = new PeerPublicKeyFetcher(ethProtocolManager.ethContext().getEthPeers());
     final BftBlockCreatorFactory<?> bftblockCreatorFactory =
         new BftBlockCreatorFactory<>(
             transactionPool,
@@ -237,10 +238,13 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     bftExtraDataCodec,
                     contractCaller,
                     nodeSet,
-                    posProposerSelector),
+                    posProposerSelector,
+                    peerPublicKeyFetcher
+                ),
                 messageValidatorFactory,
                 messageFactory,
-                posProposerSelector
+                posProposerSelector,
+                peerPublicKeyFetcher
             ),
             gossiper,
             duplicateMessageTracker,
@@ -358,7 +362,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
           id, validator.toHexString(), balanceEth.toString(), stakeEth.toString());
 
       // Build node info (customize as needed)
-      StakeInfo stake = StakeInfo.builder().stakedAmount(0).build();
+      StakeInfo stake = StakeInfo.builder().stakedAmount(100).build();//todo
 
       Node node =
           Node.builder()
@@ -369,7 +373,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
               .blocksProposed(0)
               .lastProposedAt(0)
               .build();
-
+      LOG.debug("stake:{}", node.getStakeInfo().getStakedAmount());
       nodeSet.addOrUpdateNode(node);
     }
 

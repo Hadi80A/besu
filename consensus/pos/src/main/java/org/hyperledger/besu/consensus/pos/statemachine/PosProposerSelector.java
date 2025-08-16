@@ -1,5 +1,6 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
@@ -16,10 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Optional;
 
-
+@Log4j2
 public class PosProposerSelector {
 
-    private static final double LAMBDA = 3.0; // tune so ≈1 leader is expected per round
+    private static final double LAMBDA =1.0; // tune so ≈1 leader is expected per round
 
     private final NodeSet nodeSet;     // all validators
     private final NodeKey nodeKey;     // local validator’s key
@@ -43,11 +44,15 @@ public class PosProposerSelector {
     /** Run VRF and check if self is elected leader. */
     public Optional<VRF.Result> selectLeader(final long round, final Bytes32 prevBlockHash) {
         final long totalStake = nodeSet.getAllNodes().stream().mapToLong(n -> n.getStakeInfo().getStakedAmount()).sum();
-        if (totalStake <= 0) return Optional.empty();
 
+        if (totalStake <= 0){
+            log.debug("total stake {} is below 0",totalStake);
+            return Optional.empty();
+        }
+        log.debug("total stake {}, self: {}", totalStake, selfStake);
         // Compute seed for VRF
         final Bytes32 seed = seed(round, prevBlockHash);
-
+        log.debug("seed({},{}): {}", round, prevBlockHash,seed);
         // Run VRF locally
         final VRF.Result vrf = VRF.prove(nodeKey, seed);
         final BigDecimal ratio = toUnitFraction(vrf.output());
@@ -56,6 +61,7 @@ public class PosProposerSelector {
         final BigDecimal thr = threshold(selfStake, totalStake);
 
         Optional<VRF.Result> result = Optional.empty();
+        log.debug("ratio: {}, thr:{}", ratio,thr);
         if (ratio.compareTo(thr) < 0) {
             // Eligible — self thinks it is a leader
 //            currentLeader = Optional.of(selfId);
@@ -72,7 +78,7 @@ public class PosProposerSelector {
     }
 
     /** Seed derivation: keccak256("NEXUS-VRF-SEED" || round || prevBlockHash). */
-    private static Bytes32 seed(final long round, final Bytes32 prevBlockHash) {
+    public static Bytes32 seed(final long round, final Bytes32 prevBlockHash) {
         final ByteBuffer bb = ByteBuffer.allocate(Long.BYTES).putLong(round);
         bb.flip();
         return Hash.keccak256(
