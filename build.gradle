@@ -250,6 +250,9 @@ configure(allprojects - project(':platform')) {
       url 'https://splunk.jfrog.io/splunk/ext-releases-local'
       content { includeGroupByRegex('com\\.splunk\\..*') }
     }
+    maven {
+      url 'https://artifacts.consensys.net/public/maven/maven/'
+    }
 
     mavenCentral()
 

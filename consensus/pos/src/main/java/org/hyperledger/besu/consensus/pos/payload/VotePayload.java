@@ -37,16 +37,17 @@ import java.util.StringJoiner;
 public class VotePayload extends PosPayload {
   private static final int TYPE = PosMessage.VOTE.getCode();
   private final Hash digest;
-
+//  private final SECPSignature signature;
   /**
    * Default constructor.
    *
    * @param roundIdentifier
    * @param height
    */
-  protected VotePayload(ConsensusRoundIdentifier roundIdentifier, long height, Hash digest) {
+  protected VotePayload(ConsensusRoundIdentifier roundIdentifier, long height, Hash digest) { //, SECPSignature signature
     super(roundIdentifier, height);
     this.digest = digest;
+//      this.signature = signature;
   }
 
   /**
