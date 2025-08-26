@@ -344,6 +344,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
         LOG.debug("publickeys: {}", Arrays.toString(peerPublicKeyFetcher.getConnectedPeerNodeIdsHex().toArray()));
 
+
         if (validateProposer(msg.getSignedPayload())) {
             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
             LOG.debug("Valid a proposal message.");
@@ -359,10 +360,15 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ", roundNumber);
         LOG.debug(" getRoundState().getRoundIdentifier().getRoundNumber() {} ", getRoundState().getRoundIdentifier().getRoundNumber());
 
+
+        long headerTimeStampSeconds = payload.getPayload().getProposedBlock().getHeader().getTimestamp();
+        long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
+
         var seed = PosProposerSelector.seed(roundNumber, blockchain.getChainHeadHash());
         var publicKey = currentRound.get().getNodeSet().getNode(payload.getAuthor()).get().getPublicKey();
         return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
                 payload.getPayload().getHeight() == getRoundState().getHeight() &&
+                diff >= (posConfig.getBlockPeriodSeconds()/5 ) &&
                 VRF.verify(publicKey, seed, payload.getPayload().getProof());
     }
 
@@ -391,9 +397,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     public void handleVoteMessage(final Vote msg) {
         LOG.debug("Received a vote message. round={}. author={}", getRoundState().getRoundIdentifier(), msg.getAuthor());
         getRoundState().addVoteMessage(msg);
+
         if (validateBlockHash(msg.getSignedPayload().getPayload().getDigest()) &&
                 validateHeightAndRound(msg.getSignedPayload().getPayload()) &&
                 proposerSelector.isLocalProposer()
+
         ) {
             if(checkThreshold(getRoundState().getVoteMessages())){
                 sendCommit(getRoundState().getProposedBlock());

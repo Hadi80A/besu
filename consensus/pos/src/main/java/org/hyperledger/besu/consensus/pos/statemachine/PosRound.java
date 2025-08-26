@@ -288,8 +288,9 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     Propose proposal = null;
     try {
       long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+      LOG.debug("headerTimeStampSeconds: {}, parentHeader time:{}", headerTimeStampSeconds,parentHeader.getTimestamp());
       long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
-      if(diff>=posConfigOptions.getBlockPeriodSeconds()/5){
+      if(diff<posConfigOptions.getBlockPeriodSeconds()/5){
         Thread.sleep(diff);
       }
       PosBlock posBlock = createBlock(headerTimeStampSeconds);

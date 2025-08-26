@@ -176,7 +176,9 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             uniqueMessageMulticaster,
             new RoundTimer(
                 bftEventQueue,
-                Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds()),
+                    new BftRoundExpiryTimeCalculator(
+                      Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds())
+                    ),
                 bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
                 bftblockCreatorFactory,
@@ -189,7 +191,9 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             uniqueMessageMulticaster,
             new RoundTimer(
                     bftEventQueue,
-                    Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds()),
+                    new BftRoundExpiryTimeCalculator(
+                    Duration.ofSeconds(bftConfig.getRequestTimeoutSeconds())
+                    ),
                     bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
             blockCreatorFactory,
