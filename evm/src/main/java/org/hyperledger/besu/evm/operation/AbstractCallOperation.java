@@ -14,9 +14,11 @@
  */
 package org.hyperledger.besu.evm.operation;
 
+import static org.hyperledger.besu.evm.frame.SoftFailureReason.LEGACY_INSUFFICIENT_BALANCE;
+import static org.hyperledger.besu.evm.frame.SoftFailureReason.LEGACY_MAX_CALL_DEPTH;
 import static org.hyperledger.besu.evm.internal.Words.clampedAdd;
 import static org.hyperledger.besu.evm.internal.Words.clampedToLong;
-import static org.hyperledger.besu.evm.worldstate.CodeDelegationHelper.getTargetAccount;
+import static org.hyperledger.besu.evm.worldstate.CodeDelegationHelper.getTarget;
 import static org.hyperledger.besu.evm.worldstate.CodeDelegationHelper.hasCodeDelegation;
 
 import org.hyperledger.besu.datatypes.Address;
@@ -25,12 +27,13 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.Code;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.account.Account;
-import org.hyperledger.besu.evm.account.CodeDelegationAccount;
 import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.frame.MessageFrame.State;
+import org.hyperledger.besu.evm.frame.SoftFailureReason;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
+import org.hyperledger.besu.evm.worldstate.CodeDelegationHelper;
 
 import org.apache.tuweni.bytes.Bytes;
 
@@ -204,7 +207,9 @@ public abstract class AbstractCallOperation extends AbstractOperation {
 
     // If the call is sending more value than the account has or the message frame is too deep
     // return a failed call
-    if (value(frame).compareTo(balance) > 0 || frame.getDepth() >= 1024) {
+    final boolean insufficientBalance = value(frame).compareTo(balance) > 0;
+    final boolean isFrameDepthTooDeep = frame.getDepth() >= 1024;
+    if (insufficientBalance || isFrameDepthTooDeep) {
       frame.expandMemory(inputDataOffset(frame), inputDataLength(frame));
       frame.expandMemory(outputDataOffset(frame), outputDataLength(frame));
       // For the following, we either increment the gas or return zero, so we don't get double
@@ -212,7 +217,9 @@ public abstract class AbstractCallOperation extends AbstractOperation {
       frame.incrementRemainingGas(gasAvailableForChildCall(frame) + cost);
       frame.popStackItems(getStackItemsConsumed());
       frame.pushStackItem(LEGACY_FAILURE_STACK_ITEM);
-      return new OperationResult(cost, null);
+      final SoftFailureReason softFailureReason =
+          insufficientBalance ? LEGACY_INSUFFICIENT_BALANCE : LEGACY_MAX_CALL_DEPTH;
+      return new OperationResult(cost, 1, softFailureReason);
     }
 
     final Bytes inputData = frame.readMutableMemory(inputDataOffset(frame), inputDataLength(frame));
@@ -329,7 +336,7 @@ public abstract class AbstractCallOperation extends AbstractOperation {
    * @param account the account which codes needs to be retrieved
    * @return the code
    */
-  protected static Code getCode(final EVM evm, final MessageFrame frame, final Account account) {
+  protected Code getCode(final EVM evm, final MessageFrame frame, final Account account) {
     if (account == null) {
       return CodeV0.EMPTY_CODE;
     }
@@ -339,13 +346,32 @@ public abstract class AbstractCallOperation extends AbstractOperation {
       return CodeV0.EMPTY_CODE;
     }
 
-    if (!hasCodeDelegation(account.getCode())) {
-      return evm.getCode(account.getCodeHash(), account.getCode());
+    final boolean accountHasCodeCache = account.getCodeCache() != null;
+
+    final Code code;
+    // Bonsai accounts may have a fully cached code, so we use that one
+    if (accountHasCodeCache) {
+      code = account.getOrCreateCachedCode();
+    }
+    // Any other account can only use the cached jump dest analysis if available
+    else {
+      code = evm.getOrCreateCachedJumpDest(codeHash, account.getCode());
     }
 
-    final CodeDelegationAccount targetAccount =
-        getTargetAccount(frame.getWorldUpdater(), evm.getGasCalculator()::isPrecompile, account);
+    if (!hasCodeDelegation(code.getBytes())) {
+      return code;
+    }
 
-    return evm.getCode(targetAccount.getCodeHash(), targetAccount.getCode());
+    final CodeDelegationHelper.Target target =
+        getTarget(frame.getWorldUpdater(), evm.getGasCalculator()::isPrecompile, account);
+
+    if (accountHasCodeCache) {
+      // If the account has a code cache, we can return the cached code of the target
+      return target.code();
+    }
+
+    // otherwise we can only use the cached jump destination analysis
+    final Code targetCode = target.code();
+    return evm.getOrCreateCachedJumpDest(targetCode.getCodeHash(), targetCode.getBytes());
   }
 }

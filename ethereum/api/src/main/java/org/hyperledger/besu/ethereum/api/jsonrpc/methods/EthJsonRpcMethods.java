@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.api.jsonrpc.methods;
 
+import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcApis;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.filter.FilterManager;
@@ -72,6 +73,7 @@ import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Capability;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
+import org.hyperledger.besu.plugin.services.MetricsSystem;
 
 import java.util.Map;
 import java.util.Set;
@@ -90,7 +92,9 @@ public class EthJsonRpcMethods extends ApiGroupJsonRpcMethods {
 
   private final Set<Capability> supportedCapabilities;
   private final ApiConfiguration apiConfiguration;
+  private final GenesisConfigOptions genesisConfigOptions;
   private final TransactionSimulator transactionSimulator;
+  private final MetricsSystem metricsSystem;
 
   public EthJsonRpcMethods(
       final BlockchainQueries blockchainQueries,
@@ -102,7 +106,9 @@ public class EthJsonRpcMethods extends ApiGroupJsonRpcMethods {
       final MiningConfiguration miningConfiguration,
       final Set<Capability> supportedCapabilities,
       final ApiConfiguration apiConfiguration,
-      final TransactionSimulator transactionSimulator) {
+      final GenesisConfigOptions genesisConfigOptions,
+      final TransactionSimulator transactionSimulator,
+      final MetricsSystem metricsSystem) {
     this.blockchainQueries = blockchainQueries;
     this.synchronizer = synchronizer;
     this.protocolSchedule = protocolSchedule;
@@ -112,7 +118,9 @@ public class EthJsonRpcMethods extends ApiGroupJsonRpcMethods {
     this.miningConfiguration = miningConfiguration;
     this.supportedCapabilities = supportedCapabilities;
     this.apiConfiguration = apiConfiguration;
+    this.genesisConfigOptions = genesisConfigOptions;
     this.transactionSimulator = transactionSimulator;
+    this.metricsSystem = metricsSystem;
   }
 
   @Override
@@ -131,7 +139,7 @@ public class EthJsonRpcMethods extends ApiGroupJsonRpcMethods {
         new EthGetBlockReceipts(blockchainQueries, protocolSchedule),
         new EthGetBlockTransactionCountByNumber(blockchainQueries),
         new EthGetBlockTransactionCountByHash(blockchainQueries),
-        new EthCall(blockchainQueries, transactionSimulator),
+        new EthCall(blockchainQueries, transactionSimulator, metricsSystem),
         new EthFeeHistory(protocolSchedule, blockchainQueries, miningCoordinator, apiConfiguration),
         new EthGetCode(blockchainQueries),
         new EthGetLogs(blockchainQueries, apiConfiguration.getMaxLogsRange()),
@@ -159,7 +167,7 @@ public class EthJsonRpcMethods extends ApiGroupJsonRpcMethods {
         new EthCreateAccessList(blockchainQueries, transactionSimulator),
         new EthMining(miningCoordinator),
         new EthCoinbase(miningCoordinator),
-        new EthConfig(blockchainQueries, protocolSchedule),
+        new EthConfig(blockchainQueries, protocolSchedule, genesisConfigOptions),
         new EthProtocolVersion(supportedCapabilities),
         new EthGasPrice(blockchainQueries, apiConfiguration),
         new EthChainId(protocolSchedule.getChainId()),

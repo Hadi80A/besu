@@ -14,30 +14,27 @@
  */
 package org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods;
 
-import static org.hyperledger.besu.ethereum.mainnet.ParentBeaconBlockRootHelper.BEACON_ROOTS_ADDRESS;
-
+import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.ethereum.api.jsonrpc.RpcMethod;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.JsonRpcRequestContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcSuccessResponse;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.forkid.ForkIdManager;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 import org.hyperledger.besu.ethereum.mainnet.ScheduledProtocolSpec;
 import org.hyperledger.besu.ethereum.mainnet.ScheduledProtocolSpec.Hardfork;
 import org.hyperledger.besu.ethereum.mainnet.requests.RequestProcessorCoordinator;
-import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.precompile.PrecompileContractRegistry;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Supplier;
-import java.util.zip.CRC32;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Suppliers;
@@ -48,10 +45,20 @@ public class EthConfig implements JsonRpcMethod {
 
   private final BlockchainQueries blockchain;
   private final ProtocolSchedule protocolSchedule;
+  private final ForkIdManager forkIdManager;
 
-  public EthConfig(final BlockchainQueries blockchain, final ProtocolSchedule protocolSchedule) {
+  public EthConfig(
+      final BlockchainQueries blockchain,
+      final ProtocolSchedule protocolSchedule,
+      final GenesisConfigOptions genesisConfigOptions) {
+
     this.blockchain = blockchain;
     this.protocolSchedule = protocolSchedule;
+    forkIdManager =
+        new ForkIdManager(
+            blockchain.getBlockchain(),
+            genesisConfigOptions.getForkBlockNumbers(),
+            genesisConfigOptions.getForkBlockTimestamps());
   }
 
   @Override
@@ -65,21 +72,29 @@ public class EthConfig implements JsonRpcMethod {
     long currentTime = System.currentTimeMillis() / 1000;
     ProtocolSpec current = protocolSchedule.getForNextBlockHeader(header, currentTime);
     Optional<ScheduledProtocolSpec> next = protocolSchedule.getNextProtocolSpec(currentTime);
+    Optional<ScheduledProtocolSpec> last = protocolSchedule.getLatestProtocolSpec();
 
     ObjectNode result = mapperSupplier.get().createObjectNode();
     ObjectNode currentNode = result.putObject("current");
     generateConfig(currentNode, current);
-    result.put("currentHash", configHash(currentNode));
     if (next.isPresent()) {
+      // if next is present, last will be present as next may be last.
       ObjectNode nextNode = result.putObject("next");
-      generateConfig(nextNode, next.get());
-      result.put("nextHash", configHash(nextNode));
+      ScheduledProtocolSpec nextSpec = next.get();
+      generateConfig(nextNode, nextSpec);
+      ObjectNode lastNode = result.putObject("last");
+      generateConfig(lastNode, last.orElse(nextSpec));
     } else {
+      // if next is empty, last is empty (no future forks)
       result.putNull("next");
-      result.putNull("nextHash");
+      result.putNull("last");
     }
 
     return new JsonRpcSuccessResponse(requestContext.getRequest().getId(), result);
+  }
+
+  private String getForkIdAsHexString(final long currentTime) {
+    return forkIdManager.getForkIdByTimestamp(currentTime).getHash().toHexString();
   }
 
   void generateConfig(final ObjectNode result, final ScheduledProtocolSpec scheduledSpec) {
@@ -98,42 +113,33 @@ public class EthConfig implements JsonRpcMethod {
         "baseFeeUpdateFraction", spec.getFeeMarket().getBaseFeeUpdateFraction().longValueExact());
     blobs.put("max", spec.getGasLimitCalculator().currentBlobGasLimit() / (128 * 1024));
     blobs.put("target", spec.getGasLimitCalculator().getTargetBlobGasPerBlock() / (128 * 1024));
-    blobs.put(
-        "maxBlobsPerTx", spec.getGasLimitCalculator().transactionBlobGasLimitCap() / (128 * 1024));
 
     result.put(
         "chainId", protocolSchedule.getChainId().map(c -> "0x" + c.toString(16)).orElse(null));
 
+    result.put("forkId", getForkIdAsHexString(forkId.milestone()));
+
     PrecompileContractRegistry registry = spec.getPrecompileContractRegistry();
     ObjectNode precompiles = result.putObject("precompiles");
     registry.getPrecompileAddresses().stream()
-        .sorted()
-        .forEach(a -> precompiles.put(a.toHexString(), registry.get(a).getName()));
+        .map(a -> Map.entry(registry.get(a).getName(), a.toHexString()))
+        .sorted(Entry.comparingByKey())
+        .forEach(e -> precompiles.put(e.getKey(), e.getValue()));
 
     TreeMap<String, String> systemContracts =
         new TreeMap<>(
             spec.getRequestProcessorCoordinator()
                 .map(RequestProcessorCoordinator::getContractConfigs)
                 .orElse(Map.of()));
-    spec.getBlockHashProcessor()
+    spec.getPreExecutionProcessor()
         .getHistoryContract()
         .ifPresent(a -> systemContracts.put("HISTORY_STORAGE_ADDRESS", a.toHexString()));
-    if (spec.getEvm().getEvmVersion().compareTo(EvmSpecVersion.CANCUN) >= 0) {
-      systemContracts.put("BEACON_ROOTS_ADDRESS", BEACON_ROOTS_ADDRESS.toHexString());
-    }
+    spec.getPreExecutionProcessor()
+        .getBeaconRootsContract()
+        .ifPresent(a -> systemContracts.put("BEACON_ROOTS_ADDRESS", a.toHexString()));
     if (!systemContracts.isEmpty()) {
       ObjectNode jsonContracts = result.putObject("systemContracts");
       systemContracts.forEach(jsonContracts::put);
-    }
-  }
-
-  String configHash(final JsonNode node) {
-    if (node == null) {
-      return null;
-    } else {
-      final CRC32 crc = new CRC32();
-      crc.update(node.toString().getBytes(StandardCharsets.UTF_8));
-      return Long.toHexString(crc.getValue());
     }
   }
 }

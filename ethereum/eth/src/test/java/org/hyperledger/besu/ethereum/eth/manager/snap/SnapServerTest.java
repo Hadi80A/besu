@@ -68,13 +68,15 @@ import java.util.stream.IntStream;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class SnapServerTest {
   static Random rand = new Random();
 
-  // Paramaterized test to exercise BONSAI and BONSAI_ARCHIVE
+  // Parameterized test to exercise BONSAI and BONSAI_ARCHIVE
   public static Collection<Object[]> flatDbMode() {
     return Arrays.asList(new Object[][] {{FlatDbMode.FULL}, {FlatDbMode.ARCHIVE}});
   }
@@ -882,6 +884,12 @@ public class SnapServerTest {
     }
     storageTrie.commit(updater::putAccountStateTrieNode);
     updater.commit();
+    inMemoryStorage
+        .getWorldStateBlockNumber()
+        .ifPresent(
+            currentBlock ->
+                updateStorageArchiveBlock(
+                    inMemoryStorage.getComposedWorldStateStorage(), currentBlock + 1));
   }
 
   boolean assertIsValidAccountRangeProof(
@@ -954,5 +962,12 @@ public class SnapServerTest {
     assertThat(accountData).isNotNull();
     assertThat(accountData.accounts().size()).isEqualTo(expectedSize);
     return accountData;
+  }
+
+  @Test
+  void dryRunDetector() {
+    Assertions.assertThat(true)
+        .withFailMessage("This test is here so gradle --dry-run executes this class")
+        .isTrue();
   }
 }
