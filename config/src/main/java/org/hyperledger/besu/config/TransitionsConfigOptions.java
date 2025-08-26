@@ -59,8 +59,8 @@ public class TransitionsConfigOptions {
    *
    * @return the pos forks
    */
-  public List<BftFork> getPosForks() {
-    return getForks("pos", BftFork::new);
+  public List<PosFork> getPosForks() {
+    return getForks("pos", PosFork::new);
   }
 
   /**

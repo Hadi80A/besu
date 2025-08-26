@@ -21,6 +21,7 @@ import org.hyperledger.besu.datatypes.Address;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -180,7 +181,13 @@ public class RoundChangeManager {
   public Optional<Collection<ViewChange>> appendRoundChangeMessage(final ViewChange msg) {
 
     final RoundChangeStatus roundChangeStatus = storeRoundChangeMessage(msg);
-
+    LOG.debug("finalState.getReceivedMessages().size() {}", roundChangeStatus.receivedMessages.size());
+    AtomicReference<String> str= new AtomicReference<>("");
+    roundChangeStatus.receivedMessages.keySet().forEach(address -> {
+      str.updateAndGet(v -> v + address);
+    });
+    LOG.debug("bishoorHa:  {}", str.get());
+        LOG.debug("finalState.getQuorum() {}",roundChangeStatus.quorum);
     if (roundChangeStatus.roundChangeQuorumReceived()) {
       return Optional.of(roundChangeStatus.createRoundChangeCertificate());
     }

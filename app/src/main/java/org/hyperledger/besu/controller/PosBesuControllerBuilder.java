@@ -17,6 +17,7 @@ package org.hyperledger.besu.controller;
 import org.hyperledger.besu.config.BftConfigOptions;
 import org.hyperledger.besu.config.BftFork;
 import org.hyperledger.besu.config.PosConfigOptions;
+import org.hyperledger.besu.config.PosFork;
 import org.hyperledger.besu.consensus.common.BftValidatorOverrides;
 import org.hyperledger.besu.consensus.common.EpochManager;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
@@ -81,7 +82,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   private BftEventQueue bftEventQueue;
   private BftConfigOptions bftConfig;
   private PosConfigOptions posConfig;
-  private ForksSchedule<BftConfigOptions> forksSchedule;
+  private ForksSchedule<PosConfigOptions> forksSchedule;
   private ValidatorPeers peers;
   private PosExtraDataCodec bftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
@@ -232,6 +233,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     posFinalState,
                     protocolContext,
                     posProtocolSchedule,
+                    posConfig,
                     minedBlockObservers,
                     messageValidatorFactory,
                     messageFactory,
@@ -242,9 +244,12 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     peerPublicKeyFetcher
                 ),
                 messageValidatorFactory,
+                    posConfig,
                 messageFactory,
                 posProposerSelector,
-                peerPublicKeyFetcher
+                peerPublicKeyFetcher,
+                syncState
+
             ),
             gossiper,
             duplicateMessageTracker,
@@ -493,7 +498,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
       final Blockchain blockchain,
       final WorldStateArchive worldStateArchive,
       final ProtocolSchedule protocolSchedule) {
-    final BftConfigOptions posConfig = genesisConfigOptions.getBftConfigOptions();
+    final PosConfigOptions posConfig = genesisConfigOptions.getPosConfigOptions();
     final EpochManager epochManager = new EpochManager(posConfig.getEpochLength());
 
     final BftValidatorOverrides validatorOverrides =
@@ -506,10 +511,10 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         bftBlockInterface);
   }
 
-  private BftValidatorOverrides convertPosForks(final List<BftFork> bftForks) {
+  private BftValidatorOverrides convertPosForks(final List<PosFork> posForks) {
     final Map<Long, List<Address>> result = new HashMap<>();
 
-    for (final BftFork fork : bftForks) {
+    for (final PosFork fork : posForks) {
       fork.getValidators()
           .ifPresent(
               validators ->

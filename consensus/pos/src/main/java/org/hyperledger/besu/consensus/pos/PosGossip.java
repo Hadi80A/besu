@@ -60,12 +60,16 @@ public class PosGossip implements Gossiper {
       decodedMessage = switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
           case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
           case PosMessage.BLOCK_ANNOUNCE -> CommitMessageData.fromMessageData(messageData).decode();
-          case PosMessage.VOTE -> VoteMessageData.fromMessageData(messageData).decode();
+          case PosMessage.VOTE -> null;
+//          VoteMessageData.fromMessageData(messageData).decode();
           case PosMessage.VIEW_CHANGE -> ViewChangeMessageData.fromMessageData(messageData).decode();
 
           default -> throw new IllegalArgumentException(
                   "Received message does not conform to any recognised pos message structure.");
       };
+      if (decodedMessage == null) {
+        return;
+      }
     final List<Address> excludeAddressesList =
         Lists.newArrayList(
             message.getConnection().getPeerInfo().getAddress(), decodedMessage.getAuthor());

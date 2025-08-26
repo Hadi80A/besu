@@ -33,7 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 @Getter
-/** Besu implementation of PosFinalState for maintaining the state of a QBFT network. */
+/** Besu implementation of PosFinalState for maintaining the state of a Pos network. */
 public class PosFinalState {
   private final ValidatorProvider validatorProvider;
 
@@ -87,7 +87,7 @@ public class PosFinalState {
     @Getter
     private final BftFinalState bftFinalState;
   /**
-   * Constructs a new QBFT final state.
+   * Constructs a new POS final state.
    *
    * @param validatorProvider the validator provider
    * @param nodeKey the node key

@@ -14,9 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
-import org.hyperledger.besu.config.BftConfigOptions;
-import org.hyperledger.besu.config.BftFork;
-import org.hyperledger.besu.config.GenesisConfigOptions;
+import org.hyperledger.besu.config.*;
 import org.hyperledger.besu.consensus.common.ForkSpec;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.ForksScheduleFactory;
@@ -33,26 +31,26 @@ public class PosForksSchedulesFactory {
    * @param genesisConfig the genesis config
    * @return the forks schedule
    */
-  public static ForksSchedule<BftConfigOptions> create(final GenesisConfigOptions genesisConfig) {
+  public static ForksSchedule<PosConfigOptions> create(final GenesisConfigOptions genesisConfig) {
     return ForksScheduleFactory.create(
-        genesisConfig.getBftConfigOptions(),
+        genesisConfig.getPosConfigOptions(),
         genesisConfig.getTransitions().getPosForks(),
-        PosForksSchedulesFactory::createBftConfigOptions);
+        PosForksSchedulesFactory::createPosConfigOptions);
   }
 
-  private static BftConfigOptions createBftConfigOptions(
-      final ForkSpec<BftConfigOptions> lastSpec, final BftFork fork) {
-    final MutableBftConfigOptions bftConfigOptions =
-        new MutableBftConfigOptions(lastSpec.getValue());
+  private static PosConfigOptions createPosConfigOptions(
+      final ForkSpec<PosConfigOptions> lastSpec, final PosFork fork) {
+    final MutablePosConfigOptions posConfigOptions =
+        new MutablePosConfigOptions(lastSpec.getValue());
 
-    fork.getBlockPeriodSeconds().ifPresent(bftConfigOptions::setBlockPeriodSeconds);
-    fork.getBlockRewardWei().ifPresent(bftConfigOptions::setBlockRewardWei);
+    fork.getBlockPeriodSeconds().ifPresent(posConfigOptions::setBlockPeriodSeconds);
+    fork.getBlockRewardWei().ifPresent(posConfigOptions::setBlockRewardWei);
 
     if (fork.isMiningBeneficiaryConfigured()) {
       // Only override if mining beneficiary is explicitly configured
-      bftConfigOptions.setMiningBeneficiary(fork.getMiningBeneficiary());
+      posConfigOptions.setMiningBeneficiary(fork.getMiningBeneficiary());
     }
 
-    return bftConfigOptions;
+    return posConfigOptions;
   }
 }

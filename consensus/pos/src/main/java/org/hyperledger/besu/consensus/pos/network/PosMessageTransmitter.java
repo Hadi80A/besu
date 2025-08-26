@@ -14,10 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.network;
 
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
-import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
 import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
 import org.hyperledger.besu.consensus.pos.messagedata.ViewChangeMessageData;
@@ -26,17 +23,12 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
-import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
-import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
-import org.hyperledger.besu.consensus.pos.payload.VotePayload;
-import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.PosRoundFactory;
-import org.hyperledger.besu.crypto.SECPSignature;
-import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +40,7 @@ public class PosMessageTransmitter {
 
   private final PosRoundFactory.MessageFactory messageFactory;
   private final ValidatorMulticaster multicaster;
-
+  private final Address localAddress;
   /**
    * Instantiates a new Pos message transmitter.
    *
@@ -56,9 +48,10 @@ public class PosMessageTransmitter {
    * @param multicaster the multicaster
    */
   public PosMessageTransmitter(
-          final PosRoundFactory.MessageFactory messageFactory, final ValidatorMulticaster multicaster) {
+          final PosRoundFactory.MessageFactory messageFactory, final ValidatorMulticaster multicaster, Address localAddress) {
     this.messageFactory = messageFactory;
     this.multicaster = multicaster;
+    this.localAddress = localAddress;
   }
 
   public void multicastProposal(Propose propose) {
@@ -66,7 +59,7 @@ public class PosMessageTransmitter {
 
       final ProposalMessageData message = ProposalMessageData.create(propose);
       LOG.debug("multicastProposal: {}", message);
-      multicaster.send(message);
+      multicaster.send(message, Collections.singletonList(localAddress));
 
 
     } catch (final SecurityModuleException e) {
@@ -74,11 +67,10 @@ public class PosMessageTransmitter {
     }
   }
 
-  public void multicastVote(Vote vote) {
+  public void multicastVote(Vote vote, List<Address> denylist) {
     try {
       final VoteMessageData message = VoteMessageData.create(vote);
-
-      multicaster.send(message);
+      multicaster.send(message,denylist);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Prepare (not sent): {} ", e.getMessage());
     }
@@ -86,10 +78,8 @@ public class PosMessageTransmitter {
 
   public void multicastCommit(Commit commit) {
     try {
-
       final CommitMessageData message = CommitMessageData.create(commit);
-
-      multicaster.send(message);
+      multicaster.send(message, Collections.singletonList(localAddress));
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Commit (not sent): {} ", e.getMessage());
     }
@@ -101,7 +91,8 @@ public class PosMessageTransmitter {
 
       final ViewChangeMessageData message = ViewChangeMessageData.create(viewChange);
 
-      multicaster.send(message);
+      multicaster.send(message, Collections.singletonList(localAddress));
+      LOG.debug("multicastRoundChange  AND SEND: {}", message);
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for RoundChange (not sent): {} ", e.getMessage());
     }

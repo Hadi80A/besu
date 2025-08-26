@@ -16,6 +16,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
@@ -45,6 +46,7 @@ public class PosRoundFactory {
     private final PosBlockCreatorFactory blockCreatorFactory;
     private final ProtocolContext protocolContext;
     private final PosProtocolSchedule protocolSchedule;
+    private final PosConfigOptions configOptions;
     private final Subscribers<PosMinedBlockObserver> minedBlockObservers;
     private final MessageValidatorFactory messageValidatorFactory;
     private final MessageFactory messageFactory;
@@ -68,7 +70,7 @@ public class PosRoundFactory {
     public PosRoundFactory(
             final PosFinalState finalState,
             final ProtocolContext protocolContext,
-            final PosProtocolSchedule protocolSchedule,
+            final PosProtocolSchedule protocolSchedule, PosConfigOptions configOptions,
             final Subscribers<PosMinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
@@ -77,6 +79,7 @@ public class PosRoundFactory {
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
         this.protocolSchedule = protocolSchedule;
+        this.configOptions = configOptions;
         this.minedBlockObservers = minedBlockObservers;
         this.messageValidatorFactory = messageValidatorFactory;
         this.messageFactory = messageFactory;
@@ -122,7 +125,7 @@ public class PosRoundFactory {
                 blockCreatorFactory.create(roundState.getRoundIdentifier().getRoundNumber());
 //
         final PosMessageTransmitter messageTransmitter =
-                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster());
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress());
 
         return new PosRound(
                 roundState,
@@ -134,6 +137,7 @@ public class PosRoundFactory {
                 messageFactory,
                 messageTransmitter,
                 finalState.getRoundTimer(),
+                configOptions,
                 bftExtraDataCodec,
                 parentHeader,
                 contractCaller,

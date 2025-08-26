@@ -19,6 +19,7 @@ import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHashing;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
@@ -63,6 +64,7 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +81,7 @@ public class PosRound {
   private final Subscribers<PosMinedBlockObserver> observers;
   private final RoundState roundState;
   private final PosBlockCreator blockCreator;
+  private final PosConfigOptions posConfigOptions;
 
   /** The protocol context. */
   protected final ProtocolContext protocolContext;
@@ -124,10 +127,11 @@ public class PosRound {
           final NodeKey nodeKey,
           final PosRoundFactory.MessageFactory messageFactory,
           final PosMessageTransmitter transmitter,
-          final RoundTimer roundTimer,
+          final RoundTimer roundTimer, PosConfigOptions posConfigOptions,
           final BftExtraDataCodec bftExtraDataCodec,
           final PosBlockHeader parentHeader,
-          final ContractCaller contractCaller, NodeSet nodeSet, PeerPublicKeyFetcher peerPublicKeyFetcher, PosProposerSelector posProposerSelector, PosFinalState posFinalState
+          final ContractCaller contractCaller, NodeSet nodeSet, PeerPublicKeyFetcher peerPublicKeyFetcher,
+          PosProposerSelector posProposerSelector, PosFinalState posFinalState
   ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
@@ -137,6 +141,7 @@ public class PosRound {
     this.nodeKey = nodeKey;
     this.messageFactory = messageFactory;
     this.transmitter = transmitter;
+    this.posConfigOptions = posConfigOptions;
     this.bftExtraDataCodec = bftExtraDataCodec;
     this.parentHeader = parentHeader;
     this.contractCaller = contractCaller;
@@ -145,7 +150,7 @@ public class PosRound {
       this.peerPublicKeyFetcher = peerPublicKeyFetcher;
       this.posProposerSelector = posProposerSelector;
       this.posFinalState = posFinalState;
-      roundTimer.startTimer(getRoundIdentifier());
+//      roundTimer.startTimer(getRoundIdentifier());
   }
 
   /**
@@ -279,19 +284,56 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
   }
 
 
-  protected void createProposalAndTransmit(long headerTimeStampSeconds,VRF.Proof proof) {
-    final Propose proposal;
+  protected void createProposalAndTransmit(Clock clock,VRF.Proof proof) {
+    Propose proposal = null;
     try {
+      long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+      long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
+      if(diff>=posConfigOptions.getBlockPeriodSeconds()/5){
+        Thread.sleep(diff);
+      }
       PosBlock posBlock = createBlock(headerTimeStampSeconds);
-      var proposePayload =createProposePayload(posBlock,proof);
-      LOG.debug("Creating proposal and transmit for block" );
-      proposal = messageFactory.createPropose(proposePayload);
+      var roundIdentifier=posBlock.getPosBlockHeader().getRoundIdentifier();
+      if (!posBlock.isEmpty()) {
+        var proposePayload = createProposePayload(posBlock, proof);
+        LOG.debug("Creating proposal and transmit for block");
+        proposal = messageFactory.createPropose(proposePayload);
+
+      }else {
+        // handle the block times period
+        final long currentTimeInMillis = posFinalState.getClock().millis();
+        boolean emptyBlockExpired = posFinalState
+                        .getBlockTimer()
+                        .checkEmptyBlockExpired(parentHeader::getTimestamp, currentTimeInMillis);
+        if (emptyBlockExpired) {
+          LOG.trace(
+                  "Block has no transactions and this node is a proposer so it will send a proposal: " +roundIdentifier);
+          var proposePayload = createProposePayload(posBlock, proof);
+          LOG.debug("Creating proposal and transmit for block");
+          proposal = messageFactory.createPropose(proposePayload);
+        } else {
+          LOG.trace(
+                  "Block has no transactions but emptyBlockPeriodSeconds did not expired yet: "
+                          + roundIdentifier);
+          posFinalState
+                  .getBlockTimer()
+                  .resetTimerForEmptyBlock(
+                          roundIdentifier, parentHeader::getTimestamp, currentTimeInMillis);
+//          posFinalState.getRoundTimer().cancelTimer();
+//          currentRound = Optional.empty();
+        }
+      }
+      if (proposal != null) {
+        transmitter.multicastProposal(proposal);
+        roundState.setProposeMessage(proposal);
+      }
+
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
       return;
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
     }
-    transmitter.multicastProposal(proposal);
-    roundState.setProposeMessage(proposal);
   }
 
   public void importBlockToChain() {
@@ -318,16 +360,16 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
     final PosBlockImporter blockImporter =
             protocolSchedule.getBlockImporter(blockToImport.getHeader());
-    final boolean isSuccess =
+    boolean isSuccess =
             blockImporter.importBlock(blockToImport);
 
-    if (!isSuccess) {
+    if(isSuccess) {
+      notifyNewBlockListeners(blockToImport);
+    }else {
       LOG.error(
               "Failed to import proposed block to chain. block={} blockHeader={}",
               blockNumber,
               blockToImport.getHeader());
-    } else {
-      notifyNewBlockListeners(blockToImport);
     }
   }
 
@@ -406,12 +448,12 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     });
   }
 
-  public void updateRound(Block block,long headerTimeStampSeconds,int roundNumber){
+  public void updateRound(Block block, Clock clock, int roundNumber){
     updateNodes(block);
     var leaderVRF= posProposerSelector.selectLeader(roundNumber, Bytes32.wrap(block.getHash().toArray()));
     if (leaderVRF.isPresent()){
       System.out.println("im leader");
-      createProposalAndTransmit(headerTimeStampSeconds,leaderVRF.get().proof());
+      createProposalAndTransmit(clock,leaderVRF.get().proof());
     }
   }
 

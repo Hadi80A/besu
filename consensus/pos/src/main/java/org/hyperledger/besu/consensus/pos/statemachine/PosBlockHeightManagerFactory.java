@@ -14,12 +14,14 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +33,11 @@ public class PosBlockHeightManagerFactory {
     private final PosRoundFactory roundFactory;
     private final PosFinalState finalState;
     private final MessageValidatorFactory messageValidatorFactory;
+    private final PosConfigOptions posConfig;
     private final PosRoundFactory.MessageFactory messageFactory;
     private final PosProposerSelector posProposerSelector;
     private final PeerPublicKeyFetcher peerPublicKeyFetcher;
+    private final SyncState syncState;
     /**
      * Instantiates a new Pos block height manager factory.
      *
@@ -45,14 +49,17 @@ public class PosBlockHeightManagerFactory {
     public PosBlockHeightManagerFactory(
             final PosFinalState finalState,
             final PosRoundFactory roundFactory,
-            final MessageValidatorFactory messageValidatorFactory,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, PeerPublicKeyFetcher peerPublicKeyFetcher) {
+            final MessageValidatorFactory messageValidatorFactory, PosConfigOptions posConfig,
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, PeerPublicKeyFetcher peerPublicKeyFetcher, SyncState syncState) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
+        this.posConfig = posConfig;
         this.messageFactory = messageFactory;
         this.posProposerSelector = posProposerSelector;
         this.peerPublicKeyFetcher = peerPublicKeyFetcher;
+        this.syncState = syncState;
+
     }
 
     /**
@@ -90,10 +97,13 @@ public class PosBlockHeightManagerFactory {
                 finalState.getClock(),
                 messageFactory,
                 posProposerSelector,
-                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster()),
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress()),
+                posConfig,
                 blockchain,
+                syncState,
                 new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
                 peerPublicKeyFetcher
+
                 );
     }
 }

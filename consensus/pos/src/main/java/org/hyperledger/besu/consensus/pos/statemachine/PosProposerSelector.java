@@ -1,5 +1,6 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
@@ -8,6 +9,7 @@ import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.ethereum.core.Util;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -18,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Log4j2
+@Setter
 public class PosProposerSelector {
 
     private static final double LAMBDA =1.0; // tune so ≈1 leader is expected per round
@@ -64,7 +67,7 @@ public class PosProposerSelector {
         log.debug("ratio: {}, thr:{}", ratio,thr);
         if (ratio.compareTo(thr) < 0) {
             // Eligible — self thinks it is a leader
-//            currentLeader = Optional.of(selfId);
+            currentLeader = Optional.of(Util.publicKeyToAddress(nodeKey.getPublicKey()));
             result = Optional.of(vrf);
         } else {
             currentLeader = Optional.empty();
@@ -75,6 +78,13 @@ public class PosProposerSelector {
 
     public Optional<Address> getCurrentProposer() {
         return currentLeader;
+    }
+
+    public boolean isLocalProposer(){
+        if (Util.publicKeyToAddress(nodeKey.getPublicKey()).equals(getCurrentProposer().get())){
+            return true;
+        }
+        return false;
     }
 
     /** Seed derivation: keccak256("NEXUS-VRF-SEED" || round || prevBlockHash). */

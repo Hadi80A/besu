@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import org.apache.tuweni.bytes.Bytes;
 
 import org.hyperledger.besu.datatypes.Address;
@@ -21,6 +22,7 @@ import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
  */
 public class PeerPublicKeyFetcher {
 
+  @Getter
   private final EthPeers ethPeers;
 
   public PeerPublicKeyFetcher(final EthPeers ethPeers) {

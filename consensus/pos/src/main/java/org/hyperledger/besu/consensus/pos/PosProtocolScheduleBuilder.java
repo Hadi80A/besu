@@ -16,6 +16,7 @@ package org.hyperledger.besu.consensus.pos;
 
 import org.hyperledger.besu.config.BftConfigOptions;
 import org.hyperledger.besu.config.GenesisConfigOptions;
+import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.bft.BaseBftProtocolScheduleBuilder;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
@@ -53,7 +54,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
    */
   public static BftProtocolSchedule create(
       final GenesisConfigOptions config,
-      final ForksSchedule<BftConfigOptions> forksSchedule,
+      final ForksSchedule<PosConfigOptions> forksSchedule,
       final boolean isRevertReasonEnabled,
       final BftExtraDataCodec bftExtraDataCodec,
       final EvmConfiguration evmConfiguration,
@@ -90,7 +91,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
    */
   public static BftProtocolSchedule create(
       final GenesisConfigOptions config,
-      final ForksSchedule<BftConfigOptions> forksSchedule,
+      final ForksSchedule<PosConfigOptions> forksSchedule,
       final BftExtraDataCodec bftExtraDataCodec,
       final EvmConfiguration evmConfiguration,
       final MiningConfiguration miningConfiguration,
@@ -107,6 +108,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
         badBlockManager,
         isParallelTxProcessingEnabled,
         metricsSystem);
+
   }
 
   @Override
