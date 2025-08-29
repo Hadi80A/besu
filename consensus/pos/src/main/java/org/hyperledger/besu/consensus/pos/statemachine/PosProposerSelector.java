@@ -3,7 +3,10 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
+import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
+import org.hyperledger.besu.consensus.pos.payload.SelectLeaderPayload;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.Hash;
 import org.hyperledger.besu.crypto.SECPPublicKey;
@@ -16,6 +19,7 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -45,35 +49,15 @@ public class PosProposerSelector {
     }
 
     /** Run VRF and check if self is elected leader. */
-    public Optional<VRF.Result> selectLeader(final long round, final Bytes32 prevBlockHash) {
-        final long totalStake = nodeSet.getAllNodes().stream().mapToLong(n -> n.getStakeInfo().getStakedAmount()).sum();
-
-        if (totalStake <= 0){
-            log.debug("total stake {} is below 0",totalStake);
-            return Optional.empty();
-        }
-        log.debug("total stake {}, self: {}", totalStake, selfStake);
+    public Optional<VRF.Result> calculateVrf(final long round, final Bytes32 prevBlockHash) {
         // Compute seed for VRF
         final Bytes32 seed = seed(round, prevBlockHash);
         log.debug("seed({},{}): {}", round, prevBlockHash,seed);
         // Run VRF locally
         final VRF.Result vrf = VRF.prove(nodeKey, seed);
-        final BigDecimal ratio = toUnitFraction(vrf.output());
 
-        // Admission check
-        final BigDecimal thr = threshold(selfStake, totalStake);
+        return Optional.of(vrf);
 
-        Optional<VRF.Result> result = Optional.empty();
-        log.debug("ratio: {}, thr:{}", ratio,thr);
-        if (ratio.compareTo(thr) < 0) {
-            // Eligible — self thinks it is a leader
-            currentLeader = Optional.of(Util.publicKeyToAddress(nodeKey.getPublicKey()));
-            result = Optional.of(vrf);
-        } else {
-            currentLeader = Optional.empty();
-        }
-
-        return result ;
     }
 
     public Optional<Address> getCurrentProposer() {
@@ -100,13 +84,13 @@ public class PosProposerSelector {
         );
     }
 
-    private static BigDecimal toUnitFraction(final Bytes32 y) {
+    public static BigDecimal toUnitFraction(final Bytes32 y) {
         final BigInteger val = new BigInteger(1, y.toArrayUnsafe());
         final BigInteger max = BigInteger.ONE.shiftLeft(8 * y.size());
         return new BigDecimal(val).divide(new BigDecimal(max), MathContext.DECIMAL128);
     }
 
-    private static BigDecimal threshold(final long stake, final long totalStake) {
+    public static BigDecimal threshold(final long stake, final long totalStake) {
         BigDecimal t = new BigDecimal(stake)
                 .divide(new BigDecimal(totalStake), MathContext.DECIMAL128)
                 .multiply(BigDecimal.valueOf(LAMBDA));

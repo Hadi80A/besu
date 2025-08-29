@@ -32,10 +32,12 @@ import org.hyperledger.besu.consensus.pos.PosBlockImporter;
 import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
+import org.hyperledger.besu.consensus.pos.payload.SelectLeaderPayload;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.crypto.SECPSignature;
@@ -244,8 +246,7 @@ public class PosRound {
             .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
   }
 
-  private BigInteger getValidatorStake(
-          WorldState worldState, Address contractAddress, Address validatorAddress) {
+  private BigInteger getValidatorStake(WorldState worldState, Address contractAddress, Address validatorAddress) {
     // 1. Get contract account
     Account contractAccount = worldState.get(contractAddress);
     if (contractAccount == null || contractAccount.isEmpty()) {
@@ -266,9 +267,6 @@ public class PosRound {
             contractAccount.getStorageValue(UInt256.valueOf(slotHash.toUnsignedBigInteger()));
     return stakeValue.toBigInteger();
   }
-
-
-
 
 
 private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proof proof) {
@@ -449,13 +447,24 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     });
   }
 
+  public void sendSelectLeader(VRF.Proof proof) {
+    LOG.debug("Sending selectleader message. round={}", getRoundState().getRoundIdentifier());
+    try {
+      SelectLeaderPayload unsigned= messageFactory.createSelectLeaderPayload(getRoundState().getRoundIdentifier()
+              ,getRoundState().getHeight(), proof );
+      SignedData<SelectLeaderPayload> signed=createSignedData(unsigned);
+      final SelectLeader selectLeader = messageFactory.createSelectLeader(signed);
+      getRoundState().addSelectLeaderMessage(selectLeader);
+      transmitter.multicastSelectLeader(selectLeader);
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to create a signed selectleader; {}", e.getMessage());
+    }
+  }
+
   public void updateRound(Block block, Clock clock, int roundNumber){
     updateNodes(block);
-    var leaderVRF= posProposerSelector.selectLeader(roundNumber, Bytes32.wrap(block.getHash().toArray()));
-    if (leaderVRF.isPresent()){
-      System.out.println("im leader");
-      createProposalAndTransmit(clock,leaderVRF.get().proof());
-    }
+    var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()));
+    maybeLeaderVRF.ifPresent(result -> sendSelectLeader(result.proof()));
   }
 
   private boolean nodeIsleader(Address leader){

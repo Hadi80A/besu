@@ -35,8 +35,7 @@ public class PosSubProtocol implements SubProtocol {
 
   // Precomputed map for fast lookup by code
   private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
-          Arrays.stream(PosMessage.values())
-                  .collect(Collectors.toMap(PosMessage::getCode, m -> m));
+          Arrays.stream(PosMessage.values()).collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
   /** Default constructor. */
   public PosSubProtocol() {}
@@ -67,7 +66,7 @@ public class PosSubProtocol implements SubProtocol {
       return false;
     }
     return switch (message) {
-      case PROPOSE, VOTE, BLOCK_ANNOUNCE, VIEW_CHANGE -> true;
+      case PROPOSE, VOTE, BLOCK_ANNOUNCE, VIEW_CHANGE , SELECT_LEADER-> true;
       default -> false;
     };
   }
@@ -83,6 +82,8 @@ public class PosSubProtocol implements SubProtocol {
       case VOTE -> "Vote";
       case BLOCK_ANNOUNCE -> "Commit";
       case VIEW_CHANGE -> "ViewChange";
+      case SELECT_LEADER -> "SelectLeader";
+
       default -> INVALID_MESSAGE_NAME;
     };
   }

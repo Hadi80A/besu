@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
@@ -27,6 +28,7 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -39,6 +41,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
@@ -255,9 +258,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 message.getRoundIdentifier().getRoundNumber());
 
 
-        final PosBlockHeightManager.MessageAge messageAge =
+        final MessageAge messageAge =
                 determineAgeOfPayload(message.getRoundIdentifier().getRoundNumber());
-        if (messageAge == PosBlockHeightManager.MessageAge.PRIOR_ROUND) {
+        if (messageAge == MessageAge.PRIOR_ROUND) {
             LOG.debug("Received RoundChange Payload for a prior round. targetRound={}", targetRound);
             return;
         }
@@ -271,7 +274,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             if (result.isPresent()) {
                 LOG.debug(
                         "Received sufficient RoundChange messages to change round to targetRound={}", targetRound);
-                if (messageAge == PosBlockHeightManager.MessageAge.FUTURE_ROUND) {
+                if (messageAge == MessageAge.FUTURE_ROUND) {
                     startNewRound(targetRound);
 
                 }else
@@ -332,11 +335,87 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         return currentRound.get().getRoundState();
     }
 
-    /**
-     * Handle proposal message.
-     *
-     * @param msg the msg
-     */
+
+    public void handleSelectLeaderMessage(final SelectLeader msg) {
+        LOG.debug("Received a select leader message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
+        SelectLeaderPayload payload =msg.getSignedPayload().getPayload();
+        if(determineAgeOfPayload(msg.getRoundIdentifier().getRoundNumber())==MessageAge.CURRENT_ROUND) {
+            getRoundState().addSelectLeaderMessage(msg);
+            if (checkThreshold(getRoundState().getSelectLeaderMessages())) {
+                List<SelectLeader> condidates = filterLeaders(getRoundState().getSelectLeaderMessages(),
+                        msg.getRoundIdentifier(), blockchain.getChainHeadHash());
+                var seed = PosProposerSelector.seed(msg.getRoundIdentifier().getRoundNumber(), blockchain.getChainHeadHash());
+                SelectLeader selected = null;
+                if (condidates.isEmpty()) {
+                    handleBlockTimerExpiry(msg.getRoundIdentifier());
+                    return;
+                } else if (condidates.size() == 1) {
+                    selected = condidates.getFirst();
+                    proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
+
+                } else {
+                    Bytes32 selectedY = Bytes32.ZERO;
+                    for (SelectLeader condidate : condidates) {
+                        var proof = condidate.getSignedPayload().getPayload().getProof();
+                        Node node = currentRound.get().getNodeSet().getNode(condidate.getAuthor()).get();
+                        var publicKey = node.getPublicKey();
+                        var y = VRF.hash(publicKey, seed, proof);
+                        if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
+                            selectedY = y;
+                            selected = condidate;
+                        }//todo:, if y equal -> instead of ID, we select earlier msg
+                    }
+                    proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
+                }
+
+                if (proposerSelector.isLocalProposer()) {
+                    System.out.println("im leader");
+                    currentRound.get().createProposalAndTransmit(
+                            clock,
+                            selected.getSignedPayload().getPayload().getProof()
+                    );
+                }
+            } else {
+                LOG.debug("SELECT LEADER not enough");
+            }
+
+        }else {
+            LOG.debug("invalid round in message");
+        }
+    }
+
+    public List<SelectLeader> filterLeaders(Set<SelectLeader> leaders, ConsensusRoundIdentifier roundNumber,
+                                                   Bytes32 prevBlockHash) {
+        final long totalStake = currentRound.get().nodeSet.getAllNodes().stream().mapToLong(n ->
+                n.getStakeInfo().getStakedAmount()).sum();
+        List<SelectLeader> condidates = new ArrayList<>();
+
+        if (totalStake <= 0){
+            LOG.debug("total stake {} is below 0",totalStake);
+            return condidates;
+        }
+        var seed = PosProposerSelector.seed(roundNumber.getRoundNumber(),prevBlockHash);
+
+
+        leaders.forEach(leaderMsg -> {
+            var proof = leaderMsg.getSignedPayload().getPayload().getProof();
+            Node node = currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).get();
+            var publicKey = node.getPublicKey();
+            if (VRF.verify(publicKey, seed, proof)) {
+                final var y = VRF.hash(publicKey, seed, proof);
+                final BigDecimal ratio = PosProposerSelector.toUnitFraction(y);
+                final BigDecimal thr = PosProposerSelector.threshold(node.getStakeInfo().getStakedAmount(), totalStake);
+                LOG.debug("ratio: {}, thr:{}", ratio, thr);
+                if (ratio.compareTo(thr) < 0) {
+                    condidates.add(leaderMsg);
+                }
+            }
+        });
+        return condidates ;
+
+    }
+
+
     public void handleProposalMessage(final Propose msg) {
         LOG.debug("Received a proposal message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
         ProposePayload payload = msg.getSignedPayload().getPayload();
@@ -364,12 +443,10 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         long headerTimeStampSeconds = payload.getPayload().getProposedBlock().getHeader().getTimestamp();
         long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
 
-        var seed = PosProposerSelector.seed(roundNumber, blockchain.getChainHeadHash());
-        var publicKey = currentRound.get().getNodeSet().getNode(payload.getAuthor()).get().getPublicKey();
         return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
                 payload.getPayload().getHeight() == getRoundState().getHeight() &&
                 diff >= (posConfig.getBlockPeriodSeconds()/5 ) &&
-                VRF.verify(publicKey, seed, payload.getPayload().getProof());
+                proposerSelector.getCurrentProposer().get().equals(payload.getAuthor());
     }
 
 
@@ -458,10 +535,15 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
     public void handleCommitMessage(final Commit msg) {
         ConsensusRoundIdentifier roundIdentifier = getRoundState().getRoundIdentifier();
-
         LOG.debug("Received a commit message. round={}. author={}", roundIdentifier, msg.getAuthor());
-        getRoundState().addCommitMessage(msg);
-        finalState.getBlockTimer().cancelTimer();
+        if( validateHeightAndRound(msg.getSignedPayload().getPayload()) &&
+                msg.getAuthor().equals(proposerSelector.getCurrentProposer().get())
+        ) {
+            getRoundState().addCommitMessage(msg);
+            finalState.getBlockTimer().cancelTimer();
+        }else {
+            LOG.debug("Invalid a commit message.");
+        }
 //        startNewRound(new ConsensusRoundIdentifier(
 //                roundIdentifier.getSequenceNumber()+1,
 //                roundIdentifier.getRoundNumber()+1

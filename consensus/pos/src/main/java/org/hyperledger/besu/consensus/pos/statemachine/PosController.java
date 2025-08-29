@@ -79,6 +79,12 @@ public class PosController extends BaseBftController {
 
     LOG.debug("received a message: {}", messageData);
     switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
+      case PosMessage.SELECT_LEADER:
+        consumeMessage(
+                message,
+                SelectLeaderMessageData.fromMessageData(messageData).decode(),
+                currentHeightManager::handleSelectLeaderMessage);
+        break;
       case PosMessage.PROPOSE:
         consumeMessage(
             message,

@@ -20,6 +20,7 @@ import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.crypto.SECPSignature;
 
@@ -48,6 +49,7 @@ public class RoundState {
   // Must track the actual Prepare message, not just the sender, as these may need to be reused
   // to send out in a PrepareCertificate.
   private final Set<Vote> voteMessages = Sets.newLinkedHashSet();
+  private final Set<SelectLeader> selectLeaderMessages = Sets.newLinkedHashSet();
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
   @Setter
   private State currentState;
@@ -68,20 +70,23 @@ public class RoundState {
     this.currentState=State.PROPOSE;
   }
 
-//  public PosBlock getProposedBlock() {
-//    return  proposeMessage.getProposedBlock();
-//  }
+  public void addSelectLeaderMessage(final SelectLeader msg) {
+//    if (Objects.nonNull(proposeMessage)) {
+      selectLeaderMessages.add(msg);
+      LOG.trace("Round state added selectleader message ={}", msg);
+//    }
+  }
 
   public void addVoteMessage(final Vote msg) {
     if (Objects.nonNull(proposeMessage)) {
       voteMessages.add(msg);
-      LOG.trace("Round state added precommit message commit={}", msg);
+      LOG.trace("Round state added vote message ={}", msg);
     }
   }
   public void addCommitMessage(final Commit msg) {
     if (Objects.nonNull(proposeMessage)) {
       commitMessages.add(msg);
-      LOG.trace("Round state added commit message commit={}", msg);
+      LOG.trace("Round state added commit message ={}", msg);
     }
   }
 

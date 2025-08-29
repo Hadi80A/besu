@@ -18,6 +18,7 @@ import lombok.Getter;
 
 @Getter
 public enum PosMessage {
+
   PROPOSE(0x9),
   VOTE(0x10),
   BLOCK_ANNOUNCE(0x11),
@@ -25,8 +26,8 @@ public enum PosMessage {
   PRE_VOTE(0x13),
   MAIN_VOTE(0x14),
   DECIDE(0x15),
-  MESSAGE_SPACE(0x16);
-
+  MESSAGE_SPACE(0x16),
+  SELECT_LEADER(0x17);
   private final int code;
 
   PosMessage(int code) {

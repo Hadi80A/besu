@@ -17,6 +17,8 @@ package org.hyperledger.besu.consensus.pos;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
@@ -38,6 +40,7 @@ import java.util.Collection;
 /** Adaptor class to allow a {@link BlockCreator} to be used as a {@link PosBlockCreator}. */
 public class PosBlockCreator {
 
+  private static final Logger log = LogManager.getLogger(PosBlockCreator.class);
   private final BlockCreator besuBlockCreator;
   private final PosExtraDataCodec posExtraDataCodec;
 
@@ -45,6 +48,8 @@ public class PosBlockCreator {
   public PosBlock createBlock(
           final long headerTimeStampSeconds, final PosBlockHeader parentHeader, Address proposer) {
     var blockResult = besuBlockCreator.createBlock(headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
+
+    log.info("transaction size:{}",blockResult.getTransactionSelectionResults().getSelectedTransactions().size());
     var round=new ConsensusRoundIdentifier(
             parentHeader.getRoundIdentifier().getSequenceNumber()+1,
             parentHeader.getRoundIdentifier().getRoundNumber()+1

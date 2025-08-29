@@ -58,6 +58,7 @@ public class PosGossip implements Gossiper {
               Arrays.stream(PosMessage.values())
                       .collect(Collectors.toMap(PosMessage::getCode, m -> m));
       decodedMessage = switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
+          case PosMessage.SELECT_LEADER -> SelectLeaderMessageData.fromMessageData(messageData).decode();
           case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
           case PosMessage.BLOCK_ANNOUNCE -> CommitMessageData.fromMessageData(messageData).decode();
           case PosMessage.VOTE -> null;

@@ -25,12 +25,16 @@ public class PayloadDeserializers {
   /** Default constructor. */
   protected PayloadDeserializers() {}
 
-  /**
-   * Read signed proposal payload from rlp input.
-   *
-   * @param rlpInput the rlp input
-   * @return the signed data
-   */
+  public static SignedData<SelectLeaderPayload> readSignedSelectLeaderPayloadFrom(final RLPInput rlpInput) {
+
+    rlpInput.enterList();
+    final SelectLeaderPayload unsignedMessageData = SelectLeaderPayload.readFrom(rlpInput);
+    final SECPSignature signature = readSignature(rlpInput);
+    rlpInput.leaveList();
+
+    return from(unsignedMessageData, signature);
+  }
+
   public static SignedData<ProposePayload> readSignedProposalPayloadFrom(final RLPInput rlpInput) {
 
     rlpInput.enterList();

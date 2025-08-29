@@ -15,14 +15,8 @@
 package org.hyperledger.besu.consensus.pos.network;
 
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
-import org.hyperledger.besu.consensus.pos.messagedata.CommitMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.ProposalMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.ViewChangeMessageData;
-import org.hyperledger.besu.consensus.pos.messagedata.VoteMessageData;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
-import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.messagedata.*;
+import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.statemachine.PosRoundFactory;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
@@ -64,6 +58,17 @@ public class PosMessageTransmitter {
 
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Proposal (not sent): {} ", e.getMessage());
+    }
+  }
+
+  public void multicastSelectLeader(SelectLeader selectLeader) {
+    try {
+
+      final SelectLeaderMessageData message = SelectLeaderMessageData.create(selectLeader);
+      LOG.debug("multicastSelectLeader: {}", message);
+      multicaster.send(message, Collections.singletonList(localAddress));
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for select leader (not sent): {} ", e.getMessage());
     }
   }
 

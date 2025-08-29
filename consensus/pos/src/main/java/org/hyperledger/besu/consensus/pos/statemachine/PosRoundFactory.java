@@ -24,15 +24,9 @@ import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
 import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.*;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
-import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
+import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
-import org.hyperledger.besu.consensus.pos.payload.CommitPayload;
-import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
-import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
-import org.hyperledger.besu.consensus.pos.payload.VotePayload;
+import org.hyperledger.besu.consensus.pos.payload.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -163,7 +157,19 @@ public class PosRoundFactory {
         public ViewChange createViewChange(SignedData<ViewChangePayload> payload) {
             return new ViewChange(payload);
         }
+        public SelectLeader createSelectLeader(SignedData<SelectLeaderPayload> payload) {
+            return new SelectLeader(payload);
+        }
 
+
+        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof) {
+            return SelectLeaderPayload.builder()
+                    .roundIdentifier(round)
+                    .height(height)
+                    .proof(proof)
+                    .build();
+        }
+        
         public CommitPayload createCommitPayload(PosBlock block) {
             return CommitPayload.builder()
                     .block(block)
