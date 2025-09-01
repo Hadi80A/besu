@@ -15,7 +15,6 @@
 package org.hyperledger.besu.consensus.pos;
 
 import org.hyperledger.besu.consensus.common.bft.Gossiper;
-import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.payload.Authored;
 

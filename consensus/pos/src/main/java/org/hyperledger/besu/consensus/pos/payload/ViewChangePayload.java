@@ -14,25 +14,15 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
-import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import java.io.IOException;
-import java.util.Objects;
-
-import com.google.common.base.MoreObjects;
-
 @SuperBuilder
 @EqualsAndHashCode(callSuper = false)
-/** The Round change payload. */
 public class ViewChangePayload extends PosPayload {
   private static final int TYPE = PosMessage.VIEW_CHANGE.getCode();
 
@@ -75,12 +65,7 @@ public class ViewChangePayload extends PosPayload {
     out.writeIntScalar(getRoundIdentifier().getRoundNumber());
   }
 
-  /**
-   * Read consensus round.
-   *
-   * @param in the rlp input
-   * @return the consensus round identifier
-   */
+
   protected static ConsensusRoundIdentifier readConsensusRound(final RLPInput in) {
     return new ConsensusRoundIdentifier(in.readLongScalar(), in.readIntScalar());
   }

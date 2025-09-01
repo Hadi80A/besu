@@ -13,10 +13,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 package org.hyperledger.besu.consensus.pos;
-import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.mainnet.DefaultProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 

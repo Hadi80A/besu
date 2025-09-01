@@ -26,12 +26,7 @@ public class PosBlockImporter {
   private final BlockImporter blockImporter;
   private final ProtocolContext context;
 
-  /**
-   * Constructs a new Pos block importer.
-   *
-   * @param blockImporter The Besu block importer
-   * @param context The protocol context
-   */
+
   public PosBlockImporter(
       final BlockImporter blockImporter, final ProtocolContext context) {
     this.blockImporter = blockImporter;

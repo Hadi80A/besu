@@ -6,7 +6,6 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
-import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
@@ -53,8 +52,7 @@ public class ContractCaller {
 //    }
 
     private BigDecimal weiToEth(BigInteger wei) {
-        return new BigDecimal(wei)
-                .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
+        return new BigDecimal(wei).divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
     }
 
     public BigInteger getValidatorStake(Address validatorAddress, Block block) {

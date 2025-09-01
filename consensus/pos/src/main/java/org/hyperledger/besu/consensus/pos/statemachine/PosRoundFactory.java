@@ -162,11 +162,12 @@ public class PosRoundFactory {
         }
 
 
-        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof) {
+        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof,boolean isCandidate) {
             return SelectLeaderPayload.builder()
                     .roundIdentifier(round)
                     .height(height)
                     .proof(proof)
+                    .isCandidate(isCandidate)
                     .build();
         }
         

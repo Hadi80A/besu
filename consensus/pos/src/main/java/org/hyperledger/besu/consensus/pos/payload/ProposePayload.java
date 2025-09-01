@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
@@ -35,9 +34,7 @@ import java.io.IOException;
 @EqualsAndHashCode(callSuper = false)
 public class ProposePayload extends PosPayload {
   private static final int TYPE = PosMessage.PROPOSE.getCode();
-//  private ConsensusRoundIdentifier roundIdentifier;
-//  private long height = -1;
-  private PosBlock proposedBlock;
+private PosBlock proposedBlock;
 
   private VRF.Proof proof;
 
@@ -91,30 +88,4 @@ public class ProposePayload extends PosPayload {
     return TYPE;
   }
 
-//
-//  @Override
-//  public boolean equals(final Object o) {
-//    if (this == o) {
-//      return true;
-//    }
-//    if (o == null || getClass() != o.getClass()) {
-//      return false;
-//    }
-//    final ProposePayload that = (ProposePayload) o;
-//    return Objects.equals(roundIdentifier, that.roundIdentifier)
-//        && Objects.equals(height, that.height);
-//  }
-
-//  @Override
-//  public int hashCode() {
-//    return Objects.hash(roundIdentifier, height);
-//  }
-//
-//  @Override
-//  public String toString() {
-//    return new StringJoiner(", ", ProposePayload.class.getSimpleName() + "[", "]")
-//        .add("roundIdentifier=" + roundIdentifier)
-//        .add("digest=" + height)
-//        .toString();
-//  }
 }

@@ -14,19 +14,14 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
-
-import java.io.IOException;
 
 /** The Proposal payload. */
 //@AllArgsConstructor
@@ -36,10 +31,11 @@ import java.io.IOException;
 public class SelectLeaderPayload extends PosPayload {
   private static final int TYPE = PosMessage.SELECT_LEADER.getCode();
   private VRF.Proof proof;
-
-  protected SelectLeaderPayload(ConsensusRoundIdentifier roundIdentifier, long height,VRF.Proof proof) {
+  private boolean isCandidate;
+  protected SelectLeaderPayload(ConsensusRoundIdentifier roundIdentifier, long height,VRF.Proof proof, boolean isCandidate) {
     super(roundIdentifier, height);
     this.proof = proof;
+    this.isCandidate = isCandidate;
   }
 
   public static SelectLeaderPayload readFrom(final RLPInput rlpInput) {
@@ -49,9 +45,11 @@ public class SelectLeaderPayload extends PosPayload {
       Bytes proofBytes = rlpInput.readBytes();
 
       final VRF.Proof proof=new VRF.Proof(proofBytes.toArray());
+    final int candidateInt = rlpInput.readInt();
+    final boolean isCandidate = candidateInt != 0;
       rlpInput.leaveList();
 
-      return new SelectLeaderPayload(roundIdentifier,height,proof);
+      return new SelectLeaderPayload(roundIdentifier,height,proof,isCandidate);
   }
 
 
@@ -61,6 +59,8 @@ public class SelectLeaderPayload extends PosPayload {
     getRoundIdentifier().writeTo(rlpOutput);
     rlpOutput.writeLong(getHeight());
       rlpOutput.writeBytes(Bytes.wrap(proof.bytes()));
+    // Write boolean as 0x01 (true) or 0x00 (false)
+    rlpOutput.writeInt(isCandidate ? 1 : 0);
       rlpOutput.endList();
   }
 

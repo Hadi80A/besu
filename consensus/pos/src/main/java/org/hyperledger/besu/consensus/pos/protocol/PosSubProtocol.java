@@ -22,13 +22,13 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** The Ibft sub protocol. */
+
 public class PosSubProtocol implements SubProtocol {
 
   /** The constant NAME. */
   public static String NAME = "POS";
 
-  /** The constant IBFV1. */
+
   public static final Capability POS = Capability.create(NAME, 1);
 
   private static final PosSubProtocol INSTANCE = new PosSubProtocol();
@@ -40,11 +40,7 @@ public class PosSubProtocol implements SubProtocol {
   /** Default constructor. */
   public PosSubProtocol() {}
 
-  /**
-   * Get ibft sub protocol.
-   *
-   * @return the ibft sub protocol
-   */
+
   public static PosSubProtocol get() {
     return INSTANCE;
   }

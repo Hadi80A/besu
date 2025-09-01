@@ -15,8 +15,7 @@
 package org.hyperledger.besu.consensus.pos.messagedata;
 
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-//import org.hyperledger.besu.consensus.ibft.messagewrappers.Proposal;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+//import org.hyperledger.besu.consensus.ibft.message wrappers.Proposal;
 import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 

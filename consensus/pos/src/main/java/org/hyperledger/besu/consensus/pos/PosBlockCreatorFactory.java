@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 
 /**
@@ -26,12 +25,7 @@ public class PosBlockCreatorFactory {
   private final BftBlockCreatorFactory<?> posBlockCreatorFactory;
   private final PosExtraDataCodec posExtraDataCodec;
 
-  /**
-   * Constructs a new PosBlockCreatorFactory
-   *
-   * @param bftBlockCreatorFactory The Besu QBFT block creator factory
-   * @param posExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
-   */
+
   public PosBlockCreatorFactory(
       final BftBlockCreatorFactory<?> bftBlockCreatorFactory,
       final PosExtraDataCodec posExtraDataCodec) {

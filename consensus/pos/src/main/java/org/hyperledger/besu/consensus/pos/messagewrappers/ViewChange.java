@@ -14,17 +14,13 @@
  */
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.Getter;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.payload.ViewChangePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
-
-import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
 

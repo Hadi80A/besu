@@ -19,7 +19,6 @@ import static org.hyperledger.besu.ethereum.mainnet.AbstractGasLimitSpecificatio
 
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftCoinbaseValidationRule;
-import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftCommitSealsValidationRule;
 import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftValidatorsValidationRule;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -42,14 +41,7 @@ public class PosBlockHeaderValidationRulesetFactory {
   /** Default constructor. */
   private PosBlockHeaderValidationRulesetFactory() {}
 
-  /**
-   * Produces a BlockHeaderValidator configured for assessing bft block headers which are to form
-   * part of the BlockChain (i.e. not proposed blocks, which do not contain commit seals)
-   *
-   * @param minimumTimeBetweenBlocks the minimum time which must elapse between blocks.
-   * @param baseFeeMarket an {@link Optional} wrapping {@link BaseFeeMarket} class if appropriate.
-   * @return BlockHeaderValidator configured for assessing bft block headers
-   */
+
   public static BlockHeaderValidator.Builder blockHeaderValidator(
       final Duration minimumTimeBetweenBlocks, final Optional<BaseFeeMarket> baseFeeMarket) {
     final BlockHeaderValidator.Builder ruleBuilder =

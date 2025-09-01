@@ -2,10 +2,6 @@ package org.hyperledger.besu.consensus.pos.core;
 
 import org.hyperledger.besu.consensus.pos.bls.Bls;
 
-import java.nio.ByteBuffer;
-import java.util.BitSet;
-import java.util.List;
-
 public final class CommitCertificate {
 //  private final BitSet signerBitmap;   // length n
   private final Bls.Signature aggregate; // 96 bytes compressed

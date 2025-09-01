@@ -14,7 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
-import com.google.common.annotations.VisibleForTesting;
+//import com.google.common.annotations.VisibleForTesting;
+import lombok.Getter;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
@@ -28,7 +29,6 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -41,7 +41,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
@@ -72,10 +71,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     private boolean isEarlyRoundChangeEnabled = false;
     private final SyncState syncState;
     private final RoundChangeManager roundChangeManager;
+    @Getter
     private boolean isFirstRoundStarted = false;
     // Store only 1 round change per round per validator
-    @VisibleForTesting
-    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
+//    @VisibleForTesting
+//    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
 
     private final PeerPublicKeyFetcher peerPublicKeyFetcher;
 
@@ -125,8 +125,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             roundIdentifier = new ConsensusRoundIdentifier(nextBlockHeight, posExtraData.getRound() + 1);
         }else
             roundIdentifier = new ConsensusRoundIdentifier(nextBlockHeight, posExtraData.getRound());
-        finalState.getBlockTimer().startTimer(roundIdentifier, parentHeader.getBesuHeader()::getTimestamp);
-        setCurrentRound(roundIdentifier.getRoundNumber());
+        if(roundIdentifier.getRoundNumber()==0) {
+            finalState.getBlockTimer().startTimer(roundIdentifier, parentHeader.getBesuHeader()::getTimestamp);
+            setCurrentRound(roundIdentifier.getRoundNumber());
+        }else
+            startNewRound(roundIdentifier);
     }
 
 
@@ -157,15 +160,19 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("before round {} ,roundIdentifier{}", round,roundIdentifier);
 //        LOG.debug("round ");
         LOG.debug("syncState.isInSync() {}", syncState.isInSync());
-        LOG.debug("peerPublicKeyFetcher.getEthPeers().peerCount() {}", peerPublicKeyFetcher.getEthPeers().peerCount());
-        if (syncState.isInSync() && peerPublicKeyFetcher.getEthPeers().peerCount() > 0) {
+        LOG.debug("peerPublicKeyFetcher.getEthPeers().peerCount() {}", peerPublicKeyFetcher.ethPeers().peerCount());
+        if(currentRound.isEmpty() && !isFirstRoundStarted && roundIdentifier.getRoundNumber() ==0){
+            setCurrentRound(0);
+        }
+        if (syncState.isInSync() && peerPublicKeyFetcher.ethPeers().peerCount() > 0) {
             round = new ConsensusRoundIdentifier(roundIdentifier.getSequenceNumber(), roundIdentifier.getRoundNumber()+1);
             LOG.debug("after round {} ,roundIdentifier{}", round,roundIdentifier);
 
            if (roundIdentifier.getRoundNumber() ==0 && !isFirstRoundStarted){
                LOG.debug("first round");
-               startNewRound(roundIdentifier);
                isFirstRoundStarted = true;
+
+               startNewRound(roundIdentifier);
            }else {
                doRoundChange(round.getRoundNumber());
                finalState.getBlockTimer().startTimer(round, () -> now);
@@ -288,6 +295,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         finalState.getBlockTimer().cancelTimer();
         long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
         finalState.getBlockTimer().startTimer(targetRound,()->headerTimeStampSeconds);
+        proposerSelector.setCurrentLeader(Optional.empty());
         setCurrentRound(targetRound.getRoundNumber());
         callUpdateRound(targetRound.getRoundNumber());
     }
@@ -332,50 +340,109 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     }
 
     private RoundState getRoundState() {
-        return currentRound.get().getRoundState();
+        return currentRound.map(PosRound::getRoundState).orElse(null);
+    }
+    public void consumeSelectLeaderMessage(final SelectLeader msg){
+        actionOrBufferMessage(
+                msg,
+                currentRound.isPresent() ? this::handleSelectLeaderMessage : (ignore) -> {},
+                RoundState::addSelectLeaderMessage);
     }
 
+    public void consumeProposeMessage(final Propose msg){
+        actionOrBufferMessage(
+                msg,
+                currentRound.isPresent() ? this::handleProposalMessage : (ignore) -> {},
+                RoundState::addProposalMessage);
+    }
+    public void consumeVoteMessage(final Vote msg){
+        actionOrBufferMessage(
+                msg,
+                currentRound.isPresent() ? this::handleVoteMessage: (ignore) -> {},
+                RoundState::addVoteMessage);
+    }
+    public void consumeCommitMessage(final Commit msg){
+        actionOrBufferMessage(
+                msg,
+                currentRound.isPresent() ? this::handleCommitMessage : (ignore) -> {},
+                RoundState::addCommitMessage);
+    }
 
-    public void handleSelectLeaderMessage(final SelectLeader msg) {
-        LOG.debug("Received a select leader message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
-        SelectLeaderPayload payload =msg.getSignedPayload().getPayload();
+    public void consumeViewChangeMessage(final ViewChange msg){
+//        actionOrBufferMessage(
+//                msg,
+//                currentRound.isPresent() ? this::handleViewChangePayload : (ignore) -> {},
+//                RoundState::addViewChangeMessage);
+    }
+
+    public void handleSelectLeaderMessage(final SelectLeader msg){
+        handleSelectLeaderMessage(msg,true);
+    }
+
+    public void handleSelectLeaderMessage(final SelectLeader msg,boolean logReceived) {
+        if (logReceived) {
+            LOG.debug("Received a select leader message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
+        }
+//        SelectLeaderPayload payload =msg.getSignedPayload().getPayload();
         if(determineAgeOfPayload(msg.getRoundIdentifier().getRoundNumber())==MessageAge.CURRENT_ROUND) {
             getRoundState().addSelectLeaderMessage(msg);
-            if (checkThreshold(getRoundState().getSelectLeaderMessages())) {
-                List<SelectLeader> condidates = filterLeaders(getRoundState().getSelectLeaderMessages(),
+            LOG.debug("checkThreshold(getRoundState().getSelectLeaderMessages()) {}",checkThreshold(getRoundState().getSelectLeaderMessages(),false ));
+            LOG.debug("proposerSelector.getCurrentProposer().isEmpty() {}",proposerSelector.getCurrentProposer().isEmpty());
+
+            if (checkThreshold(getRoundState().getSelectLeaderMessages(),false) && proposerSelector.getCurrentProposer().isEmpty()) {
+
+                LOG.debug("getRoundState().getSelectLeaderMessages() {}",Arrays.toString(getRoundState().getSelectLeaderMessages().toArray()));
+                List<SelectLeader> candidates = filterLeaders(getRoundState().getSelectLeaderMessages(),
                         msg.getRoundIdentifier(), blockchain.getChainHeadHash());
                 var seed = PosProposerSelector.seed(msg.getRoundIdentifier().getRoundNumber(), blockchain.getChainHeadHash());
                 SelectLeader selected = null;
-                if (condidates.isEmpty()) {
-                    handleBlockTimerExpiry(msg.getRoundIdentifier());
-                    return;
-                } else if (condidates.size() == 1) {
-                    selected = condidates.getFirst();
+                if (candidates.isEmpty()) {
+                    if (currentRound.isPresent()) {
+                        LOG.debug("currentRound.get().getNodeSet().totalSize(){}", currentRound.get().getNodeSet().totalSize());
+                        LOG.debug("getRoundState().getSelectLeaderMessages().size(){}", getRoundState().getSelectLeaderMessages().size());
+                        if (getRoundState().getSelectLeaderMessages().size() == currentRound.get().getNodeSet().totalSize()) {
+                            LOG.debug("candidates.isEmpty()");
+                            handleBlockTimerExpiry(msg.getRoundIdentifier());
+                            return;
+                        }
+                        LOG.debug("wait for more selectleader messages");
+                        return;
+                    }
+                } else if (candidates.size() == 1) {
+                    selected = candidates.getFirst();
+                    LOG.debug("candidates.size()==1 {}", selected.getAuthor());
                     proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
 
                 } else {
+                    LOG.debug("candidates.size()= {}", candidates.size());
                     Bytes32 selectedY = Bytes32.ZERO;
-                    for (SelectLeader condidate : condidates) {
-                        var proof = condidate.getSignedPayload().getPayload().getProof();
-                        Node node = currentRound.get().getNodeSet().getNode(condidate.getAuthor()).get();
-                        var publicKey = node.getPublicKey();
-                        var y = VRF.hash(publicKey, seed, proof);
-                        if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
-                            selectedY = y;
-                            selected = condidate;
-                        }//todo:, if y equal -> instead of ID, we select earlier msg
+                    if(currentRound.isPresent()) {
+                        for (SelectLeader candidate : candidates) {
+                            var proof = candidate.getSignedPayload().getPayload().getProof();
+                            Optional<Node> optionalNode = currentRound.get().getNodeSet().getNode(candidate.getAuthor());
+                            if(optionalNode.isPresent()) {
+                                Node node = optionalNode.get();
+                                var publicKey = node.getPublicKey();
+                                var y = VRF.hash(publicKey, seed, proof);
+                                if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
+                                    selectedY = y;
+                                    selected = candidate;
+                                }//todo:, if y equal -> instead of ID, we select earlier msg
+                            }
+                        }
+                        if (Objects.nonNull(selected)) {
+                            proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
+                        }
                     }
-                    proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
                 }
 
-                if (proposerSelector.isLocalProposer()) {
+                if (proposerSelector.isLocalProposer() && currentRound.isPresent() && Objects.nonNull(selected)) {
                     System.out.println("im leader");
-                    currentRound.get().createProposalAndTransmit(
-                            clock,
-                            selected.getSignedPayload().getPayload().getProof()
+                    currentRound.get().createProposalAndTransmit(clock, selected.getSignedPayload().getPayload().getProof()
                     );
                 }
-            } else {
+            }
+            else {
                 LOG.debug("SELECT LEADER not enough");
             }
 
@@ -386,33 +453,38 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
     public List<SelectLeader> filterLeaders(Set<SelectLeader> leaders, ConsensusRoundIdentifier roundNumber,
                                                    Bytes32 prevBlockHash) {
-        final long totalStake = currentRound.get().nodeSet.getAllNodes().stream().mapToLong(n ->
-                n.getStakeInfo().getStakedAmount()).sum();
-        List<SelectLeader> condidates = new ArrayList<>();
+        if(currentRound.isPresent()) {
 
-        if (totalStake <= 0){
-            LOG.debug("total stake {} is below 0",totalStake);
+            final long totalStake = currentRound.get().nodeSet.getAllNodes().stream().mapToLong(n ->
+                    n.getStakeInfo().getStakedAmount()).sum();
+            List<SelectLeader> condidates = new ArrayList<>();
+
+            if (totalStake <= 0) {
+                LOG.debug("total stake {} is below 0", totalStake);
+                return condidates;
+            }
+            var seed = PosProposerSelector.seed(roundNumber.getRoundNumber(), prevBlockHash);
+
+
+            leaders.forEach(leaderMsg -> {
+                var proof = leaderMsg.getSignedPayload().getPayload().getProof();
+                LOG.debug("leaderMsg.getSignedPayload().getPayload().getProof()={}", proof);
+                boolean isCandidate = leaderMsg.getSignedPayload().getPayload().isCandidate();
+                if (isCandidate && currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).isPresent()) {
+                    Node node = currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).get();
+                    LOG.debug("node{}", node.getAddress());
+                    var publicKey = node.getPublicKey();
+                    LOG.debug("node publickey{}", publicKey);
+                    if (VRF.verify(publicKey, seed, proof)) {
+                        if (proposerSelector.canLeader(proof,seed,node.getAddress())) {
+                            condidates.add(leaderMsg);
+                        }
+                    }
+                }
+            });
             return condidates;
         }
-        var seed = PosProposerSelector.seed(roundNumber.getRoundNumber(),prevBlockHash);
-
-
-        leaders.forEach(leaderMsg -> {
-            var proof = leaderMsg.getSignedPayload().getPayload().getProof();
-            Node node = currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).get();
-            var publicKey = node.getPublicKey();
-            if (VRF.verify(publicKey, seed, proof)) {
-                final var y = VRF.hash(publicKey, seed, proof);
-                final BigDecimal ratio = PosProposerSelector.toUnitFraction(y);
-                final BigDecimal thr = PosProposerSelector.threshold(node.getStakeInfo().getStakedAmount(), totalStake);
-                LOG.debug("ratio: {}, thr:{}", ratio, thr);
-                if (ratio.compareTo(thr) < 0) {
-                    condidates.add(leaderMsg);
-                }
-            }
-        });
-        return condidates ;
-
+        return List.of();
     }
 
 
@@ -443,28 +515,33 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         long headerTimeStampSeconds = payload.getPayload().getProposedBlock().getHeader().getTimestamp();
         long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
 
-        return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
-                payload.getPayload().getHeight() == getRoundState().getHeight() &&
-                diff >= (posConfig.getBlockPeriodSeconds()/5 ) &&
-                proposerSelector.getCurrentProposer().get().equals(payload.getAuthor());
+        if(proposerSelector.getCurrentProposer().isPresent()) {
+            return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
+                    payload.getPayload().getHeight() == getRoundState().getHeight() &&
+                    diff >= (posConfig.getBlockPeriodSeconds() / 5) &&
+                    proposerSelector.getCurrentProposer().get().equals(payload.getAuthor());
+        }
+        return false;
     }
 
 
     private void sendVote(final PosBlock block) {
         LOG.debug("Sending vote message. round={}", getRoundState().getRoundIdentifier());
         try {
-            VotePayload unsigned = messageFactory.createVotePayload(block);
-            SignedData<VotePayload> signedData = currentRound.get().createSignedData(unsigned);
-            final Vote localVoteMessage = messageFactory.createVote(signedData);
-            getRoundState().addVoteMessage(localVoteMessage);
-            if (proposerSelector.getCurrentProposer().isPresent()) {
-                Address proposer = proposerSelector.getCurrentProposer().get();
-                List<Address> denylist= new ArrayList<>(currentRound.get().getNodeSet().getAllNodes().stream().map(Node::getAddress)
-                        .toList());
-                denylist.remove(proposer);
-                LOG.debug("proposer: {} , denylist:{}",proposer,Arrays.toString(denylist.toArray()));
-                transmitter.multicastVote(localVoteMessage,denylist);
+            if(currentRound.isPresent()) {
+                VotePayload unsigned = messageFactory.createVotePayload(block);
+                SignedData<VotePayload> signedData = currentRound.get().createSignedData(unsigned);
+                final Vote localVoteMessage = messageFactory.createVote(signedData);
+                getRoundState().addVoteMessage(localVoteMessage);
+                if (proposerSelector.getCurrentProposer().isPresent()) {
+                    Address proposer = proposerSelector.getCurrentProposer().get();
+                    List<Address> denylist = new ArrayList<>(currentRound.get().getNodeSet().getAllNodes().stream().map(Node::getAddress)
+                            .toList());
+                    denylist.remove(proposer);
+                    LOG.debug("proposer: {} , denylist:{}", proposer, Arrays.toString(denylist.toArray()));
+                    transmitter.multicastVote(localVoteMessage, denylist);
 
+                }
             }
         } catch (final SecurityModuleException e) {
             LOG.warn("Failed to create a signed Vote; {}", e.getMessage());
@@ -480,7 +557,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 proposerSelector.isLocalProposer()
 
         ) {
-            if(checkThreshold(getRoundState().getVoteMessages())){
+            if(checkThreshold(getRoundState().getVoteMessages(),true)){
                 sendCommit(getRoundState().getProposedBlock());
             }else {
                 LOG.debug("votes not enough");
@@ -490,10 +567,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         }
     }
 
-    private boolean checkThreshold(Set<?> msg) {
-        return msg.size() >= getRoundState().getQuorum();
+    private boolean checkThreshold(Set<?> msg,boolean isVote) {
+        return currentRound.map(posRound -> posRound.checkThreshold(msg, isVote)).orElse(false);
     }
-
 
     private boolean validateHeightAndRound(PosPayload posPayload) {
         return posPayload.getHeight() == getRoundState().getHeight() &&
@@ -510,24 +586,23 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         return blockHash.equals(block.getHash());
     }
 
-
-
     private void sendCommit(final PosBlock block) {
         ConsensusRoundIdentifier roundIdentifier = getRoundState().getRoundIdentifier();
         LOG.debug("Sending Commit message. round={}", roundIdentifier);
         try {
-            finalState.getBlockTimer().cancelTimer();
-            CommitPayload unsigned = messageFactory.createCommitPayload(block);
-            SignedData<CommitPayload> signedData = currentRound.get().createSignedData(unsigned);
-            final Commit localCommitMessage = messageFactory.createCommit(signedData);
-            getRoundState().addCommitMessage(localCommitMessage);
-            transmitter.multicastCommit(localCommitMessage);
-            currentRound.get().importBlockToChain();
-            startNewRound(new ConsensusRoundIdentifier(
-                    roundIdentifier.getSequenceNumber()+1,
-                    roundIdentifier.getRoundNumber()+1
-                    ));
-
+            if (currentRound.isPresent()) {
+                finalState.getBlockTimer().cancelTimer();
+                CommitPayload unsigned = messageFactory.createCommitPayload(block);
+                SignedData<CommitPayload> signedData = currentRound.get().createSignedData(unsigned);
+                final Commit localCommitMessage = messageFactory.createCommit(signedData);
+                getRoundState().addCommitMessage(localCommitMessage);
+                transmitter.multicastCommit(localCommitMessage);
+                currentRound.get().importBlockToChain();
+//                startNewRound(new ConsensusRoundIdentifier(
+//                        roundIdentifier.getSequenceNumber() + 1,
+//                        roundIdentifier.getRoundNumber() + 1
+//                ));
+            }
         } catch (final SecurityModuleException e) {
             LOG.warn("Failed to create a signed Commit; {}", e.getMessage());
         }
@@ -537,6 +612,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         ConsensusRoundIdentifier roundIdentifier = getRoundState().getRoundIdentifier();
         LOG.debug("Received a commit message. round={}. author={}", roundIdentifier, msg.getAuthor());
         if( validateHeightAndRound(msg.getSignedPayload().getPayload()) &&
+                proposerSelector.getCurrentProposer().isPresent() &&
                 msg.getAuthor().equals(proposerSelector.getCurrentProposer().get())
         ) {
             getRoundState().addCommitMessage(msg);
@@ -575,27 +651,54 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
 
     private void setCurrentRound(final int roundNumber) {
-
+        if(roundNumber==0 && currentRound.isPresent()) {
+            return;
+        }
         LOG.debug("Starting new round {}", roundNumber);
         // validate the current round
 
         if (futureRoundStateBuffer.containsKey(roundNumber)) {
-            currentRound =
-                    Optional.of(
-                            roundFactory.createNewRoundWithState(
-                                    parentHeader, futureRoundStateBuffer.get(roundNumber)));
+            currentRound = Optional.of(
+                            roundFactory.createNewRoundWithState(parentHeader, futureRoundStateBuffer.get(roundNumber)));
+            checkMessages();
+
+
             futureRoundStateBuffer.keySet().removeIf(k -> k <= roundNumber);
         } else {
             currentRound = Optional.of(roundFactory.createNewRound(parentHeader, roundNumber));
         }
-
+        currentRound.get().setPosBlockHeightManager(this);
 //    // discard roundChange messages from the current and previous rounds
 //    roundChangeManager.discardRoundsPriorTo(currentRound.get().getRoundIdentifier());
     }
 
-    private void callUpdateRound(int roundNumber) {
+    private void checkMessages() {
+        if (currentRound.isPresent()) {
+            for (SelectLeader selectLeaderMessage : currentRound.get().getRoundState().getSelectLeaderMessages()) {
+                handleSelectLeaderMessage(selectLeaderMessage);
+            }
+            for (Propose proposeMessage : currentRound.get().getRoundState().getProposeMessages()) {
+                handleProposalMessage(proposeMessage);
+            }
+            for (Vote voteMessage : currentRound.get().getRoundState().getVoteMessages()) {
+                handleVoteMessage(voteMessage);
+            }
+            for (Commit commitMessage : currentRound.get().getRoundState().getCommitMessages()) {
+                handleCommitMessage(commitMessage);
+            }
+            for (ViewChange viewChangeMessage : currentRound.get().getRoundState().getViewChangeMessages()) {
+                handleViewChangePayload(viewChangeMessage);
+            }
+        }
+    }
 
+
+    private void callUpdateRound(int roundNumber) {
+        if(currentRound.isEmpty()) {
+            setCurrentRound(roundNumber);
+        }
         currentRound.get().updateRound(blockchain.getChainHeadBlock(), clock, roundNumber);
+
     }
 
 

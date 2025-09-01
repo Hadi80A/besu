@@ -15,12 +15,8 @@
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
 import lombok.Getter;
-import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
-import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
@@ -36,7 +32,7 @@ import org.slf4j.LoggerFactory;
 @Getter
 public class Propose extends BftMessage<ProposePayload> {
 
-  private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
+//  private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
   private static final Logger LOG = LoggerFactory.getLogger(Propose.class);
 
   /**
@@ -57,9 +53,6 @@ public class Propose extends BftMessage<ProposePayload> {
    *
    * @return the round change certificate
    */
-//  public Optional<RoundChangeCertificate> getRoundChangeCertificate() {
-//    return roundChangeCertificate;
-//  }
 
   @Override
   public Bytes encode() {

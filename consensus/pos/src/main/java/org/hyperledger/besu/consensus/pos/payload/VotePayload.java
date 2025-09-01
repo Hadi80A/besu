@@ -14,36 +14,25 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.crypto.SECPSignature;
-import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import java.util.Objects;
-import java.util.StringJoiner;
 //@AllArgsConstructor
 @Getter
 @EqualsAndHashCode(callSuper = false)
 @SuperBuilder
-/** The Vote payload. */
 public class VotePayload extends PosPayload {
   private static final int TYPE = PosMessage.VOTE.getCode();
   private final Hash digest;
-//  private final SECPSignature signature;
-  /**
-   * Default constructor.
-   *
-   * @param roundIdentifier
-   * @param height
-   */
+
+
   protected VotePayload(ConsensusRoundIdentifier roundIdentifier, long height, Hash digest) { //, SECPSignature signature
     super(roundIdentifier, height);
     this.digest = digest;
@@ -81,34 +70,4 @@ public class VotePayload extends PosPayload {
     return TYPE;
   }
 
-//  @Override
-//  public ConsensusRoundIdentifier getRoundIdentifier() {
-//    return roundIdentifier;
-//  }
-
-//  @Override
-//  public boolean equals(final Object o) {
-//    if (this == o) {
-//      return true;
-//    }
-//    if (o == null || getClass() != o.getClass()) {
-//      return false;
-//    }
-//    final VotePayload that = (VotePayload) o;
-//    return Objects.equals(roundIdentifier, that.roundIdentifier)
-//        && Objects.equals(digest, that.digest);
-//  }
-
-//  @Override
-//  public int hashCode() {
-//    return Objects.hash(roundIdentifier, digest);
-//  }
-//
-//  @Override
-//  public String toString() {
-//    return new StringJoiner(", ", VotePayload.class.getSimpleName() + "[", "]")
-//        .add("roundIdentifier=" + roundIdentifier)
-//        .add("digest=" + digest)
-//        .toString();
-//  }
 }

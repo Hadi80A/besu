@@ -37,7 +37,6 @@ import java.util.Collection;
 //@NoArgsConstructor
 //@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-/** Adaptor class to allow a {@link BlockCreator} to be used as a {@link PosBlockCreator}. */
 public class PosBlockCreator {
 
   private static final Logger log = LogManager.getLogger(PosBlockCreator.class);

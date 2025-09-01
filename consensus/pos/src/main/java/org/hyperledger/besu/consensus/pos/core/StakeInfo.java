@@ -18,15 +18,11 @@ public class StakeInfo {
   /** The amount of PAC coins staked by the validator (in smallest unit). */
   private long stakedAmount;
 
-  /** Block height when the stake became active. */
-//  private long activationHeight;
+    //  private long activationHeight;
 
-  /** Block height when the stake becomes withdrawable (after unbonding). */
-//  private long withdrawableHeight;
+    //  private long withdrawableHeight;
 
-  /** Flag indicating if stake is currently active in the validator set. */
-//  private boolean active;
+    //  private boolean active;
 
-  /** Optional: Flag for whether the validator has initiated unbonding. */
-//  private boolean unbonding;
+    //  private boolean unbonding;
 }

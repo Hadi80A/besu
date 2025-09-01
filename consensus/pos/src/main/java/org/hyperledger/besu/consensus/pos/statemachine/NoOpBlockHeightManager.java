@@ -40,17 +40,6 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
   @Override
   public void roundExpired(final RoundExpiry expire) {}
 
-//  @Override
-//  public void handleProposalPayload(final Proposal proposal) {}
-//
-//  @Override
-//  public void handlePreparePayload(final Prepare prepare) {}
-//
-//  @Override
-//  public void handleCommitPayload(final Commit commit) {}
-//
-//  @Override
-//  public void handleRoundChangePayload(final RoundChange roundChange) {}
 
   @Override
   public long getChainHeight() {
@@ -84,6 +73,31 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
 
   @Override
   public void handleSelectLeaderMessage(SelectLeader message) {
+
+  }
+
+  @Override
+  public void consumeProposeMessage(Propose msg) {
+
+  }
+
+  @Override
+  public void consumeVoteMessage(Vote msg) {
+
+  }
+
+  @Override
+  public void consumeCommitMessage(Commit msg) {
+
+  }
+
+  @Override
+  public void consumeViewChangeMessage(ViewChange message) {
+
+  }
+
+  @Override
+  public void consumeSelectLeaderMessage(SelectLeader message) {
 
   }
 }

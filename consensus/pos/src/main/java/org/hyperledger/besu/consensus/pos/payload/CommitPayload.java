@@ -18,19 +18,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.crypto.SECPSignature;
-import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
-import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.io.IOException;
-import java.util.Objects;
-import java.util.StringJoiner;
 
 /** The Commit payload. */
 @EqualsAndHashCode(callSuper = true)

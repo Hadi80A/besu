@@ -183,9 +183,7 @@ public class RoundChangeManager {
     final RoundChangeStatus roundChangeStatus = storeRoundChangeMessage(msg);
     LOG.debug("finalState.getReceivedMessages().size() {}", roundChangeStatus.receivedMessages.size());
     AtomicReference<String> str= new AtomicReference<>("");
-    roundChangeStatus.receivedMessages.keySet().forEach(address -> {
-      str.updateAndGet(v -> v + address);
-    });
+    roundChangeStatus.receivedMessages.keySet().forEach(address -> str.updateAndGet(v -> v + address));
     LOG.debug("bishoorHa:  {}", str.get());
         LOG.debug("finalState.getQuorum() {}",roundChangeStatus.quorum);
     if (roundChangeStatus.roundChangeQuorumReceived()) {

@@ -15,7 +15,7 @@
 package org.hyperledger.besu.controller;
 
 import org.hyperledger.besu.config.BftConfigOptions;
-import org.hyperledger.besu.config.BftFork;
+//import org.hyperledger.besu.config.BftFork;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.config.PosFork;
 import org.hyperledger.besu.consensus.common.BftValidatorOverrides;
@@ -86,7 +86,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   private ValidatorPeers peers;
   private PosExtraDataCodec bftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
-  private Address localAddress;
+//  private Address localAddress;
 
   /** Default Constructor */
   public PosBesuControllerBuilder() {}
@@ -105,6 +105,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   protected SubProtocolConfiguration createSubProtocolConfiguration(
       final EthProtocolManager ethProtocolManager,
       final Optional<SnapProtocolManager> maybeSnapProtocolManager) {
+
     final SubProtocolConfiguration subProtocolConfiguration =
         new SubProtocolConfiguration()
             .withSubProtocol(EthProtocol.get(), ethProtocolManager)
@@ -113,9 +114,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                 new BftProtocolManager(
                     bftEventQueue, peers, PosSubProtocol.POS, PosSubProtocol.get().getName()));
     maybeSnapProtocolManager.ifPresent(
-        snapProtocolManager -> {
-          subProtocolConfiguration.withSubProtocol(SnapProtocol.get(), snapProtocolManager);
-        });
+        snapProtocolManager -> subProtocolConfiguration.withSubProtocol(SnapProtocol.get(), snapProtocolManager));
     return subProtocolConfiguration;
   }
 
@@ -225,8 +224,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
 
 
-    PosProposerSelector  posProposerSelector=new PosProposerSelector(nodeSet,nodeKey,
-            nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount());
+    PosProposerSelector posProposerSelector = null;
+    if (  nodeSet.getNode(localAddress).isPresent()) {
+      posProposerSelector = new PosProposerSelector(nodeSet, nodeKey,
+              nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount());
+    }
     final BftEventHandler posController =
         new PosController(
             blockchain,

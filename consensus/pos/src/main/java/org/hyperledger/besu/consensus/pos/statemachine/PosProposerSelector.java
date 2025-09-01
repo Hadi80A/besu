@@ -4,12 +4,10 @@ import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
-import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
-import org.hyperledger.besu.consensus.pos.payload.SelectLeaderPayload;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.Hash;
-import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.core.Util;
@@ -19,7 +17,6 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -60,15 +57,32 @@ public class PosProposerSelector {
 
     }
 
+    public boolean canLeader(VRF.Proof proof, Bytes32 seed,Address nodeAddress) {
+        Optional<Node> node = nodeSet.getNode(nodeAddress);
+        if(node.isEmpty()){
+            log.debug("node is empty");
+            return false;
+        }
+        log.debug("node{}", node.get().getAddress());
+        var publicKey = node.get().getPublicKey();
+
+        final var y = VRF.hash(publicKey, seed, proof);
+        final BigDecimal ratio = PosProposerSelector.toUnitFraction(y);
+
+        final long totalStake = nodeSet.getAllNodes().stream().mapToLong(n -> n.getStakeInfo().getStakedAmount()).sum();
+
+        final BigDecimal thr = PosProposerSelector.threshold(node.get().getStakeInfo().getStakedAmount(), totalStake);
+        log.debug("ratio: {}, thr:{}, auther:{}", ratio, thr, nodeAddress);
+        return  ratio.compareTo(thr) < 0;
+    }
+
     public Optional<Address> getCurrentProposer() {
         return currentLeader;
     }
 
     public boolean isLocalProposer(){
-        if (Util.publicKeyToAddress(nodeKey.getPublicKey()).equals(getCurrentProposer().get())){
-            return true;
-        }
-        return false;
+
+        return getCurrentProposer().isPresent() && Util.publicKeyToAddress(nodeKey.getPublicKey()).equals(getCurrentProposer().get());
     }
 
     /** Seed derivation: keccak256("NEXUS-VRF-SEED" || round || prevBlockHash). */

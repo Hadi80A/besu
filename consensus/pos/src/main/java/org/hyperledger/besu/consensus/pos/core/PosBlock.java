@@ -15,7 +15,6 @@
 package org.hyperledger.besu.consensus.pos.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,7 +28,7 @@ import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.io.IOException;
-import java.util.Objects;
+
 @Data
 @Builder
 //@NoArgsConstructor

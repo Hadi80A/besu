@@ -21,8 +21,7 @@ public class Node {
   /** Stake information associated with this validator. */
   private StakeInfo stakeInfo;
 
-  /** Block height when this validator joined the committee. */
-//  private long lastJoinedHeight;
+    //  private long lastJoinedHeight;
 
   /** Flag indicating whether this validator is currently in the committee. */
   private boolean inCommittee;
@@ -47,19 +46,13 @@ public class Node {
     stakeInfo.setStakedAmount(newStake);
   }
 
-  /**
-   * Whether the validator is eligible to run sortition.
-   */
-//  public boolean canRunSortition(long currentHeight) {
+    //  public boolean canRunSortition(long currentHeight) {
 //    // A validator can run sortition if they are not already in the committee
 //    // or if they've been in the committee for 51+ blocks
 //    return !inCommittee || (currentHeight - lastJoinedHeight >= 51);
 //  }
 
-  /**
-   * Whether the validator is eligible for removal from committee (based on sortition rotation).
-   */
-//  public boolean shouldBeRemoved(long currentHeight) {
+    //  public boolean shouldBeRemoved(long currentHeight) {
 //    return inCommittee && (currentHeight - lastJoinedHeight >= 51);
 //  }
 }

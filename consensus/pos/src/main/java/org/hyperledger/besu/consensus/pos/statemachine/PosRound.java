@@ -25,7 +25,6 @@ import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
-import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockImporter;
@@ -33,7 +32,6 @@ import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
-import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
@@ -46,14 +44,9 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
-import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.core.Util;
-import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
-import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
-import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.worldstate.WorldState;
@@ -67,11 +60,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Clock;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
 
 /** The Pos round. */
 @Setter
@@ -102,9 +92,11 @@ public class PosRound {
   private final PosProposerSelector posProposerSelector;
   private final PosFinalState posFinalState;
   private final Address localAddress;
+  private boolean isIgnoreSelectLeaderMessages;
 
   private static String ALGORITHM = "ECDSA";
 
+  private PosBlockHeightManager posBlockHeightManager;
   /**
    * Instantiates a new Pos round.
    *
@@ -129,7 +121,8 @@ public class PosRound {
           final NodeKey nodeKey,
           final PosRoundFactory.MessageFactory messageFactory,
           final PosMessageTransmitter transmitter,
-          final RoundTimer roundTimer, PosConfigOptions posConfigOptions,
+          final RoundTimer roundTimer,
+          PosConfigOptions posConfigOptions,
           final BftExtraDataCodec bftExtraDataCodec,
           final PosBlockHeader parentHeader,
           final ContractCaller contractCaller, NodeSet nodeSet, PeerPublicKeyFetcher peerPublicKeyFetcher,
@@ -242,8 +235,7 @@ public class PosRound {
   }
 
   private BigDecimal weiToEth(BigInteger wei) {
-    return new BigDecimal(wei)
-            .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
+    return new BigDecimal(wei).divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
   }
 
   private BigInteger getValidatorStake(WorldState worldState, Address contractAddress, Address validatorAddress) {
@@ -329,13 +321,16 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
-      return;
     } catch (InterruptedException e) {
         throw new RuntimeException(e);
     }
   }
 
   public void importBlockToChain() {
+    if (posProposerSelector.getCurrentProposer().isEmpty()){
+      LOG.warn("No proposer selected for importBlockToChain");
+      return;
+    }
     final PosBlock blockToImport =
             blockCreator.createSealedBlock(
                     roundState.getProposedBlock(),
@@ -435,7 +430,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
   private void updateNodes(Block currentBlock){
     Map<Address,Bytes> publicKeyMap=peerPublicKeyFetcher.getConnectedPeerNodeIdsMap();
-
+    publicKeyMap.put(localAddress,nodeKey.getPublicKey().getEncodedBytes());
     nodeSet.getAllNodes().forEach(node -> {
       BigInteger newStake= contractCaller.getValidatorStake(node.getAddress(),currentBlock);
       StakeInfo stakeInfo = new StakeInfo(newStake.longValue());
@@ -447,15 +442,19 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     });
   }
 
-  public void sendSelectLeader(VRF.Proof proof) {
+  public void sendSelectLeader(VRF.Proof proof,boolean isCandidate) {
     LOG.debug("Sending selectleader message. round={}", getRoundState().getRoundIdentifier());
     try {
       SelectLeaderPayload unsigned= messageFactory.createSelectLeaderPayload(getRoundState().getRoundIdentifier()
-              ,getRoundState().getHeight(), proof );
+              ,getRoundState().getHeight(), proof ,isCandidate);
       SignedData<SelectLeaderPayload> signed=createSignedData(unsigned);
       final SelectLeader selectLeader = messageFactory.createSelectLeader(signed);
       getRoundState().addSelectLeaderMessage(selectLeader);
       transmitter.multicastSelectLeader(selectLeader);
+      if(checkThresholdWithoutSelf(roundState.getSelectLeaderMessages())){
+        posBlockHeightManager.handleSelectLeaderMessage(selectLeader,false);
+        LOG.debug("posBlockHeightManager{}", posBlockHeightManager.isFirstRoundStarted());
+      }
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to create a signed selectleader; {}", e.getMessage());
     }
@@ -464,7 +463,25 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
   public void updateRound(Block block, Clock clock, int roundNumber){
     updateNodes(block);
     var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()));
-    maybeLeaderVRF.ifPresent(result -> sendSelectLeader(result.proof()));
+    if(maybeLeaderVRF.isPresent()) {
+      var seed = PosProposerSelector.seed(roundNumber, block.getHash());
+      boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress);
+      sendSelectLeader(maybeLeaderVRF.get().proof(), isCandidate);
+    }
+  }
+
+  public boolean checkThreshold(Set<?> msg, boolean isVote) {
+    if (isVote){
+      return msg.size() >= getRoundState().getQuorum();
+
+    }else{
+      return msg.size()-1 >= getRoundState().getQuorum();
+
+    }
+  }
+
+  private boolean checkThresholdWithoutSelf(Set<?> msg){
+    return checkThreshold(msg,true);
   }
 
   private boolean nodeIsleader(Address leader){

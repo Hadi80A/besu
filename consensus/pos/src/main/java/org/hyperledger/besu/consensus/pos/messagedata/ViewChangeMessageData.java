@@ -17,7 +17,6 @@ package org.hyperledger.besu.consensus.pos.messagedata;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
 import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
 /** The ViewChange message data. */

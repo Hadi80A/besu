@@ -19,35 +19,24 @@ import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
-/** Utility class to convert between Besu and QBFT blocks. */
 public class BlockUtil {
 
   /** Private constructor to prevent instantiation. */
   private BlockUtil() {}
 
-  /**
-   * Convert a QBFT block to a Besu block.
-   *
-   * @param block the QBFT block
-   * @return the Besu block
-   */
+
   public static Block toBesuBlock(final PosBlock block) {
-    if (block instanceof PosBlock) {
-      return ((PosBlock) block).getBesuBlock();
+    if (block != null) {
+      return block.getBesuBlock();
     } else {
       throw new IllegalArgumentException("Unsupported block type");
     }
   }
 
-  /**
-   * Convert a QBFT block header to a Besu block header.
-   *
-   * @param header the QBFT block header
-   * @return the Besu block header
-   */
+
   public static BlockHeader toBesuBlockHeader(final PosBlockHeader header) {
-    if (header instanceof PosBlockHeader) {
-      return ((PosBlockHeader) header).getBesuBlockHeader();
+    if (header != null) {
+      return header.getBesuBlockHeader();
     } else {
       throw new IllegalArgumentException("Unsupported block header type");
     }

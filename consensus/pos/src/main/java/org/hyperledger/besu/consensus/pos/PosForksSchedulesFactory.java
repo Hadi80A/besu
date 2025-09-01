@@ -18,7 +18,6 @@ import org.hyperledger.besu.config.*;
 import org.hyperledger.besu.consensus.common.ForkSpec;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.ForksScheduleFactory;
-import org.hyperledger.besu.consensus.common.bft.MutableBftConfigOptions;
 
 /** The Pos forks schedules factory. */
 public class PosForksSchedulesFactory {

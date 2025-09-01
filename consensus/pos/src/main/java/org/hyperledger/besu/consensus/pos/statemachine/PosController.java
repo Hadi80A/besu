@@ -20,7 +20,6 @@ import org.hyperledger.besu.consensus.common.bft.MessageTracker;
 import org.hyperledger.besu.consensus.common.bft.SynchronizerUpdater;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBftController;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
-import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
 import org.hyperledger.besu.consensus.pos.PosExtraData;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
@@ -83,27 +82,27 @@ public class PosController extends BaseBftController {
         consumeMessage(
                 message,
                 SelectLeaderMessageData.fromMessageData(messageData).decode(),
-                currentHeightManager::handleSelectLeaderMessage);
+                currentHeightManager::consumeSelectLeaderMessage);
         break;
       case PosMessage.PROPOSE:
         consumeMessage(
             message,
             ProposalMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::handleProposalMessage);
+            currentHeightManager::consumeProposeMessage);
         break;
 
       case PosMessage.VOTE:
         consumeMessage(
             message,
             VoteMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::handleVoteMessage);
+            currentHeightManager::consumeVoteMessage);
         break;
 
       case PosMessage.BLOCK_ANNOUNCE:
         consumeMessage(
             message,
             CommitMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::handleCommitMessage);
+            currentHeightManager::consumeCommitMessage);
         break;
 
       case PosMessage.VIEW_CHANGE:
@@ -135,8 +134,7 @@ public class PosController extends BaseBftController {
     }
     PosExtraData posExtraData = new PosExtraDataCodec().decodePosData(parentHeader.getExtraData());
     ConsensusRoundIdentifier roundIdentifier=new ConsensusRoundIdentifier(0,posExtraData.getRound()); //TODO: sequense
-    PosBlockHeader posBlockHeader=new PosBlockHeader(parentHeader,roundIdentifier,posExtraData.getProposer());
-    return posBlockHeader;
+      return new PosBlockHeader(parentHeader,roundIdentifier,posExtraData.getProposer());
   }
 
   @Override

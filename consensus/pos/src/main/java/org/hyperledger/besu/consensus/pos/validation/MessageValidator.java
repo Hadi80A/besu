@@ -14,17 +14,11 @@
  */
 package org.hyperledger.besu.consensus.pos.validation;
 
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.common.bft.BftContext;
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
 import org.hyperledger.besu.ethereum.BlockValidator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
-
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,12 +49,7 @@ public class MessageValidator {
 //        this.roundChangeCertificateValidator = roundChangeCertificateValidator;
     }
 
-    /**
-     * Validate proposal.
-     *
-//     * @param msg the msg
-     * @return the boolean
-     */
+
 //    public boolean validateProposal(final Proposal msg) {
 //
 //        if (!signedDataValidator.validateProposal(msg.getSignedPayload())) {
@@ -153,22 +142,12 @@ public class MessageValidator {
 //        return true;
 //    }
 
-    /**
-     * Validate prepare.
-     *
-     * @param msg the msg
-     * @return the boolean
-     */
+
 //    public boolean validatePrepare(final Prepare msg) {
 //        return signedDataValidator.validatePrepare(msg.getSignedPayload());
 //    }
 
-    /**
-     * Validate commit.
-     *
-     * @param msg the msg
-     * @return the boolean
-     */
+
 //    public boolean validateCommit(final Commit msg) {
 //        return signedDataValidator.validateCommit(msg.getSignedPayload());
 //    }

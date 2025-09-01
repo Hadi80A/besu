@@ -17,18 +17,14 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import lombok.Getter;
 import lombok.Setter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
-import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Vote;
 import org.hyperledger.besu.crypto.SECPSignature;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
@@ -48,9 +44,11 @@ public class RoundState {
 
   // Must track the actual Prepare message, not just the sender, as these may need to be reused
   // to send out in a PrepareCertificate.
+  private final Set<Propose> proposeMessages = Sets.newLinkedHashSet();
   private final Set<Vote> voteMessages = Sets.newLinkedHashSet();
   private final Set<SelectLeader> selectLeaderMessages = Sets.newLinkedHashSet();
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
+  private final Set<ViewChange> viewChangeMessages = Sets.newLinkedHashSet();
   @Setter
   private State currentState;
   private final long height;
@@ -77,6 +75,14 @@ public class RoundState {
 //    }
   }
 
+  public void addProposalMessage(final Propose msg) {
+//    if (Objects.nonNull(proposeMessage)) {
+    proposeMessages.add(msg);
+    LOG.trace("Round state added Propose message ={}", msg);
+//    }
+  }
+
+
   public void addVoteMessage(final Vote msg) {
     if (Objects.nonNull(proposeMessage)) {
       voteMessages.add(msg);
@@ -90,11 +96,13 @@ public class RoundState {
     }
   }
 
+  public void addViewChangeMessage(final ViewChange msg) {
+      viewChangeMessages.add(msg);
+      LOG.trace("Round state added viewChangeMessages message ={}", msg);
+  }
+
   public Collection<SECPSignature> getCommitSeals() {
     return Collections.emptyList();//todo
-//    return commitMessages.stream()
-//            .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())
-//            .collect(Collectors.toList());
   }
 
 

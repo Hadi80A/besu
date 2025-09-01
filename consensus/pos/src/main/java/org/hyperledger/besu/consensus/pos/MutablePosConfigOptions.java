@@ -28,12 +28,7 @@ import java.util.OptionalLong;
  * {@link ForksSchedule}.
  */
 public class MutablePosConfigOptions extends MutableBftConfigOptions implements PosConfigOptions {
-    /**
-     * -- SETTER --
-     *  Sets validator contract address.
-     *
-     * @param validatorContractAddress the validator contract address
-     */
+
     @Setter
     private Optional<String> validatorContractAddress;
     @Setter

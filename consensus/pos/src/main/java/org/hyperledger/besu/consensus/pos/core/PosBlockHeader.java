@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.*;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.util.SerializeUtil;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -26,7 +25,7 @@ import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import java.io.IOException;
-import java.util.Objects;
+
 @Data
 @Builder
 //@NoArgsConstructor

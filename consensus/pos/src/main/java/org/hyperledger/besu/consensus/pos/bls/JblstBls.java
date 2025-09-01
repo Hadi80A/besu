@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 //import tech.pegasys.jblst.*; // adjust if your package name is different
-import supranational.blst.*;
+
 public final class JblstBls implements Bls {
 
   public JblstBls() {

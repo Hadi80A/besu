@@ -33,7 +33,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 @Getter
-/** Besu implementation of PosFinalState for maintaining the state of a Pos network. */
 public class PosFinalState {
   private final ValidatorProvider validatorProvider;
 

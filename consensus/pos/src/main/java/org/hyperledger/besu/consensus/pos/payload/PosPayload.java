@@ -32,10 +32,6 @@ public abstract class PosPayload implements Payload {
   protected final ConsensusRoundIdentifier roundIdentifier;
   protected final long height;
   /** Default constructor. */
-//  protected PosPayload(ConsensusRoundIdentifier roundIdentifier, long height) {
-//      this.roundIdentifier = roundIdentifier;
-//      this.height = height;
-//  }
 
 
   @Override

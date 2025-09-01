@@ -17,14 +17,12 @@ package org.hyperledger.besu.consensus.pos;
 import static org.hyperledger.besu.consensus.common.bft.Vote.ADD_BYTE_VALUE;
 import static org.hyperledger.besu.consensus.common.bft.Vote.DROP_BYTE_VALUE;
 
-import lombok.extern.log4j.Log4j;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.validator.VoteType;
-import org.hyperledger.besu.consensus.pos.util.SerializeUtil;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Address;
@@ -229,18 +227,13 @@ public PosExtraData decodePosData(final Bytes input) {
   if (!rlpInput.isEndOfCurrentList()) {
     if (rlpInput.nextIsNull()) {
       rlpInput.skipNext();
-      proposer = null;
     } else {
       final Bytes addressBytes = rlpInput.readBytes();
       // prefer Address.wrap if available; otherwise use fromHexString
       // Address.wrap(Address) exists in newer Besu versions; use accordingly.
       proposer = Address.fromHexString(addressBytes.toHexString());
     }
-  } else {
-    // end of list -> proposer absent (genesis or encoder omitted proposer)
-    proposer = null;
   }
-
   rlpInput.leaveList();
   // Optional: log debug data to help find encoder/decoder mismatches
   log.debug(

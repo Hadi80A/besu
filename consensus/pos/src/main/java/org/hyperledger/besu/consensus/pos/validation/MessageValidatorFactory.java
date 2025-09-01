@@ -17,7 +17,6 @@ package org.hyperledger.besu.consensus.pos.validation;
 import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
 import org.hyperledger.besu.consensus.common.bft.BftContext;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
-import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
@@ -30,28 +29,21 @@ import java.util.Collection;
 /** The Message validator factory. */
 public class MessageValidatorFactory {
 
-    private final ProposerSelector proposerSelector;
+//    private final ProposerSelector proposerSelector;
     private final ProtocolContext protocolContext;
     private final BftProtocolSchedule protocolSchedule;
-    private final BftExtraDataCodec bftExtraDataCodec;
+//    private final BftExtraDataCodec bftExtraDataCodec;
 
-    /**
-     * Instantiates a new Message validator factory.
-     *
-     * @param proposerSelector the proposer selector
-     * @param protocolSchedule the protocol schedule
-     * @param protocolContext the protocol context
-     * @param bftExtraDataCodec the bft extra data codec
-     */
+
     public MessageValidatorFactory(
             final ProposerSelector proposerSelector,
             final BftProtocolSchedule protocolSchedule,
             final ProtocolContext protocolContext,
             final BftExtraDataCodec bftExtraDataCodec) {
-        this.proposerSelector = proposerSelector;
+//        this.proposerSelector = proposerSelector;
         this.protocolSchedule = protocolSchedule;
         this.protocolContext = protocolContext;
-        this.bftExtraDataCodec = bftExtraDataCodec;
+//        this.bftExtraDataCodec = bftExtraDataCodec;
     }
 
     /**
@@ -121,13 +113,7 @@ public class MessageValidatorFactory {
                         );
     }
 
-    /**
-     * Create round change message validator.
-     *
-     * @param chainHeight the chain height
-     * @param parentHeader the parent header
-     * @return the round change message validator
-     */
+
 //    public RoundChangeMessageValidator createRoundChangeMessageValidator(
 //            final long chainHeight, final BlockHeader parentHeader) {
 //        final Collection<Address> validators = getValidatorsAfterBlock(protocolContext, parentHeader);
@@ -145,13 +131,7 @@ public class MessageValidatorFactory {
 //                bftBlockInterface);
 //    }
 
-    /**
-     * Create future round proposal message validator.
-     *
-     * @param chainHeight the chain height
-     * @param parentHeader the parent header
-     * @return the future round proposal message validator
-     */
+
 //    public FutureRoundProposalMessageValidator createFutureRoundProposalMessageValidator(
 //            final long chainHeight, final BlockHeader parentHeader) {
 //
