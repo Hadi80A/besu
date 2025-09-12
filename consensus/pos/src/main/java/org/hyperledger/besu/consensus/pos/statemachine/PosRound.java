@@ -62,6 +62,9 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /** The Pos round. */
 @Setter
@@ -97,6 +100,16 @@ public class PosRound {
   private static String ALGORITHM = "ECDSA";
 
   private PosBlockHeightManager posBlockHeightManager;
+
+  private final ScheduledExecutorService executor =
+          Executors.newSingleThreadScheduledExecutor(
+                  r -> {
+                    Thread t = new Thread(r, "pos-round-executor");
+                    t.setDaemon(true); // don’t block JVM shutdown
+                    return t;
+                  });
+
+
   /**
    * Instantiates a new Pos round.
    *
@@ -177,6 +190,7 @@ public class PosRound {
 //  }
 
   public PosBlock createBlock(final long headerTimeStampSeconds) {
+    LOG.info("function PosBlock createBlock");
     final Block block =
             blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
     final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
@@ -275,61 +289,71 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
 
   protected void createProposalAndTransmit(Clock clock,VRF.Proof proof) {
-    Propose proposal = null;
-    try {
-      long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
-      LOG.debug("headerTimeStampSeconds: {}, parentHeader time:{}", headerTimeStampSeconds,parentHeader.getTimestamp());
-      long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
-      if(diff<posConfigOptions.getBlockPeriodSeconds()/5){
-        Thread.sleep(diff);
-      }
-      PosBlock posBlock = createBlock(headerTimeStampSeconds);
-      var roundIdentifier=posBlock.getPosBlockHeader().getRoundIdentifier();
-      if (!posBlock.isEmpty()) {
-        var proposePayload = createProposePayload(posBlock, proof);
-        LOG.debug("Creating proposal and transmit for block");
-        proposal = messageFactory.createPropose(proposePayload);
+//      long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+//      LOG.debug("headerTimeStampSeconds: {}, parentHeader time:{}", headerTimeStampSeconds,parentHeader.getTimestamp());
+//      long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
+//      if(diff<posConfigOptions.getBlockPeriodSeconds()/5){
+//        Thread.sleep(((posConfigOptions.getBlockPeriodSeconds()/5) -diff)*1000);
+//        LOG.debug("(posConfigOptions.getBlockPeriodSeconds()/5):{}",(posConfigOptions.getBlockPeriodSeconds()/5));
+//        LOG.debug("diff:{}",diff);
+//        LOG.debug("posConfigOptions.getBlockPeriodSeconds()/5) -diff):{}",((posConfigOptions.getBlockPeriodSeconds()/5) -diff));
+//        headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
+//        LOG.debug("headerTimeStampSeconds{}",headerTimeStampSeconds);
+//      }
+      long MIN_GAP_SECONDS=posConfigOptions.getBlockPeriodSeconds()/5;
+      long delayMs = Math.max(0L, (parentHeader.getTimestamp() + MIN_GAP_SECONDS) * 1000L - clock.millis());
+      LOG.debug("createProposalAndTransmit");
+      executor.schedule(() -> {
+        Propose proposal = null;
+        try {
+          long tsSec = Math.max(parentHeader.getTimestamp() + MIN_GAP_SECONDS, TimeUnit.MILLISECONDS.toSeconds(clock.millis()));
+          PosBlock posBlock = createBlock(tsSec);
+          var roundIdentifier = posBlock.getPosBlockHeader().getRoundIdentifier();
+          if (!posBlock.isEmpty()) {
+            var proposePayload = createProposePayload(posBlock, proof);
 
-      }else {
-        // handle the block times period
-        final long currentTimeInMillis = posFinalState.getClock().millis();
-        boolean emptyBlockExpired = posFinalState
-                        .getBlockTimer()
-                        .checkEmptyBlockExpired(parentHeader::getTimestamp, currentTimeInMillis);
-        if (emptyBlockExpired) {
-          LOG.trace(
-                  "Block has no transactions and this node is a proposer so it will send a proposal: " +roundIdentifier);
-          var proposePayload = createProposePayload(posBlock, proof);
-          LOG.debug("Creating proposal and transmit for block");
-          proposal = messageFactory.createPropose(proposePayload);
-        } else {
-          LOG.trace(
-                  "Block has no transactions but emptyBlockPeriodSeconds did not expired yet: "
-                          + roundIdentifier);
-          posFinalState
-                  .getBlockTimer()
-                  .resetTimerForEmptyBlock(
-                          roundIdentifier, parentHeader::getTimestamp, currentTimeInMillis);
+            LOG.debug("Creating proposal and transmit for block");
+            proposal = messageFactory.createPropose(proposePayload);
+
+          } else {
+            // handle the block times period
+            final long currentTimeInMillis = posFinalState.getClock().millis();
+            boolean emptyBlockExpired = posFinalState
+                    .getBlockTimer()
+                    .checkEmptyBlockExpired(parentHeader::getTimestamp, currentTimeInMillis);
+            if (emptyBlockExpired) {
+              LOG.trace(
+                      "Block has no transactions and this node is a proposer so it will send a proposal: " + roundIdentifier);
+              var proposePayload = createProposePayload(posBlock, proof);
+              LOG.debug("Creating proposal and transmit for block2");
+              proposal = messageFactory.createPropose(proposePayload);
+            } else {
+              LOG.trace(
+                      "Block has no transactions but emptyBlockPeriodSeconds did not expired yet: "
+                              + roundIdentifier);
+              posFinalState
+                      .getBlockTimer()
+                      .resetTimerForEmptyBlock(
+                              roundIdentifier, parentHeader::getTimestamp, currentTimeInMillis);
 //          posFinalState.getRoundTimer().cancelTimer();
 //          currentRound = Optional.empty();
-        }
-      }
-      if (proposal != null) {
-        transmitter.multicastProposal(proposal);
-        roundState.setProposeMessage(proposal);
-      }
+            }
+          }
+          if (proposal != null) {
+            transmitter.multicastProposal(proposal);
+            roundState.setProposeMessage(proposal);
+          }
 
-    } catch (final SecurityModuleException e) {
-      LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
-    } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-    }
+        } catch (final SecurityModuleException e) {
+          LOG.warn("Failed to create a signed Proposal, waiting for next round.", e);
+        }
+      }, delayMs, TimeUnit.MILLISECONDS);
   }
 
-  public void importBlockToChain() {
+  public boolean importBlockToChain() {
     if (posProposerSelector.getCurrentProposer().isEmpty()){
       LOG.warn("No proposer selected for importBlockToChain");
-      return;
+      return false;
     }
     final PosBlock blockToImport =
             blockCreator.createSealedBlock(
@@ -359,11 +383,13 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
     if(isSuccess) {
       notifyNewBlockListeners(blockToImport);
+      return true;
     }else {
       LOG.error(
               "Failed to import proposed block to chain. block={} blockHeader={}",
               blockNumber,
               blockToImport.getHeader());
+      return false;
     }
   }
 
@@ -440,6 +466,22 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
         node.setPublicKey(SECPPublicKey.create(publicKeyByte, ALGORITHM));
       }
     });
+  }
+
+  public void updatePublicKey(Address nodeAddress) {
+    Map<Address,Bytes> publicKeyMap=peerPublicKeyFetcher.getConnectedPeerNodeIdsMap();
+    var nodeOptional= nodeSet.getNode(nodeAddress);
+    if(nodeOptional.isPresent()) {
+      Node node = nodeOptional.get();
+      if(publicKeyMap.containsKey(node.getAddress())) {
+        Bytes publicKeyByte = publicKeyMap.get(node.getAddress());
+        node.setPublicKey(SECPPublicKey.create(publicKeyByte, ALGORITHM));
+      }else {
+        LOG.debug("No public key found for node {}", nodeAddress);
+      }
+    }else {
+      LOG.debug("node not found for address {}", nodeAddress);
+    }
   }
 
   public void sendSelectLeader(VRF.Proof proof,boolean isCandidate) {

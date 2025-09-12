@@ -142,8 +142,9 @@ public class PosFinalState {
 
 
     public int getQuorum() {
-    return BftHelpers.calculateRequiredValidatorQuorum(getValidators().size());
-  }
+      int count=getValidators().size();
+      return (2*count)/3;
+    }
 
 
     /**

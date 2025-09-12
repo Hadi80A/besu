@@ -151,6 +151,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     bftExtraDataCodec
             );
 
+
     final ValidatorProvider validatorProvider =
         protocolContext.getConsensusContext(BftContext.class).getValidatorProvider();
 

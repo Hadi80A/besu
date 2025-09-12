@@ -31,6 +31,7 @@ import org.hyperledger.besu.consensus.pos.payload.*;
 
 import java.time.Clock;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -73,13 +74,13 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     private final RoundChangeManager roundChangeManager;
     @Getter
     private boolean isFirstRoundStarted = false;
+    private VRF.Proof leaderProof;
     // Store only 1 round change per round per validator
 //    @VisibleForTesting
 //    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
 
     private final PeerPublicKeyFetcher peerPublicKeyFetcher;
-
-
+    private int retryCounter =10;
     /**
      * Instantiates a new Pos block height manager.
      *
@@ -153,7 +154,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         finalState.getBlockTimer().cancelTimer();
 
         final long now = clock.millis() / 1000;
-
+        if(retryCounter<10){
+            finalState.getBlockTimer().startTimer(roundIdentifier, () -> now);
+            retryCounter++;
+            return;
+        }
 //        var blockPeriodSeconds=posConfig.getBlockPeriodSeconds();
 //        final long nextBlockPeriodExpiryTime = now + (blockPeriodSeconds );
         var round =roundIdentifier;
@@ -398,7 +403,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 SelectLeader selected = null;
                 if (candidates.isEmpty()) {
                     if (currentRound.isPresent()) {
-                        LOG.debug("currentRound.get().getNodeSet().totalSize(){}", currentRound.get().getNodeSet().totalSize());
+                        LOG.debug("currentRound.get().getNodeSet()totalSize(){}", currentRound.get().getNodeSet().totalSize());
                         LOG.debug("getRoundState().getSelectLeaderMessages().size(){}", getRoundState().getSelectLeaderMessages().size());
                         if (getRoundState().getSelectLeaderMessages().size() == currentRound.get().getNodeSet().totalSize()) {
                             LOG.debug("candidates.isEmpty()");
@@ -411,12 +416,14 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 } else if (candidates.size() == 1) {
                     selected = candidates.getFirst();
                     LOG.debug("candidates.size()==1 {}", selected.getAuthor());
+                    leaderProof= selected.getSignedPayload().getPayload().getProof();
                     proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
 
                 } else {
                     LOG.debug("candidates.size()= {}", candidates.size());
                     Bytes32 selectedY = Bytes32.ZERO;
                     if(currentRound.isPresent()) {
+                        LOG.debug("yes");
                         for (SelectLeader candidate : candidates) {
                             var proof = candidate.getSignedPayload().getPayload().getProof();
                             Optional<Node> optionalNode = currentRound.get().getNodeSet().getNode(candidate.getAuthor());
@@ -424,26 +431,41 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                                 Node node = optionalNode.get();
                                 var publicKey = node.getPublicKey();
                                 var y = VRF.hash(publicKey, seed, proof);
+                                LOG.debug("y vrf {}, author{}", y,candidate.getAuthor());
                                 if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
+                                    LOG.debug("previous selected:{}", selected);
                                     selectedY = y;
                                     selected = candidate;
                                 }//todo:, if y equal -> instead of ID, we select earlier msg
                             }
                         }
                         if (Objects.nonNull(selected)) {
+                            leaderProof= selected.getSignedPayload().getPayload().getProof();
                             proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
+
                         }
                     }
                 }
-
+                if(Objects.nonNull(selected)) {
+                    LOG.debug("leader is {}", selected.getAuthor());
+                }
                 if (proposerSelector.isLocalProposer() && currentRound.isPresent() && Objects.nonNull(selected)) {
                     System.out.println("im leader");
+
                     currentRound.get().createProposalAndTransmit(clock, selected.getSignedPayload().getPayload().getProof()
                     );
                 }
             }
             else {
-                LOG.debug("SELECT LEADER not enough");
+                if( proposerSelector.getCurrentProposer().isEmpty()) {
+                    LOG.debug("SELECT LEADER not enough");
+                }else {
+                    if (proposerSelector.isLocalProposer()) {
+                        System.out.println("im leader");
+                        currentRound.get().createProposalAndTransmit(clock, leaderProof);
+                    }
+                }
+
             }
 
         }else {
@@ -475,6 +497,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                     LOG.debug("node{}", node.getAddress());
                     var publicKey = node.getPublicKey();
                     LOG.debug("node publickey{}", publicKey);
+                    if(currentRound.isPresent() && Objects.isNull(publicKey)){
+                        currentRound.get().updatePublicKey(node.getAddress());
+                        LOG.debug("node publickey after update{}", publicKey);
+
+                    }
                     if (VRF.verify(publicKey, seed, proof)) {
                         if (proposerSelector.canLeader(proof,seed,node.getAddress())) {
                             condidates.add(leaderMsg);
@@ -496,7 +523,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("publickeys: {}", Arrays.toString(peerPublicKeyFetcher.getConnectedPeerNodeIdsHex().toArray()));
 
 
-        if (validateProposer(msg.getSignedPayload())) {
+        if (validateProposal(msg.getSignedPayload())) {
             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
             LOG.debug("Valid a proposal message.");
             getRoundState().setProposeMessage(msg);
@@ -506,7 +533,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         }
     }
 
-    private boolean validateProposer(SignedData<ProposePayload> payload) {
+    private boolean validateProposal(SignedData<ProposePayload> payload) {
         int roundNumber = payload.getPayload().getRoundIdentifier().getRoundNumber();
         LOG.debug(" payload.getPayload().getRoundIdentifier().getRoundNumber() {} ", roundNumber);
         LOG.debug(" getRoundState().getRoundIdentifier().getRoundNumber() {} ", getRoundState().getRoundIdentifier().getRoundNumber());
@@ -514,12 +541,26 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
         long headerTimeStampSeconds = payload.getPayload().getProposedBlock().getHeader().getTimestamp();
         long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
+        long systemTime = (long) (System.currentTimeMillis()/1000D);
+        LOG.debug("roundNumber == getRoundState().getRoundIdentifier().getRoundNumber(){}",roundNumber == getRoundState().getRoundIdentifier().getRoundNumber());
+        LOG.debug("diff >= (posConfig.getBlockPeriodSeconds() / 5)  ={}",diff >= (posConfig.getBlockPeriodSeconds() / 5) );
+        LOG.debug("diff{}",diff);
+        LOG.debug("headerTimeStampSeconds{}",headerTimeStampSeconds);
+        LOG.debug("parentHeader.getTimestamp(){}",parentHeader.getTimestamp());
+        LOG.debug("payload.getPayload().getHeight() == getRoundState().getHeight(){}",payload.getPayload().getHeight() == getRoundState().getHeight());
+        LOG.debug("headerTimeStampSeconds-systemTime<1{}",headerTimeStampSeconds-systemTime<1);
 
         if(proposerSelector.getCurrentProposer().isPresent()) {
+            LOG.debug("proposerSelector.getCurrentProposer().get().equals(payload.getAuthor()){}",proposerSelector.getCurrentProposer().get().equals(payload.getAuthor()));
+
             return roundNumber == getRoundState().getRoundIdentifier().getRoundNumber() &&
                     payload.getPayload().getHeight() == getRoundState().getHeight() &&
                     diff >= (posConfig.getBlockPeriodSeconds() / 5) &&
-                    proposerSelector.getCurrentProposer().get().equals(payload.getAuthor());
+                    proposerSelector.getCurrentProposer().get().equals(payload.getAuthor()) &&
+                    headerTimeStampSeconds-systemTime<1
+                    ;
+        }else {
+            LOG.debug("proposerSelector.getCurrentProposer().isPresent()=false");
         }
         return false;
     }
@@ -591,13 +632,26 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("Sending Commit message. round={}", roundIdentifier);
         try {
             if (currentRound.isPresent()) {
-                finalState.getBlockTimer().cancelTimer();
+
                 CommitPayload unsigned = messageFactory.createCommitPayload(block);
                 SignedData<CommitPayload> signedData = currentRound.get().createSignedData(unsigned);
                 final Commit localCommitMessage = messageFactory.createCommit(signedData);
                 getRoundState().addCommitMessage(localCommitMessage);
                 transmitter.multicastCommit(localCommitMessage);
-                currentRound.get().importBlockToChain();
+
+                boolean result= false;
+                retryCounter =0;
+                finalState.getBlockTimer().cancelTimer();
+                final long now = clock.millis() / 1000;
+                finalState.getBlockTimer().startTimer(roundIdentifier,()->now);
+                while (retryCounter < 10 && !result) {
+                    result = currentRound.get().importBlockToChain();
+                    if (!result) {
+                        if (retryCounter < 10) {
+                            TimeUnit.MILLISECONDS.sleep(10);
+                        }
+                    }
+                }
 //                startNewRound(new ConsensusRoundIdentifier(
 //                        roundIdentifier.getSequenceNumber() + 1,
 //                        roundIdentifier.getRoundNumber() + 1
@@ -605,6 +659,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             }
         } catch (final SecurityModuleException e) {
             LOG.warn("Failed to create a signed Commit; {}", e.getMessage());
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -615,8 +671,12 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 proposerSelector.getCurrentProposer().isPresent() &&
                 msg.getAuthor().equals(proposerSelector.getCurrentProposer().get())
         ) {
+            retryCounter =0;
             getRoundState().addCommitMessage(msg);
+            final long now = clock.millis() / 1000;
             finalState.getBlockTimer().cancelTimer();
+            finalState.getBlockTimer().startTimer(roundIdentifier, ()->now);
+
         }else {
             LOG.debug("Invalid a commit message.");
         }
