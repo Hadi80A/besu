@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.util.Subscribers;
 
@@ -48,7 +49,6 @@ public class PosRoundFactory {
     private final ContractCaller contractCaller;
     private final NodeSet nodeSet;
     private final PosProposerSelector proposerSelector;
-    private final PeerPublicKeyFetcher peerPublicKeyFetcher;
 
     /**
      * Instantiates a new Pos round factory.
@@ -68,7 +68,7 @@ public class PosRoundFactory {
             final Subscribers<PosMinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
-            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector, PeerPublicKeyFetcher peerPublicKeyFetcher) {
+            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {
         this.finalState = finalState;
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
@@ -81,7 +81,6 @@ public class PosRoundFactory {
         this.contractCaller = contractCaller;
         this.nodeSet = nodeSet;
         this.proposerSelector = proposerSelector;
-        this.peerPublicKeyFetcher = peerPublicKeyFetcher;
     }
 
     /**
@@ -136,7 +135,6 @@ public class PosRoundFactory {
                 parentHeader,
                 contractCaller,
                 nodeSet,
-                peerPublicKeyFetcher,
                 proposerSelector,
                 finalState
                 );
@@ -162,12 +160,14 @@ public class PosRoundFactory {
         }
 
 
-        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof,boolean isCandidate) {
+        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof,
+                                                             boolean isCandidate, SECPPublicKey publicKey) {
             return SelectLeaderPayload.builder()
                     .roundIdentifier(round)
                     .height(height)
                     .proof(proof)
                     .isCandidate(isCandidate)
+                    .publicKey(publicKey)
                     .build();
         }
         

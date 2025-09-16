@@ -19,6 +19,9 @@ import lombok.Getter;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
+import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
+
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
@@ -38,10 +41,12 @@ import java.util.function.Function;
 
 import com.google.common.collect.Maps;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
@@ -70,6 +75,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     private final Blockchain blockchain;
     private Optional<PosRound> currentRound = Optional.empty();
     private boolean isEarlyRoundChangeEnabled = false;
+
+    private final EthPeers ethPeers;
     private final SyncState syncState;
     private final RoundChangeManager roundChangeManager;
     @Getter
@@ -79,7 +86,6 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 //    @VisibleForTesting
 //    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
 
-    private final PeerPublicKeyFetcher peerPublicKeyFetcher;
     private int retryCounter =10;
     /**
      * Instantiates a new Pos block height manager.
@@ -95,7 +101,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             final PosFinalState finalState,
             final PosRoundFactory posRoundFactory,
             final Clock clock,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, PosConfigOptions posConfig, Blockchain blockchain, SyncState syncState, RoundChangeManager roundChangeManager, PeerPublicKeyFetcher peerPublicKeyFetcher
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, PosConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState, RoundChangeManager roundChangeManager
     ) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
@@ -112,9 +118,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                         infoMap.get("height"));
         this.posConfig = posConfig;
         this.blockchain = blockchain;
+        this.ethPeers = ethPeers;
         this.syncState = syncState;
         this.roundChangeManager = roundChangeManager;
-        this.peerPublicKeyFetcher = peerPublicKeyFetcher;
 
         final long nextBlockHeight = getChainHeight();
 
@@ -165,11 +171,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("before round {} ,roundIdentifier{}", round,roundIdentifier);
 //        LOG.debug("round ");
         LOG.debug("syncState.isInSync() {}", syncState.isInSync());
-        LOG.debug("peerPublicKeyFetcher.getEthPeers().peerCount() {}", peerPublicKeyFetcher.ethPeers().peerCount());
+        LOG.debug("peerPublicKeyFetcher.getEthPeers().peerCount() {}",ethPeers.peerCount());
         if(currentRound.isEmpty() && !isFirstRoundStarted && roundIdentifier.getRoundNumber() ==0){
             setCurrentRound(0);
         }
-        if (syncState.isInSync() && peerPublicKeyFetcher.ethPeers().peerCount() > 0) {
+        if (syncState.isInSync() && ethPeers.peerCount() > 0) {
             round = new ConsensusRoundIdentifier(roundIdentifier.getSequenceNumber(), roundIdentifier.getRoundNumber()+1);
             LOG.debug("after round {} ,roundIdentifier{}", round,roundIdentifier);
 
@@ -428,8 +434,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                             var proof = candidate.getSignedPayload().getPayload().getProof();
                             Optional<Node> optionalNode = currentRound.get().getNodeSet().getNode(candidate.getAuthor());
                             if(optionalNode.isPresent()) {
-                                Node node = optionalNode.get();
-                                var publicKey = node.getPublicKey();
+                                var publicKey = candidate.getSignedPayload().getPayload().getPublicKey();
                                 var y = VRF.hash(publicKey, seed, proof);
                                 LOG.debug("y vrf {}, author{}", y,candidate.getAuthor());
                                 if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
@@ -492,18 +497,17 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 var proof = leaderMsg.getSignedPayload().getPayload().getProof();
                 LOG.debug("leaderMsg.getSignedPayload().getPayload().getProof()={}", proof);
                 boolean isCandidate = leaderMsg.getSignedPayload().getPayload().isCandidate();
-                if (isCandidate && currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).isPresent()) {
+                SECPPublicKey publicKey = leaderMsg.getSignedPayload().getPayload().getPublicKey();
+                if (isCandidate && currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).isPresent()
+                    && Util.publicKeyToAddress(publicKey).equals(leaderMsg.getAuthor())) {
+
                     Node node = currentRound.get().getNodeSet().getNode(leaderMsg.getAuthor()).get();
                     LOG.debug("node{}", node.getAddress());
-                    var publicKey = node.getPublicKey();
-                    LOG.debug("node publickey{}", publicKey);
-                    if(currentRound.isPresent() && Objects.isNull(publicKey)){
-                        currentRound.get().updatePublicKey(node.getAddress());
-                        LOG.debug("node publickey after update{}", publicKey);
+                    LOG.debug("node leaderMsg.getAuthor(){}", leaderMsg.getAuthor());
+                    LOG.debug("leaderMsg.getSignedPayload().getPayload().getPublicKey(){}", publicKey);
 
-                    }
                     if (VRF.verify(publicKey, seed, proof)) {
-                        if (proposerSelector.canLeader(proof,seed,node.getAddress())) {
+                        if (proposerSelector.canLeader(proof,seed,node.getAddress(),publicKey)) {
                             condidates.add(leaderMsg);
                         }
                     }
@@ -519,9 +523,6 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("Received a proposal message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
         ProposePayload payload = msg.getSignedPayload().getPayload();
         final PosBlock block = payload.getProposedBlock();
-
-        LOG.debug("publickeys: {}", Arrays.toString(peerPublicKeyFetcher.getConnectedPeerNodeIdsHex().toArray()));
-
 
         if (validateProposal(msg.getSignedPayload())) {
             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
@@ -576,11 +577,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 getRoundState().addVoteMessage(localVoteMessage);
                 if (proposerSelector.getCurrentProposer().isPresent()) {
                     Address proposer = proposerSelector.getCurrentProposer().get();
-                    List<Address> denylist = new ArrayList<>(currentRound.get().getNodeSet().getAllNodes().stream().map(Node::getAddress)
-                            .toList());
-                    denylist.remove(proposer);
-                    LOG.debug("proposer: {} , denylist:{}", proposer, Arrays.toString(denylist.toArray()));
-                    transmitter.multicastVote(localVoteMessage, denylist);
+                    LOG.debug("proposer: {} ", proposer);
+                    transmitter.multicastVote(localVoteMessage);
 
                 }
             }
@@ -594,9 +592,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         getRoundState().addVoteMessage(msg);
 
         if (validateBlockHash(msg.getSignedPayload().getPayload().getDigest()) &&
-                validateHeightAndRound(msg.getSignedPayload().getPayload()) &&
-                proposerSelector.isLocalProposer()
-
+                validateHeightAndRound(msg.getSignedPayload().getPayload())
         ) {
             if(checkThreshold(getRoundState().getVoteMessages(),true)){
                 sendCommit(getRoundState().getProposedBlock());

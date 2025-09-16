@@ -20,6 +20,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
@@ -30,12 +31,18 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 @EqualsAndHashCode(callSuper = false)
 public class SelectLeaderPayload extends PosPayload {
   private static final int TYPE = PosMessage.SELECT_LEADER.getCode();
+  private static String ALGORITHM = "ECDSA";
+
   private VRF.Proof proof;
   private boolean isCandidate;
-  protected SelectLeaderPayload(ConsensusRoundIdentifier roundIdentifier, long height,VRF.Proof proof, boolean isCandidate) {
+  private SECPPublicKey publicKey;
+
+  protected SelectLeaderPayload(ConsensusRoundIdentifier roundIdentifier, long height,VRF.Proof proof,
+                                boolean isCandidate, SECPPublicKey publicKey) {
     super(roundIdentifier, height);
     this.proof = proof;
     this.isCandidate = isCandidate;
+    this.publicKey = publicKey;
   }
 
   public static SelectLeaderPayload readFrom(final RLPInput rlpInput) {
@@ -47,9 +54,11 @@ public class SelectLeaderPayload extends PosPayload {
       final VRF.Proof proof=new VRF.Proof(proofBytes.toArray());
     final int candidateInt = rlpInput.readInt();
     final boolean isCandidate = candidateInt != 0;
+    Bytes publicKeyByte= rlpInput.readBytes();
+    final SECPPublicKey secpPublicKey=SECPPublicKey.create(publicKeyByte, ALGORITHM);
       rlpInput.leaveList();
 
-      return new SelectLeaderPayload(roundIdentifier,height,proof,isCandidate);
+      return new SelectLeaderPayload(roundIdentifier,height,proof,isCandidate,secpPublicKey);
   }
 
 
@@ -61,6 +70,7 @@ public class SelectLeaderPayload extends PosPayload {
       rlpOutput.writeBytes(Bytes.wrap(proof.bytes()));
     // Write boolean as 0x01 (true) or 0x00 (false)
     rlpOutput.writeInt(isCandidate ? 1 : 0);
+    rlpOutput.writeBytes(publicKey.getEncodedBytes());
       rlpOutput.endList();
   }
 

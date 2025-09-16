@@ -132,9 +132,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
-    PosProtocolSchedule posProtocolSchedule =
-            new PosProtocolSchedule(bftProtocolSchedule, protocolContext);
-    PeerPublicKeyFetcher peerPublicKeyFetcher = new PeerPublicKeyFetcher(ethProtocolManager.ethContext().getEthPeers());
+    PosProtocolSchedule posProtocolSchedule = new PosProtocolSchedule(bftProtocolSchedule, protocolContext);
     final BftBlockCreatorFactory<?> bftblockCreatorFactory =
         new BftBlockCreatorFactory<>(
             transactionPool,
@@ -247,14 +245,13 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     bftExtraDataCodec,
                     contractCaller,
                     nodeSet,
-                    posProposerSelector,
-                    peerPublicKeyFetcher
+                    posProposerSelector
                 ),
                 messageValidatorFactory,
                     posConfig,
                 messageFactory,
                 posProposerSelector,
-                peerPublicKeyFetcher,
+                ethProtocolManager.ethContext().getEthPeers(),
                 syncState
 
             ),

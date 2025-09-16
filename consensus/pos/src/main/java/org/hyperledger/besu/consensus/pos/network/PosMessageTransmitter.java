@@ -72,10 +72,10 @@ public class PosMessageTransmitter {
     }
   }
 
-  public void multicastVote(Vote vote, List<Address> denylist) {
+  public void multicastVote(Vote vote) {
     try {
       final VoteMessageData message = VoteMessageData.create(vote);
-      multicaster.send(message,denylist);
+      multicaster.send(message , Collections.singletonList(localAddress));
     } catch (final SecurityModuleException e) {
       LOG.warn("Failed to generate signature for Prepare (not sent): {} ", e.getMessage());
     }

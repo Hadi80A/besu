@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,8 @@ public class PosBlockHeightManagerFactory {
     private final PosConfigOptions posConfig;
     private final PosRoundFactory.MessageFactory messageFactory;
     private final PosProposerSelector posProposerSelector;
-    private final PeerPublicKeyFetcher peerPublicKeyFetcher;
+
+    private final EthPeers ethPeers;
     private final SyncState syncState;
     /**
      * Instantiates a new Pos block height manager factory.
@@ -50,14 +52,14 @@ public class PosBlockHeightManagerFactory {
             final PosFinalState finalState,
             final PosRoundFactory roundFactory,
             final MessageValidatorFactory messageValidatorFactory, PosConfigOptions posConfig,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, PeerPublicKeyFetcher peerPublicKeyFetcher, SyncState syncState) {
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector,  EthPeers ethPeers, SyncState syncState) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
         this.posConfig = posConfig;
         this.messageFactory = messageFactory;
         this.posProposerSelector = posProposerSelector;
-        this.peerPublicKeyFetcher = peerPublicKeyFetcher;
+        this.ethPeers = ethPeers;
         this.syncState = syncState;
 
     }
@@ -100,9 +102,10 @@ public class PosBlockHeightManagerFactory {
                 new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress()),
                 posConfig,
                 blockchain,
+                ethPeers
+                ,
                 syncState,
-                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
-                peerPublicKeyFetcher
+                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress())
 
                 );
     }

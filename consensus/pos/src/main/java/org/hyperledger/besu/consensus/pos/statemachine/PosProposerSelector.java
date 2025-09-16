@@ -8,6 +8,7 @@ import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.Hash;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.core.Util;
@@ -57,15 +58,13 @@ public class PosProposerSelector {
 
     }
 
-    public boolean canLeader(VRF.Proof proof, Bytes32 seed,Address nodeAddress) {
+    public boolean canLeader(VRF.Proof proof, Bytes32 seed, Address nodeAddress, SECPPublicKey publicKey) {
         Optional<Node> node = nodeSet.getNode(nodeAddress);
         if(node.isEmpty()){
             log.debug("node is empty");
             return false;
         }
         log.debug("node{}", node.get().getAddress());
-        var publicKey = node.get().getPublicKey();
-
         final var y = VRF.hash(publicKey, seed, proof);
         final BigDecimal ratio = PosProposerSelector.toUnitFraction(y);
 

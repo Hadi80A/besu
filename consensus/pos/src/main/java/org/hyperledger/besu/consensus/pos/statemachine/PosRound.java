@@ -90,7 +90,6 @@ public class PosRound {
   private final PosMessageTransmitter transmitter;
   private final BftExtraDataCodec bftExtraDataCodec;
   private final PosBlockHeader parentHeader;
-  private final PeerPublicKeyFetcher  peerPublicKeyFetcher;
   private Propose propose;
   private final PosProposerSelector posProposerSelector;
   private final PosFinalState posFinalState;
@@ -138,7 +137,7 @@ public class PosRound {
           PosConfigOptions posConfigOptions,
           final BftExtraDataCodec bftExtraDataCodec,
           final PosBlockHeader parentHeader,
-          final ContractCaller contractCaller, NodeSet nodeSet, PeerPublicKeyFetcher peerPublicKeyFetcher,
+          final ContractCaller contractCaller, NodeSet nodeSet,
           PosProposerSelector posProposerSelector, PosFinalState posFinalState
   ) {
     this.roundState = roundState;
@@ -155,7 +154,6 @@ public class PosRound {
     this.contractCaller = contractCaller;
     this.nodeSet = nodeSet;
     this.localAddress=Util.publicKeyToAddress(nodeKey.getPublicKey());
-      this.peerPublicKeyFetcher = peerPublicKeyFetcher;
       this.posProposerSelector = posProposerSelector;
       this.posFinalState = posFinalState;
 //      roundTimer.startTimer(getRoundIdentifier());
@@ -455,40 +453,19 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
   }
 
   private void updateNodes(Block currentBlock){
-    Map<Address,Bytes> publicKeyMap=peerPublicKeyFetcher.getConnectedPeerNodeIdsMap();
-    publicKeyMap.put(localAddress,nodeKey.getPublicKey().getEncodedBytes());
     nodeSet.getAllNodes().forEach(node -> {
       BigInteger newStake= contractCaller.getValidatorStake(node.getAddress(),currentBlock);
       StakeInfo stakeInfo = new StakeInfo(newStake.longValue());
 //      node.setStakeInfo(stakeInfo); //TODO uncomment
-      if(publicKeyMap.containsKey(node.getAddress()) && node.getPublicKey()==null) {
-        Bytes publicKeyByte = publicKeyMap.get(node.getAddress());
-        node.setPublicKey(SECPPublicKey.create(publicKeyByte, ALGORITHM));
-      }
-    });
-  }
 
-  public void updatePublicKey(Address nodeAddress) {
-    Map<Address,Bytes> publicKeyMap=peerPublicKeyFetcher.getConnectedPeerNodeIdsMap();
-    var nodeOptional= nodeSet.getNode(nodeAddress);
-    if(nodeOptional.isPresent()) {
-      Node node = nodeOptional.get();
-      if(publicKeyMap.containsKey(node.getAddress())) {
-        Bytes publicKeyByte = publicKeyMap.get(node.getAddress());
-        node.setPublicKey(SECPPublicKey.create(publicKeyByte, ALGORITHM));
-      }else {
-        LOG.debug("No public key found for node {}", nodeAddress);
-      }
-    }else {
-      LOG.debug("node not found for address {}", nodeAddress);
-    }
+    });
   }
 
   public void sendSelectLeader(VRF.Proof proof,boolean isCandidate) {
     LOG.debug("Sending selectleader message. round={}", getRoundState().getRoundIdentifier());
     try {
       SelectLeaderPayload unsigned= messageFactory.createSelectLeaderPayload(getRoundState().getRoundIdentifier()
-              ,getRoundState().getHeight(), proof ,isCandidate);
+              ,getRoundState().getHeight(), proof ,isCandidate,nodeKey.getPublicKey());
       SignedData<SelectLeaderPayload> signed=createSignedData(unsigned);
       final SelectLeader selectLeader = messageFactory.createSelectLeader(signed);
       getRoundState().addSelectLeaderMessage(selectLeader);
@@ -507,7 +484,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()));
     if(maybeLeaderVRF.isPresent()) {
       var seed = PosProposerSelector.seed(roundNumber, block.getHash());
-      boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress);
+      boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress,nodeKey.getPublicKey());
       sendSelectLeader(maybeLeaderVRF.get().proof(), isCandidate);
     }
   }
