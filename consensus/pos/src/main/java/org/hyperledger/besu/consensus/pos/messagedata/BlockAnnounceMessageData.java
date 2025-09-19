@@ -15,48 +15,49 @@
 package org.hyperledger.besu.consensus.pos.messagedata;
 
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-import org.hyperledger.besu.consensus.pos.messagewrappers.Commit;
+import org.hyperledger.besu.consensus.pos.messagewrappers.BlockAnnounce;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
 import org.apache.tuweni.bytes.Bytes;
 
-/** The Commit message data. */
-public class CommitMessageData extends AbstractBftMessageData {
+/** The BlockAnnounce message data. */
+public class BlockAnnounceMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = PosMessage.COMMIT.getCode();
+  private static final int MESSAGE_CODE = PosMessage.BLOCK_ANNOUNCE.getCode();
 
-  private CommitMessageData(final Bytes data) {
+
+  private BlockAnnounceMessageData(final Bytes data) {
     super(data);
   }
 
   /**
-   * Instantiate CommitMessageData from message data.
+   * Instantiate BlockAnnounceMessageData from message data.
    *
    * @param messageData the message data
-   * @return the commit message data
+   * @return the blockAnnounce message data
    */
-  public static CommitMessageData fromMessageData(final MessageData messageData) {
+  public static BlockAnnounceMessageData fromMessageData(final MessageData messageData) {
     return fromMessageData(
-        messageData, MESSAGE_CODE, CommitMessageData.class, CommitMessageData::new);
+        messageData, MESSAGE_CODE, BlockAnnounceMessageData.class, BlockAnnounceMessageData::new);
   }
 
   /**
    * Decode.
    *
-   * @return the commit
+   * @return the blockAnnounce
    */
-  public Commit decode() {
-    return Commit.decode(data);
+  public BlockAnnounce decode() {
+    return BlockAnnounce.decode(data);
   }
 
   /**
-   * Create commit message data.
+   * Create blockAnnounce message data.
    *
-   * @param commit the commit
-   * @return the commit message data
+   * @param blockAnnounce the blockAnnounce
+   * @return the blockAnnounce message data
    */
-  public static CommitMessageData create(final Commit commit) {
-    return new CommitMessageData(commit.encode());
+  public static BlockAnnounceMessageData create(final BlockAnnounce blockAnnounce) {
+    return new BlockAnnounceMessageData(blockAnnounce.encode());
   }
 
   @Override

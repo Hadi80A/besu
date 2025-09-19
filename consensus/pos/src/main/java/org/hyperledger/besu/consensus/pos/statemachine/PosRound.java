@@ -95,6 +95,7 @@ public class PosRound {
   private final PosFinalState posFinalState;
   private final Address localAddress;
   private boolean isIgnoreSelectLeaderMessages;
+  private boolean validCommit=false;
 
   private static String ALGORITHM = "ECDSA";
 
@@ -481,9 +482,14 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
   public void updateRound(Block block, Clock clock, int roundNumber){
     updateNodes(block);
-    var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()));
+    LOG.debug("roundNumber{}, Bytes32.wrap(block.getHash().toArray()){},\n" +
+            "(block.getHeader().getNumber()+1){},posProposerSelector.getSeedAtRound(roundNumber-1){}",
+            roundNumber, Bytes32.wrap(block.getHash().toArray()),
+            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1));
+    var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()),
+            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1) );
     if(maybeLeaderVRF.isPresent()) {
-      var seed = PosProposerSelector.seed(roundNumber, block.getHash());
+      var seed =posProposerSelector.getSeedAtRound(roundNumber);
       boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress,nodeKey.getPublicKey());
       sendSelectLeader(maybeLeaderVRF.get().proof(), isCandidate);
     }

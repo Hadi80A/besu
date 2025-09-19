@@ -45,6 +45,16 @@ public class PayloadDeserializers {
     return from(unsignedMessageData, signature);
   }
 
+  public static SignedData<BlockAnnouncePayload> readSignedBlockAnnouncePayloadFrom(final RLPInput rlpInput) {
+
+    rlpInput.enterList();
+    final BlockAnnouncePayload unsignedMessageData = BlockAnnouncePayload.readFrom(rlpInput);
+    final SECPSignature signature = readSignature(rlpInput);
+    rlpInput.leaveList();
+
+    return from(unsignedMessageData, signature);
+  }
+
   /**
    * Read signed prepare payload from rlp input.
    *

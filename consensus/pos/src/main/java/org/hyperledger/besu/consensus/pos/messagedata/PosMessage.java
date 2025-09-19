@@ -18,10 +18,11 @@ import lombok.Getter;
 
 @Getter
 public enum PosMessage {
+  BLOCK_ANNOUNCE(0x7),
   SELECT_LEADER(0x8),
   PROPOSE(0x9),
   VOTE(0x10),
-  BLOCK_ANNOUNCE(0x11),
+  COMMIT(0x11),
   VIEW_CHANGE(0x12),
   PRE_VOTE(0x13),
   MAIN_VOTE(0x14),

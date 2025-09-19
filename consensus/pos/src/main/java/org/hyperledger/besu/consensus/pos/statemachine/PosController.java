@@ -77,6 +77,10 @@ public class PosController extends BaseBftController {
                     .collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
     LOG.debug("received a message: {}", messageData);
+    if (!currentHeightManager.checkValidState(messageData.getCode())){
+      LOG.warn("received a message with invalid state code: {}", messageData.getCode());
+      return;
+    }
     switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
       case PosMessage.SELECT_LEADER:
         consumeMessage(
@@ -98,11 +102,18 @@ public class PosController extends BaseBftController {
             currentHeightManager::consumeVoteMessage);
         break;
 
-      case PosMessage.BLOCK_ANNOUNCE:
+      case PosMessage.COMMIT:
         consumeMessage(
             message,
             CommitMessageData.fromMessageData(messageData).decode(),
             currentHeightManager::consumeCommitMessage);
+        break;
+
+      case PosMessage.BLOCK_ANNOUNCE:
+        consumeMessage(
+                message,
+                BlockAnnounceMessageData.fromMessageData(messageData).decode(),
+                currentHeightManager::consumeBlockAnnounceMessage);
         break;
 
       case PosMessage.VIEW_CHANGE:

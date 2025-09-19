@@ -30,6 +30,7 @@ import org.hyperledger.besu.consensus.pos.payload.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.SECPPublicKey;
+import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.util.Subscribers;
 
@@ -152,6 +153,9 @@ public class PosRoundFactory {
         public Commit createCommit(SignedData<CommitPayload> payload) {
             return new Commit(payload);
         }
+        public BlockAnnounce createBlockAnnounce(SignedData<BlockAnnouncePayload> payload) {
+            return new BlockAnnounce(payload);
+        }
         public ViewChange createViewChange(SignedData<ViewChangePayload> payload) {
             return new ViewChange(payload);
         }
@@ -170,12 +174,20 @@ public class PosRoundFactory {
                     .publicKey(publicKey)
                     .build();
         }
+
+        public BlockAnnouncePayload createBlockAnnouncePayload(ConsensusRoundIdentifier round, long height, Hash digest) {
+            return BlockAnnouncePayload.builder()
+                    .roundIdentifier(round)
+                    .height(height)
+                    .digest(digest)
+                    .build();
+        }
         
         public CommitPayload createCommitPayload(PosBlock block) {
             return CommitPayload.builder()
-                    .block(block)
                     .roundIdentifier(block.getHeader().getRoundIdentifier())
                     .height(block.getHeader().getHeight())
+                    .digest(block.getHash())
                     .build();
         }
 

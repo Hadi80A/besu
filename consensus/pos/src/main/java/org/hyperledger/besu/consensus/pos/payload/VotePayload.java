@@ -45,16 +45,16 @@ public class VotePayload extends PosPayload {
     final long height = rlpInput.readLong();
 
     // read signature in (r, s, recId/recParity) scalar fields
-    final BigInteger r = rlpInput.readBigIntegerScalar();
-    final BigInteger s = rlpInput.readBigIntegerScalar();
-    final byte recId = rlpInput.readByte();
+//    final BigInteger r = rlpInput.readBigIntegerScalar();
+//    final BigInteger s = rlpInput.readBigIntegerScalar();
+//    final byte recId = rlpInput.readByte();
     rlpInput.leaveList();
 
-    // validate/construct signature using the curve order (n)
-    final SECPSignature secpSignature =
-            SECPSignature.create(r, s, recId, SECP256K1_CURVE_ORDER);
+//    // validate/construct signature using the curve order (n)
+//    final SECPSignature secpSignature =
+//            SECPSignature.create(r, s, recId, SECP256K1_CURVE_ORDER);
 
-    return new VotePayload(roundIdentifier, height, digest, secpSignature);
+    return new VotePayload(roundIdentifier, height, digest,null/*, secpSignature*/);
   }
 
   @Override
@@ -63,9 +63,9 @@ public class VotePayload extends PosPayload {
     getRoundIdentifier().writeTo(rlpOutput);
     rlpOutput.writeBytes(digest);
     rlpOutput.writeLong(getHeight());
-    rlpOutput.writeBigIntegerScalar(signature.getR());
-    rlpOutput.writeBigIntegerScalar(signature.getS());
-    rlpOutput.writeByte(signature.getRecId());
+//    rlpOutput.writeBigIntegerScalar(signature.getR());
+//    rlpOutput.writeBigIntegerScalar(signature.getS());
+//    rlpOutput.writeByte(signature.getRecId());
     rlpOutput.endList();
   }
 

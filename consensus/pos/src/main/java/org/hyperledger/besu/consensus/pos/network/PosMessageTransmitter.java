@@ -41,8 +41,8 @@ public class PosMessageTransmitter {
    * @param messageFactory the message factory
    * @param multicaster the multicaster
    */
-  public PosMessageTransmitter(
-          final PosRoundFactory.MessageFactory messageFactory, final ValidatorMulticaster multicaster, Address localAddress) {
+  public PosMessageTransmitter(final PosRoundFactory.MessageFactory messageFactory, final ValidatorMulticaster multicaster,
+                               Address localAddress) {
     this.messageFactory = messageFactory;
     this.multicaster = multicaster;
     this.localAddress = localAddress;
@@ -89,6 +89,16 @@ public class PosMessageTransmitter {
       LOG.warn("Failed to generate signature for Commit (not sent): {} ", e.getMessage());
     }
   }
+
+  public void multicastBlockAnnounce(BlockAnnounce blockAnnounce) {
+    try {
+      final BlockAnnounceMessageData message = BlockAnnounceMessageData.create(blockAnnounce);
+      multicaster.send(message, Collections.singletonList(localAddress));
+    } catch (final SecurityModuleException e) {
+      LOG.warn("Failed to generate signature for BlockAnnounce (not sent): {} ", e.getMessage());
+    }
+  }
+
 
 
   public void multicastRoundChange(ViewChange viewChange) {

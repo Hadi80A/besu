@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
@@ -92,6 +93,11 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
   }
 
   @Override
+  public void consumeBlockAnnounceMessage(BlockAnnounce msg) {
+
+  }
+
+  @Override
   public void consumeViewChangeMessage(ViewChange message) {
 
   }
@@ -99,5 +105,10 @@ public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
   @Override
   public void consumeSelectLeaderMessage(SelectLeader message) {
 
+  }
+
+  @Override
+  public boolean checkValidState(int msgCode) {
+    return false;
   }
 }

@@ -62,7 +62,7 @@ public class PosSubProtocol implements SubProtocol {
       return false;
     }
     return switch (message) {
-      case PROPOSE, VOTE, BLOCK_ANNOUNCE, VIEW_CHANGE , SELECT_LEADER-> true;
+      case PROPOSE, VOTE, COMMIT, VIEW_CHANGE , SELECT_LEADER,BLOCK_ANNOUNCE-> true;
       default -> false;
     };
   }
@@ -76,10 +76,10 @@ public class PosSubProtocol implements SubProtocol {
     return switch (message) {
       case PROPOSE -> "Proposal";
       case VOTE -> "Vote";
-      case BLOCK_ANNOUNCE -> "Commit";
+      case COMMIT -> "Commit";
       case VIEW_CHANGE -> "ViewChange";
       case SELECT_LEADER -> "SelectLeader";
-
+      case BLOCK_ANNOUNCE -> "BlockAnnounce";
       default -> INVALID_MESSAGE_NAME;
     };
   }

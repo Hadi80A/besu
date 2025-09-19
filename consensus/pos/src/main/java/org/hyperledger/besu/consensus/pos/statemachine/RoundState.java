@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import lombok.Getter;
 import lombok.Setter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.crypto.SECPSignature;
@@ -48,9 +49,10 @@ public class RoundState {
   private final Set<Vote> voteMessages = Sets.newLinkedHashSet();
   private final Set<SelectLeader> selectLeaderMessages = Sets.newLinkedHashSet();
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
+  private final Set<BlockAnnounce> blockAnnounceMessages = Sets.newLinkedHashSet();
   private final Set<ViewChange> viewChangeMessages = Sets.newLinkedHashSet();
   @Setter
-  private State currentState;
+  private PosMessage currentState;
   private final long height;
 
   /**
@@ -65,7 +67,7 @@ public class RoundState {
     this.roundIdentifier = roundIdentifier;
     this.quorum = quorum;
     this.height = height;
-    this.currentState=State.PROPOSE;
+    this.currentState=PosMessage.SELECT_LEADER;
   }
 
   public void addSelectLeaderMessage(final SelectLeader msg) {
@@ -93,6 +95,13 @@ public class RoundState {
     if (Objects.nonNull(proposeMessage)) {
       commitMessages.add(msg);
       LOG.trace("Round state added commit message ={}", msg);
+    }
+  }
+
+  public void addBlockAnnounceMessage(final BlockAnnounce msg) {
+    if (Objects.nonNull(blockAnnounceMessages)) {
+      blockAnnounceMessages.add(msg);
+      LOG.trace("Round state added BlockAnnounce message ={}", msg);
     }
   }
 

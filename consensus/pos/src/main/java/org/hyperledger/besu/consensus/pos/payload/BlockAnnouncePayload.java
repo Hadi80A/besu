@@ -15,29 +15,27 @@
 package org.hyperledger.besu.consensus.pos.payload;
 
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.consensus.pos.statemachine.QuorumCertificate;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-/** The Commit payload. */
+/** The BlockAnnounce payload. */
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
-public class CommitPayload extends PosPayload {
-  private static final int TYPE = PosMessage.COMMIT.getCode();
-  @Getter
+public class BlockAnnouncePayload extends PosPayload {
+  private static final int TYPE = PosMessage.BLOCK_ANNOUNCE.getCode();
   private final Hash digest;
-  private final QuorumCertificate quorumCertificate;
 
-  public CommitPayload(ConsensusRoundIdentifier roundIdentifier, long height , Hash digest, QuorumCertificate quorumCertificate) {
+
+//  private final SECPSignature aggregation;//todo
+
+  public BlockAnnouncePayload(ConsensusRoundIdentifier roundIdentifier, long height , Hash digest) {
     super(roundIdentifier, height);
       this.digest = digest;
-      this.quorumCertificate = quorumCertificate;
   }
 
   /**
@@ -46,16 +44,15 @@ public class CommitPayload extends PosPayload {
    * @param rlpInput the rlp input
    * @return the commit payload
    */
-  public static CommitPayload readFrom(final RLPInput rlpInput) {
+  public static BlockAnnouncePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     long height = rlpInput.readLong();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
     final Hash digest = Payload.readDigest(rlpInput);
 
-    QuorumCertificate quorumCertificate = QuorumCertificate.readFrom(rlpInput);
     rlpInput.leaveList();
 
-    return new CommitPayload(roundIdentifier,height,digest,quorumCertificate);
+    return new BlockAnnouncePayload(roundIdentifier,height,digest);
   }
 
   @Override
@@ -64,7 +61,7 @@ public class CommitPayload extends PosPayload {
     rlpOutput.writeLong(height);
     getRoundIdentifier().writeTo(rlpOutput);
     rlpOutput.writeBytes(digest);
-    quorumCertificate.writeTo(rlpOutput);
+
     rlpOutput.endList();
   }
 
