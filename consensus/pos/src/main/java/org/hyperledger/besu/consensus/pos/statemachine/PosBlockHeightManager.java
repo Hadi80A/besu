@@ -19,9 +19,9 @@ import lombok.Getter;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
-import org.hyperledger.besu.ethereum.eth.manager.EthPeer;
 
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
@@ -35,7 +35,6 @@ import org.hyperledger.besu.consensus.pos.payload.*;
 
 import java.time.Clock;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -80,9 +79,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     private final EthPeers ethPeers;
     private final SyncState syncState;
     private final RoundChangeManager roundChangeManager;
+    private final Bls.KeyPair blsKeyPair;
     @Getter
     private boolean isFirstRoundStarted = false;
     private VRF.Proof leaderProof;
+    private PosExtraData posExtraData;
     // Store only 1 round change per round per validator
 //    @VisibleForTesting
 //    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
@@ -96,14 +97,15 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
      * @param posRoundFactory the pos round factory
      * @param clock           the clock
      * @param messageFactory  the message factory
+     * @param blsKeyPair
      */
     public PosBlockHeightManager(
             final PosBlockHeader parentHeader,
             final PosFinalState finalState,
             final PosRoundFactory posRoundFactory,
             final Clock clock,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, PosConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState, RoundChangeManager roundChangeManager
-    ) {
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector proposerSelector, PosMessageTransmitter transmitter, PosConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState, RoundChangeManager roundChangeManager,
+            Bls.KeyPair blsKeyPair) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
         this.messageFactory = messageFactory;
@@ -122,10 +124,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         this.ethPeers = ethPeers;
         this.syncState = syncState;
         this.roundChangeManager = roundChangeManager;
+        this.blsKeyPair = blsKeyPair;
 
         final long nextBlockHeight = getChainHeight();
 
-        PosExtraData posExtraData = readPosData();
+        posExtraData = readPosData();
 
         final ConsensusRoundIdentifier roundIdentifier;
         if(nextBlockHeight>1) {

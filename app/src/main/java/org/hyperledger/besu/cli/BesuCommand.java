@@ -93,6 +93,7 @@ import org.hyperledger.besu.config.MergeConfiguration;
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeCoordinator;
 import org.hyperledger.besu.controller.BesuController;
 import org.hyperledger.besu.controller.BesuControllerBuilder;
+import org.hyperledger.besu.controller.PosBesuControllerBuilder;
 import org.hyperledger.besu.crypto.Blake2bfMessageDigest;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.KeyPairUtil;
@@ -1844,6 +1845,10 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     }
     besuControllerBuilder.isBlockAccessListEnabled(
         apiConfigurationOptions.apiConfiguration().isBlockAccessListEnabled());
+
+    if(besuControllerBuilder instanceof PosBesuControllerBuilder posBesuControllerBuilder){
+        posBesuControllerBuilder.setDataDir(dataDir());
+    }
     return besuControllerBuilder;
   }
 

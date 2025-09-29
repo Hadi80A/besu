@@ -144,6 +144,7 @@ public class PosController extends BaseBftController {
       return new PosBlockHeader(parentHeader,new ConsensusRoundIdentifier(0,0),null);
     }
     PosExtraData posExtraData = new PosExtraDataCodec().decodePosData(parentHeader.getExtraData());
+
     ConsensusRoundIdentifier roundIdentifier=new ConsensusRoundIdentifier(0,posExtraData.getRound()); //TODO: sequense
       return new PosBlockHeader(parentHeader,roundIdentifier,posExtraData.getProposer());
   }

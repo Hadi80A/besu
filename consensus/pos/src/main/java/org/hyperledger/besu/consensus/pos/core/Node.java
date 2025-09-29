@@ -1,6 +1,7 @@
 package org.hyperledger.besu.consensus.pos.core;
 
 import lombok.*;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -18,6 +19,7 @@ public class Node {
   private Address address;
   @Setter
   private SECPPublicKey  publicKey;
+  private Bls.PublicKey blsPublicKey;
   /** Stake information associated with this validator. */
   private StakeInfo stakeInfo;
 

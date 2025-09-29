@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.config.PosConfigOptions;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
@@ -37,22 +38,23 @@ public class PosBlockHeightManagerFactory {
     private final PosConfigOptions posConfig;
     private final PosRoundFactory.MessageFactory messageFactory;
     private final PosProposerSelector posProposerSelector;
-
+    private final Bls.KeyPair blsKeyPair;
     private final EthPeers ethPeers;
     private final SyncState syncState;
     /**
      * Instantiates a new Pos block height manager factory.
      *
-     * @param finalState the final state
-     * @param roundFactory the round factory
+     * @param finalState              the final state
+     * @param roundFactory            the round factory
      * @param messageValidatorFactory the message validator factory
-     * @param messageFactory the message factory
+     * @param messageFactory          the message factory
+     * @param blsKeyPair
      */
     public PosBlockHeightManagerFactory(
             final PosFinalState finalState,
             final PosRoundFactory roundFactory,
             final MessageValidatorFactory messageValidatorFactory, PosConfigOptions posConfig,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector,  EthPeers ethPeers, SyncState syncState) {
+            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, EthPeers ethPeers, SyncState syncState, Bls.KeyPair blsKeyPair) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
@@ -61,7 +63,7 @@ public class PosBlockHeightManagerFactory {
         this.posProposerSelector = posProposerSelector;
         this.ethPeers = ethPeers;
         this.syncState = syncState;
-
+        this.blsKeyPair = blsKeyPair;
     }
 
     /**
@@ -102,11 +104,10 @@ public class PosBlockHeightManagerFactory {
                 new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress()),
                 posConfig,
                 blockchain,
-                ethPeers
-                ,
+                ethPeers,
                 syncState,
-                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress())
-
+                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
+                blsKeyPair
                 );
     }
 }

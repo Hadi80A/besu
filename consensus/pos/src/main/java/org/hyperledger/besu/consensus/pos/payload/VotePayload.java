@@ -6,6 +6,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
@@ -28,11 +29,10 @@ public class VotePayload extends PosPayload {
           new BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16);
 
   private final Hash digest;
-  private final SECPSignature signature;
+  private final Bls.Signature signature;
 
   protected VotePayload(
-          final ConsensusRoundIdentifier roundIdentifier, final long height, final Hash digest,
-          final SECPSignature signature) {
+          final ConsensusRoundIdentifier roundIdentifier, final long height, final Hash digest, final Bls.Signature signature) {
     super(roundIdentifier, height);
     this.digest = digest;
     this.signature = signature;
@@ -44,6 +44,8 @@ public class VotePayload extends PosPayload {
     final Hash digest = Payload.readDigest(rlpInput);
     final long height = rlpInput.readLong();
 
+    final Bytes signatureBytes = rlpInput.readBytes();
+    Bls.Signature blsSignature =Bls.Signature.signatureFromCompressed(signatureBytes.toArray()) ;
     // read signature in (r, s, recId/recParity) scalar fields
 //    final BigInteger r = rlpInput.readBigIntegerScalar();
 //    final BigInteger s = rlpInput.readBigIntegerScalar();
@@ -54,7 +56,7 @@ public class VotePayload extends PosPayload {
 //    final SECPSignature secpSignature =
 //            SECPSignature.create(r, s, recId, SECP256K1_CURVE_ORDER);
 
-    return new VotePayload(roundIdentifier, height, digest,null/*, secpSignature*/);
+    return new VotePayload(roundIdentifier, height, digest,blsSignature);
   }
 
   @Override
@@ -63,6 +65,7 @@ public class VotePayload extends PosPayload {
     getRoundIdentifier().writeTo(rlpOutput);
     rlpOutput.writeBytes(digest);
     rlpOutput.writeLong(getHeight());
+    rlpOutput.writeBytes(Bytes.wrap(signature.toBytesCompressed()));
 //    rlpOutput.writeBigIntegerScalar(signature.getR());
 //    rlpOutput.writeBigIntegerScalar(signature.getS());
 //    rlpOutput.writeByte(signature.getRecId());

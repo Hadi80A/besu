@@ -61,6 +61,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
       final MiningConfiguration miningConfiguration,
       final BadBlockManager badBlockManager,
       final boolean isParallelTxProcessingEnabled,
+      final boolean isBlockAccessListEnabled,
       final MetricsSystem metricsSystem) {
     return new PosProtocolScheduleBuilder()
         .createProtocolSchedule(
@@ -72,6 +73,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
             miningConfiguration,
             badBlockManager,
             isParallelTxProcessingEnabled,
+                isBlockAccessListEnabled,
             metricsSystem);
   }
 
@@ -97,6 +99,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
       final MiningConfiguration miningConfiguration,
       final BadBlockManager badBlockManager,
       final boolean isParallelTxProcessingEnabled,
+      final boolean isBlockAccessListEnabled,
       final MetricsSystem metricsSystem) {
     return create(
         config,
@@ -107,6 +110,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
         miningConfiguration,
         badBlockManager,
         isParallelTxProcessingEnabled,
+            isBlockAccessListEnabled,
         metricsSystem);
 
   }

@@ -23,9 +23,12 @@ import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.Vote;
 import org.hyperledger.besu.consensus.common.validator.VoteType;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPInput;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
@@ -48,6 +51,7 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
                   VoteType.ADD, ADD_BYTE_VALUE,
                   VoteType.DROP, DROP_BYTE_VALUE);
   private static final Logger log = LogManager.getLogger(PosExtraDataCodec.class);
+    private static String ALGORITHM = "ECDSA";
 
   /**
    * Default constructor.
@@ -72,15 +76,30 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
                             addresses));
   }
 
-  /**
-   * Create genesis extra data string.
-   *
-   * @param validators the validators
-   * @return the string
-   */
-  public static String createGenesisExtraDataString(final List<Address> validators) {
-    return encodeFromAddresses(validators).toString();
-  }
+    public static Bytes encodeFromAddressesAndKeys(final Collection<Address> addresses,Collection<SECPPublicKey> publicKeys,Collection<Bls.PublicKey> blsPublicKeys) {
+        return new PosExtraDataCodec()
+                .encodePosData(
+                        new PosExtraData(
+                                Bytes.wrap(new byte[EXTRA_VANITY_LENGTH]),
+                                Collections.emptyList(),
+                                Optional.empty(),
+                                0,
+                                addresses,
+                                null,
+                                publicKeys,
+                                blsPublicKeys
+                                ));
+    }
+
+//  /**
+//   * Create genesis extra data string.
+//   *
+//   * @param validators the validators
+//   * @return the string
+//   */
+//  public static String createGenesisExtraDataString(final List<Address> validators) {
+//    return encodeFromAddresses(validators).toString();
+//  }
 
   @Override
   public BftExtraData decodeRaw(final Bytes input) {
@@ -108,6 +127,18 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
 //
 //    return new BftExtraData(vanityData, seals, vote, round, validators);
   }
+
+    public PosExtraData decodePos(final BlockHeader blockHeader) {
+        final Object inputExtraData = blockHeader.getParsedExtraData();
+        if (inputExtraData instanceof PosExtraData) {
+            return (PosExtraData) inputExtraData;
+        }
+        log.warn(
+                "Expected a BftExtraData instance but got {}. Reparsing required.",
+                inputExtraData != null ? inputExtraData.getClass().getName() : "null");
+        return decodePosData(blockHeader.getExtraData());
+    }
+
 
   @Override
   protected Bytes encode(final BftExtraData bftExtraData, final EncodingType encodingType) {
@@ -160,6 +191,8 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     encoder.startList();
     encoder.writeBytes(posExtraData.getVanityData());
     encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+    encoder.writeList(posExtraData.getPublicKeys(), (publicKey, rlp) -> rlp.writeBytes(publicKey.getEncodedBytes()));
+    encoder.writeList(posExtraData.getBlsPublicKeys(), (BlsPublicKey, rlp) -> rlp.writeBytes(Bytes.wrap(BlsPublicKey.toBytesCompressed())));
 
     if (posExtraData.getVote().isPresent()) {
       encodeVote(encoder, posExtraData.getVote().get());
@@ -197,6 +230,13 @@ public PosExtraData decodePosData(final Bytes input) {
 
   // 2. validators list (may be empty list)
   final List<Address> validators = rlpInput.readList(Address::readFrom);
+  final List<SECPPublicKey> publickeys = rlpInput.readList(rlpIn ->{
+      Bytes publicKeyByte= rlpIn.readBytes();
+      return SECPPublicKey.create(publicKeyByte, ALGORITHM);
+  } );
+  final List<Bls.PublicKey> blsPublickeys = rlpInput.readList(rlpIn ->
+          Bls.publicKeyFromBytes(rlpIn.readBytes().toArray(),true)
+  );
 
   // 3. optional vote (either null or a Vote list structure)
   final Optional<Vote> vote;
@@ -245,7 +285,7 @@ public PosExtraData decodePosData(final Bytes input) {
           seals.size(),
           proposer);
 
-  return new PosExtraData(vanityData, seals, vote, round, validators, proposer);
+  return new PosExtraData(vanityData, seals, vote, round, validators, proposer,publickeys,blsPublickeys);
 }
 
 }

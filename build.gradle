@@ -188,7 +188,8 @@ licenseReport {
           'org.web3j:rlp', // Note: Multiple versions
           'org.web3j:tuples', // Note: Multiple versions
           'org.web3j:utils', // Note: Multiple versions
-          'tech.pegasys.discovery:discovery'
+          'tech.pegasys.discovery:discovery',
+          'tech.pegasys:jblst'
 
   ]
 

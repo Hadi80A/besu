@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import lombok.Getter;
 import supranational.blst.P1;
 import supranational.blst.P1_Affine;
 import supranational.blst.P2;
@@ -93,6 +94,35 @@ public final class Bls {
         REQUIRE_POP_REGISTRATION = value;
     }
 
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
+
+    private static String bytesToHex(final byte[] bytes) {
+        final char[] hexChars = new char[bytes.length * 2];
+        for (int i = 0; i < bytes.length; i++) {
+            final int v = bytes[i] & 0xFF;
+            hexChars[i * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
+    private static byte[] hexStringToByteArray(final String s) {
+        final int len = s.length();
+        if (len % 2 != 0) {
+            throw new IllegalArgumentException("Hex string must have even length");
+        }
+        final byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            final int high = Character.digit(s.charAt(i), 16);
+            final int low = Character.digit(s.charAt(i + 1), 16);
+            if (high == -1 || low == -1) {
+                throw new IllegalArgumentException("Invalid hex character in string");
+            }
+            data[i / 2] = (byte) ((high << 4) + low);
+        }
+        return data;
+    }
+
     // ---- Types ---------------------------------------------------------------
 
     /** Holder for a secret key (blst_Scalar). */
@@ -106,6 +136,9 @@ public final class Bls {
         public byte[] toBytes() {
             return sk.to_bendian();
         }
+        public String toHexString() {
+            return bytesToHex(toBytes());
+        }
 
         // Optional helper to zeroize if needed (call when SK is no longer needed)
         public void zeroize() {
@@ -115,6 +148,14 @@ public final class Bls {
             } catch (Throwable t) {
                 // ignore
             }
+        }
+
+        public static SecretKey secretKeyFromHex(final String hex) {
+            Objects.requireNonNull(hex, "hex");
+            if (hex.length() != SECRET_KEY_LEN * 2) {
+                throw new IllegalArgumentException("Secret key hex must be " + (SECRET_KEY_LEN * 2) + " characters");
+            }
+            return secretKeyFromBytes(hexStringToByteArray(hex));
         }
     }
 
@@ -135,9 +176,22 @@ public final class Bls {
             }
         }
 
+        public String toHexString() {
+            return bytesToHex(toBytesCompressed());
+        }
+
         public byte[] toBytesCompressed() {
             return pk.compress();
         }
+
+        public static PublicKey publicKeyFromHex(final String hex) {
+            Objects.requireNonNull(hex, "hex");
+            if (hex.length() != PUBLIC_KEY_LEN * 2) {
+                throw new IllegalArgumentException("Public key hex must be " + (PUBLIC_KEY_LEN * 2) + " characters");
+            }
+            return publicKeyFromBytes(hexStringToByteArray(hex), true);
+        }
+
     }
 
     /** Holder for a signature in G2 (affine). */
@@ -152,6 +206,10 @@ public final class Bls {
             return sig.compress();
         }
 
+        public static Signature signatureFromCompressed(final byte[] compressedSignature) {
+            return signatureFromBytes(compressedSignature, true);
+        }
+
         /** Optional: Validation (in-group + not infinity). */
         public boolean isValid() {
             try {
@@ -163,11 +221,12 @@ public final class Bls {
     }
 
     /** Combined key pair. */
+    @Getter
     public static final class KeyPair {
-        public final SecretKey secretKey;
-        public final PublicKey publicKey;
+        private final SecretKey secretKey;
+        private final PublicKey publicKey;
 
-        private KeyPair(final SecretKey sk, final PublicKey pk) {
+        public KeyPair(final SecretKey sk, final PublicKey pk) {
             this.secretKey = sk;
             this.publicKey = pk;
         }

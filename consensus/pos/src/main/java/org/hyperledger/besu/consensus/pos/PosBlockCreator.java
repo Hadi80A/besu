@@ -65,8 +65,8 @@ public class PosBlockCreator {
       final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals,Address propser) {
     final Block besuBlock = BlockUtil.toBesuBlock(block);
     final PosBlockHeader initialHeader = block.getHeader();
-    final BftExtraData initialExtraData =
-        posExtraDataCodec.decode(BlockUtil.toBesuBlockHeader(initialHeader));
+    final PosExtraData initialExtraData =
+        posExtraDataCodec.decodePos(BlockUtil.toBesuBlockHeader(initialHeader));
 
     final PosExtraData sealedExtraData =
         new PosExtraData(
@@ -75,7 +75,9 @@ public class PosBlockCreator {
             initialExtraData.getVote(),
             roundNumber,
             initialExtraData.getValidators(),
-            propser
+            propser,
+                initialExtraData.getPublicKeys(),
+                initialExtraData.getBlsPublicKeys()
         );
 
     final BlockHeader sealedHeader =

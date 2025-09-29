@@ -97,6 +97,8 @@ public abstract class BftExtraDataCodec {
     return decodeRaw(blockHeader.getExtraData());
   }
 
+
+
   /**
    * Decode raw.
    *

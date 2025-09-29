@@ -54,6 +54,13 @@ dependencies {
 
     implementation("tech.pegasys:jblst:0.3.15")
 
+
+//    implementation 'org.apache.tuweni:tuweni-crypto:2.3.1'
+//    implementation 'org.apache.tuweni:tuweni-bytes:2.3.1'
+//    implementation 'org.apache.tuweni:tuweni-units:2.3.1'
+//    implementation 'org.bouncycastle:bcprov-jdk18on:1.77'
+
+
     compileOnly 'org.projectlombok:lombok:1.18.38' // Or the latest version
     annotationProcessor 'org.projectlombok:lombok:1.18.38'
     testCompileOnly 'org.projectlombok:lombok:1.18.38'

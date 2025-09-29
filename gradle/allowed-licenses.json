@@ -67,6 +67,11 @@
       "moduleName": "junit:junit"
     },
     {
+      "moduleLicense": "Apache License, Version 2.0",
+      "moduleVersion": "0.3.15",
+      "moduleName": "tech.pegasys:jblst"
+    },
+    {
       "moduleName": "org.jetbrains.kotlin:kotlin-stdlib-common",
       "moduleVersion": "1.9.22"
     },

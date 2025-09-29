@@ -34,11 +34,13 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffe
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidatorProvider;
 import org.hyperledger.besu.consensus.pos.*;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.protocol.PosSubProtocol;
 import org.hyperledger.besu.consensus.pos.statemachine.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 import org.hyperledger.besu.crypto.Hash;
+import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.MiningCoordinator;
@@ -62,8 +64,11 @@ import org.hyperledger.besu.evm.worldstate.WorldState;
 import org.hyperledger.besu.plugin.services.BesuEvents;
 import org.hyperledger.besu.util.Subscribers;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -86,6 +91,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   private ValidatorPeers peers;
   private PosExtraDataCodec bftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
+  private Path dataDir;
 //  private Address localAddress;
 
   /** Default Constructor */
@@ -228,7 +234,15 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
       posProposerSelector = new PosProposerSelector(nodeSet, nodeKey,
               nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount());
     }
-    final BftEventHandler posController =
+      Bls.KeyPair blsKeyPair;
+      try {
+          blsKeyPair=readBlsKeyPair(); //todo: pass to posController
+          LOG.debug("blsPrivateKey:{}",blsKeyPair.getSecretKey().toHexString());
+          LOG.debug("blsPublicKey:{}",blsKeyPair.getPublicKey().toHexString());
+      } catch (IOException e) {
+          throw new RuntimeException(e);
+      }
+      final BftEventHandler posController =
         new PosController(
             blockchain,
                 posFinalState,
@@ -252,8 +266,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                 messageFactory,
                 posProposerSelector,
                 ethProtocolManager.ethContext().getEthPeers(),
-                syncState
-
+                syncState,
+                    blsKeyPair
             ),
             gossiper,
             duplicateMessageTracker,
@@ -314,7 +328,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     return posMiningCoordinator;
   }
-
   private NodeSet createNodeSet(ProtocolContext protocolContext) {
 
     WorldStateArchive worldStateArchive = protocolContext.getWorldStateArchive();
@@ -334,10 +347,12 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     // Use your custom codec to decode extraData
     PosExtraDataCodec codec = new PosExtraDataCodec();
-    BftExtraData bftExtraData = codec.decodeRaw(genesisHeader.getExtraData());
+    PosExtraData posExtraData = codec.decodePosData(genesisHeader.getExtraData());
 
     // Extract validator addresses
-    Collection<Address> validators = bftExtraData.getValidators();
+    List<Address> validators = posExtraData.getValidators().stream().toList();
+    List<SECPPublicKey> publicKeys = posExtraData.getPublicKeys().stream().toList();
+    List<Bls.PublicKey> blsPublicKeys = posExtraData.getBlsPublicKeys().stream().toList();
 
     // 4. Contract address
     //    Address stakeManager =
@@ -352,8 +367,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         "---------------------------------------------------------------------------");
 
     int validatorCount = 0;
-    for (Address validator : validators) {
+    for (int index = 0; index < validators.size(); index++) {
       validatorCount++;
+      Address validator=validators.get(index);
+      SECPPublicKey publicKey=publicKeys.get(index);
+      Bls.PublicKey blsPublicKey=blsPublicKeys.get(index);
       String id = "Validator-" + validatorCount;
       // Get account balance from world state
       Account account = worldState.get(validator);
@@ -381,6 +399,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
               .stakeInfo(stake)
               .blocksProposed(0)
               .lastProposedAt(0)
+              .publicKey(publicKey)
+              .blsPublicKey(blsPublicKey)
               .build();
       LOG.debug("stake:{}", node.getStakeInfo().getStakedAmount());
       nodeSet.addOrUpdateNode(node);
@@ -437,7 +457,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     return nodeSet;
   }
 
-  private BigDecimal weiToEth(BigInteger wei) {
+    public void setDataDir(Path dataDir) {
+        this.dataDir = dataDir;
+    }
+
+    private BigDecimal weiToEth(BigInteger wei) {
     return new BigDecimal(wei)
         .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
   }
@@ -485,6 +509,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         miningConfiguration,
         badBlockManager,
         isParallelTxProcessingEnabled,
+            isBlockAccessListEnabled,
         metricsSystem);
   }
 
@@ -530,6 +555,15 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     }
 
     return new BftValidatorOverrides(result);
+  }
+
+  private Bls.KeyPair readBlsKeyPair() throws IOException {
+      Path privateKeyFile = dataDir.resolve("BlsKey");
+      Path publicKeyFile = dataDir.resolve("BlsKey.pub");
+
+      Bls.SecretKey privateKey = Bls.SecretKey.secretKeyFromHex(Files.readAllLines(privateKeyFile).getFirst());
+      Bls.PublicKey publicKey = Bls.PublicKey.publicKeyFromHex(Files.readAllLines(publicKeyFile).getFirst());
+      return new Bls.KeyPair(privateKey,publicKey);
   }
 
   private static MinedBlockObserver blockLogger(

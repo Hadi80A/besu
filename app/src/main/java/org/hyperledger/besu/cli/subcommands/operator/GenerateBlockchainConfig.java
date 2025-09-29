@@ -25,6 +25,7 @@ import org.hyperledger.besu.config.JsonGenesisConfigOptions;
 import org.hyperledger.besu.config.JsonUtil;
 import org.hyperledger.besu.consensus.ibft.IbftExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPPrivateKey;
@@ -40,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -114,6 +116,9 @@ class GenerateBlockchainConfig implements Runnable {
       arity = "1..1")
   private String publicKeyFileName = "key.pub";
 
+  private String blsPublicKeyFileName = "BlsKey.pub";
+  private String blsSecretKeyFileName = "BlsKey";
+
   @ParentCommand
   private OperatorSubCommand parentCommand; // Picocli injects reference to parent command
 
@@ -123,7 +128,10 @@ class GenerateBlockchainConfig implements Runnable {
   private ObjectNode nodesConfig;
   private boolean generateNodesKeys;
   private final List<Address> addressesForGenesisExtraData = new ArrayList<>();
+  private final List<Bls.PublicKey> blsPksForGenesisExtraData = new ArrayList<>();
+  private final List<SECPPublicKey> pksForGenesisExtraData = new ArrayList<>();
   private Path keysDirectory;
+
 
   @Override
   public void run() {
@@ -147,6 +155,7 @@ class GenerateBlockchainConfig implements Runnable {
       processEcCurve();
       if (generateNodesKeys) {
         generateNodesKeys();
+        generateNodesBlsKeys();
       } else {
         importPublicKeysFromConfig();
       }
@@ -229,6 +238,7 @@ class GenerateBlockchainConfig implements Runnable {
       throws IOException {
     final Address nodeAddress = Util.publicKeyToAddress(publicKey);
     addressesForGenesisExtraData.add(nodeAddress);
+    pksForGenesisExtraData.add(publicKey);
     final Path nodeDirectoryPath = keysDirectory.resolve(nodeAddress.toString());
     Files.createDirectory(nodeDirectoryPath);
     createFileAndWrite(nodeDirectoryPath, publicKeyFileName, publicKey.toString());
@@ -237,7 +247,57 @@ class GenerateBlockchainConfig implements Runnable {
     }
   }
 
-  /** Computes RLP encoded exta data from pre filled list of addresses. */
+    /** Generates nodes BLS keypairs. */
+    private void generateNodesBlsKeys() {
+        final int nodesCount = JsonUtil.getInt(nodesConfig, "count", 0);
+        LOG.info("Generating {} nodes Bls keys.", nodesCount);
+        IntStream.range(0, nodesCount).forEach(this::generateNodeBlsKeypair);
+    }
+
+    /**
+     * Generate a Bls keypair for a node.
+     *
+     * @param node The number of the node.
+     */
+    private void generateNodeBlsKeypair(final int node) {
+        try {
+            LOG.info("Generating Bls keypair for node {}.", node);
+            SecureRandom random = new SecureRandom();
+            final Bls.KeyPair keyPair = Bls.generateKeyPair(random);
+            Address nodeAddress=addressesForGenesisExtraData.get(node);
+            writeBlsKeypair(keyPair.getPublicKey(), keyPair.getSecretKey(),nodeAddress);
+
+        } catch (final IOException e) {
+            LOG.error("An error occurred while trying to generate node keypair.", e);
+        }
+    }
+
+    /**
+     * Writes public and private keys in separate files. Both are written in the same directory named
+     * with the address derived from the public key.
+     *
+     * @param publicKey   The public key.
+     * @param privateKey  The private key. No file is created if privateKey is NULL.
+     * @param nodeAddress
+     * @throws IOException If the file cannot be written or accessed.
+     */
+    private void writeBlsKeypair(final Bls.PublicKey publicKey, final Bls.SecretKey privateKey, Address nodeAddress)
+            throws IOException {
+
+        final Path nodeDirectoryPath = keysDirectory.resolve(nodeAddress.toString());
+        if (!Files.exists(nodeDirectoryPath)) {
+            Files.createDirectory(nodeDirectoryPath);
+        }
+        blsPksForGenesisExtraData.add(publicKey);
+        createFileAndWrite(nodeDirectoryPath, blsPublicKeyFileName, publicKey.toHexString());
+        if (privateKey != null) {
+            createFileAndWrite(nodeDirectoryPath, blsSecretKeyFileName, privateKey.toHexString());
+        }
+    }
+
+
+
+    /** Computes RLP encoded exta data from pre filled list of addresses. */
   private void processExtraData() {
     final ObjectNode configNode =
         JsonUtil.getObjectNode(genesisConfig, "config")
@@ -259,7 +319,7 @@ class GenerateBlockchainConfig implements Runnable {
     } else if (genesisConfigOptions.isPos()) {
       LOG.info("Generating Pos extra data.");
       final String extraData =
-          PosExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
+          PosExtraDataCodec.encodeFromAddressesAndKeys(addressesForGenesisExtraData,pksForGenesisExtraData,blsPksForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     }
   }
