@@ -17,12 +17,13 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.config.PosConfigOptions;
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
+import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
@@ -46,7 +47,7 @@ public class PosRoundFactory {
     private final Subscribers<PosMinedBlockObserver> minedBlockObservers;
     private final MessageValidatorFactory messageValidatorFactory;
     private final MessageFactory messageFactory;
-    private final BftExtraDataCodec bftExtraDataCodec;
+    private final PosExtraDataCodec posExtraDataCodec;
     private final ContractCaller contractCaller;
     private final NodeSet nodeSet;
     private final PosProposerSelector proposerSelector;
@@ -60,7 +61,7 @@ public class PosRoundFactory {
      * @param minedBlockObservers the mined block observers
      * @param messageValidatorFactory the message validator factory
      * @param messageFactory the message factory
-     * @param bftExtraDataCodec the bft extra data codec
+     * @param posExtraDataCodec the bft extra data codec
      */
     public PosRoundFactory(
             final PosFinalState finalState,
@@ -69,7 +70,7 @@ public class PosRoundFactory {
             final Subscribers<PosMinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
-            final BftExtraDataCodec bftExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {
+            final PosExtraDataCodec posExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {
         this.finalState = finalState;
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
@@ -78,7 +79,7 @@ public class PosRoundFactory {
         this.minedBlockObservers = minedBlockObservers;
         this.messageValidatorFactory = messageValidatorFactory;
         this.messageFactory = messageFactory;
-        this.bftExtraDataCodec = bftExtraDataCodec;
+        this.posExtraDataCodec = posExtraDataCodec;
         this.contractCaller = contractCaller;
         this.nodeSet = nodeSet;
         this.proposerSelector = proposerSelector;
@@ -132,7 +133,7 @@ public class PosRoundFactory {
                 messageTransmitter,
                 finalState.getRoundTimer(),
                 configOptions,
-                bftExtraDataCodec,
+                posExtraDataCodec,
                 parentHeader,
                 contractCaller,
                 nodeSet,
@@ -175,19 +176,20 @@ public class PosRoundFactory {
                     .build();
         }
 
-        public BlockAnnouncePayload createBlockAnnouncePayload(ConsensusRoundIdentifier round, long height, Hash digest) {
+        public BlockAnnouncePayload createBlockAnnouncePayload(ConsensusRoundIdentifier round, long height,QuorumCertificate quorumCertificate) {
             return BlockAnnouncePayload.builder()
                     .roundIdentifier(round)
                     .height(height)
-                    .digest(digest)
+                    .quorumCertificate(quorumCertificate)
                     .build();
         }
         
-        public CommitPayload createCommitPayload(PosBlock block) {
+        public CommitPayload createCommitPayload(PosBlock block, QuorumCertificate quorumCertificate) {
             return CommitPayload.builder()
                     .roundIdentifier(block.getHeader().getRoundIdentifier())
                     .height(block.getHeader().getHeight())
                     .digest(block.getHash())
+                    .quorumCertificate(quorumCertificate)
                     .build();
         }
 
@@ -209,11 +211,12 @@ public class PosRoundFactory {
                     .build();
         }
 
-        public VotePayload createVotePayload(PosBlock block) {
+        public VotePayload createVotePayload(PosBlock block, Bls.Signature blsSignature) {
             return VotePayload.builder()
                     .digest(block.getHash())
                     .roundIdentifier(block.getHeader().getRoundIdentifier())
                     .height(block.getHeader().getHeight())
+                    .signature(blsSignature)
                     .build();
         }
 

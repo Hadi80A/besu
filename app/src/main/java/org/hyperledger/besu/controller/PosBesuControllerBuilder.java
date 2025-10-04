@@ -89,7 +89,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
   private PosConfigOptions posConfig;
   private ForksSchedule<PosConfigOptions> forksSchedule;
   private ValidatorPeers peers;
-  private PosExtraDataCodec bftExtraDataCodec;
+  private PosExtraDataCodec posExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
   private Path dataDir;
 //  private Address localAddress;
@@ -103,8 +103,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     posConfig = genesisConfigOptions.getPosConfigOptions();
     bftEventQueue = new BftEventQueue(bftConfig.getMessageQueueLimit());
     forksSchedule = PosForksSchedulesFactory.create(genesisConfigOptions);
-    bftExtraDataCodec = new PosExtraDataCodec();
-    bftBlockInterface = new BftBlockInterface(bftExtraDataCodec);
+    posExtraDataCodec = new PosExtraDataCodec();
+    bftBlockInterface = new BftBlockInterface(posExtraDataCodec);
   }
 
   @Override
@@ -147,12 +147,12 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
             forksSchedule,
             miningConfiguration,
             localAddress,
-            bftExtraDataCodec,
+                posExtraDataCodec,
             ethProtocolManager.ethContext().getScheduler());
     final PosBlockCreatorFactory  blockCreatorFactory =
             new PosBlockCreatorFactory(
                     bftblockCreatorFactory,
-                    bftExtraDataCodec
+                    posExtraDataCodec
             );
 
 
@@ -207,7 +207,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     );
     final MessageValidatorFactory messageValidatorFactory =
         new MessageValidatorFactory(
-            proposerSelector, bftProtocolSchedule, protocolContext, bftExtraDataCodec);
+            proposerSelector, bftProtocolSchedule, protocolContext, posExtraDataCodec);
 
     final Subscribers<PosMinedBlockObserver> minedBlockObservers = Subscribers.create();
     minedBlockObservers.subscribe(posBlock -> ethProtocolManager.blockMined(BlockUtil.toBesuBlock(posBlock)));
@@ -256,7 +256,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                     minedBlockObservers,
                     messageValidatorFactory,
                     messageFactory,
-                    bftExtraDataCodec,
+                        posExtraDataCodec,
                     contractCaller,
                     nodeSet,
                     posProposerSelector
@@ -353,8 +353,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     List<Address> validators = posExtraData.getValidators().stream().toList();
     List<SECPPublicKey> publicKeys = posExtraData.getPublicKeys().stream().toList();
     List<Bls.PublicKey> blsPublicKeys = posExtraData.getBlsPublicKeys().stream().toList();
-
-    // 4. Contract address
+    List<Bls.Signature> blsPops = posExtraData.getPops().stream().toList();
+    PosExtraDataCodec.setPublicKeys(publicKeys);
+    PosExtraDataCodec.setBlsPublicKeys(blsPublicKeys);
+    registerPops(blsPops, blsPublicKeys);
+      // 4. Contract address
     //    Address stakeManager =
     // Address.fromHexString("0x1234567890123456789012345678901234567890");
     Address stakeManager = posConfig.getContractAddress();
@@ -457,6 +460,13 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     return nodeSet;
   }
 
+    private static void registerPops(List<Bls.Signature> blsPops, List<Bls.PublicKey> blsPublicKeys) {
+        PosExtraDataCodec.setPops(blsPops);
+        for (int i = 0; i < blsPublicKeys.size() ; i++) {
+            Bls.registerProofOfPossession(blsPublicKeys.get(i), blsPops.get(i));
+        }
+    }
+
     public void setDataDir(Path dataDir) {
         this.dataDir = dataDir;
     }
@@ -504,7 +514,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         genesisConfigOptions,
         forksSchedule,
         isRevertReasonEnabled,
-        bftExtraDataCodec,
+            posExtraDataCodec,
         evmConfiguration,
         miningConfiguration,
         badBlockManager,

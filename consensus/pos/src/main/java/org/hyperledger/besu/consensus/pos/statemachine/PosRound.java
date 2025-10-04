@@ -22,13 +22,10 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHashing;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
-import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.pos.PosBlockCreator;
-import org.hyperledger.besu.consensus.pos.PosBlockImporter;
-import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
+import org.hyperledger.besu.consensus.pos.*;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.pos.messagewrappers.SelectLeader;
@@ -37,7 +34,6 @@ import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.consensus.pos.payload.SelectLeaderPayload;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
-import org.hyperledger.besu.crypto.SECPPublicKey;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -60,7 +56,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Clock;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -88,7 +83,7 @@ public class PosRound {
   private final NodeKey nodeKey;
   private final PosRoundFactory.MessageFactory messageFactory; // used only to create stored local msgs
   private final PosMessageTransmitter transmitter;
-  private final BftExtraDataCodec bftExtraDataCodec;
+  private final PosExtraDataCodec posExtraDataCodec;
   private final PosBlockHeader parentHeader;
   private Propose propose;
   private final PosProposerSelector posProposerSelector;
@@ -122,7 +117,7 @@ public class PosRound {
    * @param messageFactory the message factory
 //   * @param transmitter the transmitter
    * @param roundTimer the round timer
-   * @param bftExtraDataCodec the bft extra data codec
+   * @param posExtraDataCodec the bft extra data codec
    * @param parentHeader the parent header
    */
   public PosRound(
@@ -136,7 +131,7 @@ public class PosRound {
           final PosMessageTransmitter transmitter,
           final RoundTimer roundTimer,
           PosConfigOptions posConfigOptions,
-          final BftExtraDataCodec bftExtraDataCodec,
+          final PosExtraDataCodec posExtraDataCodec,
           final PosBlockHeader parentHeader,
           final ContractCaller contractCaller, NodeSet nodeSet,
           PosProposerSelector posProposerSelector, PosFinalState posFinalState
@@ -150,7 +145,7 @@ public class PosRound {
     this.messageFactory = messageFactory;
     this.transmitter = transmitter;
     this.posConfigOptions = posConfigOptions;
-    this.bftExtraDataCodec = bftExtraDataCodec;
+    this.posExtraDataCodec = posExtraDataCodec;
     this.parentHeader = parentHeader;
     this.contractCaller = contractCaller;
     this.nodeSet = nodeSet;
@@ -192,9 +187,11 @@ public class PosRound {
     LOG.info("function PosBlock createBlock");
     final Block block =
             blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
-    final BftExtraData extraData = bftExtraDataCodec.decode(block.getHeader());
-    LOG.trace(
-            "Creating proposed block with extraData={} blockHeader={}", extraData, block.getHeader());
+    LOG.debug("created block ");
+//    final PosExtraData extraData = posExtraDataCodec.decodePos(block.getHeader());
+//
+//    LOG.debug(
+//            "Creating proposed block with extraData={} blockHeader", extraData);
       return new PosBlock(block,roundState.getRoundIdentifier(),localAddress);
   }
 
@@ -321,7 +318,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
                     .getBlockTimer()
                     .checkEmptyBlockExpired(parentHeader::getTimestamp, currentTimeInMillis);
             if (emptyBlockExpired) {
-              LOG.trace(
+              LOG.debug(
                       "Block has no transactions and this node is a proposer so it will send a proposal: " + roundIdentifier);
               var proposePayload = createProposePayload(posBlock, proof);
               LOG.debug("Creating proposal and transmit for block2");
@@ -442,10 +439,9 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
   private SECPSignature createCommitSeal(final Block block) {
     final BlockHeader proposedHeader = block.getHeader();
-    final BftExtraData extraData = bftExtraDataCodec.decode(proposedHeader);
+    final BftExtraData extraData = posExtraDataCodec.decodePos(proposedHeader);
     final Hash commitHash =
-            new BftBlockHashing(bftExtraDataCodec)
-                    .calculateDataHashForCommittedSeal(proposedHeader, extraData);
+            new BftBlockHashing(posExtraDataCodec).calculateDataHashForCommittedSeal(proposedHeader, extraData);
     return nodeKey.sign(commitHash);
   }
 
@@ -482,14 +478,14 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
   public void updateRound(Block block, Clock clock, int roundNumber){
     updateNodes(block);
-    LOG.debug("roundNumber{}, Bytes32.wrap(block.getHash().toArray()){},\n" +
-            "(block.getHeader().getNumber()+1){},posProposerSelector.getSeedAtRound(roundNumber-1){}",
+    LOG.debug("roundNumber-1{}, Bytes32.wrap(block.getHash().toArray()){},\n" +
+            "(block.getHeader().getNumber())-1{},posProposerSelector.getSeedAtRound(roundNumber-1){}",
             roundNumber, Bytes32.wrap(block.getHash().toArray()),
-            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1));
+            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()));
     var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()),
-            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1) );
+            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()) );
     if(maybeLeaderVRF.isPresent()) {
-      var seed =posProposerSelector.getSeedAtRound(roundNumber);
+      var seed =posProposerSelector.getSeedAtRound(roundNumber, block.getHash(), block.getHeader().getNumber()+1);
       boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress,nodeKey.getPublicKey());
       sendSelectLeader(maybeLeaderVRF.get().proof(), isCandidate);
     }

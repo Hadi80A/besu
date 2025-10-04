@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
@@ -18,7 +17,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -107,22 +105,23 @@ public class PosProposerSelector {
         return result;
     }
 
-    public Bytes32 getSeedAtRound(long round ) {
+    public Bytes32 getSeedAtRound(long round, org.hyperledger.besu.datatypes.Hash prevBlockHash, long height) {
         if(round<0) {
             return Bytes32.ZERO;
         }else{
             if(seedMap.containsKey(round)) {
                 return seedMap.get(round);
             }else
-                return getPreviousSeed(round);
+                return getPreviousSeed(round,prevBlockHash,height);
         }
     }
 
-    private Bytes32 getPreviousSeed(long round) {
-        while(!seedMap.containsKey(round)){
-            round--;
-        }
-        return seedMap.getOrDefault(round,Bytes32.ZERO);
+    private Bytes32 getPreviousSeed(long round, org.hyperledger.besu.datatypes.Hash prevBlockHash, long height) {
+//        while(!seedMap.containsKey(round)){
+//            round--;
+//        }
+        return seed(round,prevBlockHash,height,getSeedAtRound(round-1,prevBlockHash,height));
+//        return seedMap.getOrDefault(round,Bytes32.ZERO);
     }
 
     public static BigDecimal toUnitFraction(final Bytes32 y) {

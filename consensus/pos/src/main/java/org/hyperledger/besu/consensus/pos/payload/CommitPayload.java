@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos.payload;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
@@ -28,11 +29,13 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 /** The Commit payload. */
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
+@Getter
 public class CommitPayload extends PosPayload {
   private static final int TYPE = PosMessage.COMMIT.getCode();
-  @Getter
+
   private final Hash digest;
   private final QuorumCertificate quorumCertificate;
+//  private final byte[] blsAggregate;
 
   public CommitPayload(ConsensusRoundIdentifier roundIdentifier, long height , Hash digest, QuorumCertificate quorumCertificate) {
     super(roundIdentifier, height);

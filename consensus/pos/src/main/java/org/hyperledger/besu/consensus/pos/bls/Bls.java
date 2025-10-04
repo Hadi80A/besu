@@ -17,11 +17,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import lombok.Getter;
+import org.hyperledger.besu.ethereum.core.Util;
+import org.slf4j.LoggerFactory;
 import supranational.blst.P1;
 import supranational.blst.P1_Affine;
 import supranational.blst.P2;
@@ -41,7 +45,7 @@ import supranational.blst.Scalar;
  */
 public final class Bls {
 
-    private static final Logger logger = Logger.getLogger(Bls.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Bls.class);
 
     // ---- Constants -----------------------------------------------------------
 
@@ -522,14 +526,14 @@ public final class Bls {
                     return true;
                 }
             } catch (NoSuchMethodException e) {
-                logger.log(Level.WARNING, "Pairing.finalverify method not found", e);
+                logger.warn("Pairing.finalverify method not found", e);
                 throw new RuntimeException("Pairing.finalverify method not found", e);
             }
         } catch (RuntimeException e) {
-            logger.log(Level.FINE, "verifyPop runtime failure", e);
+            logger.info("verifyPop runtime failure", e);
             return false;
         } catch (Exception e) {
-            logger.log(Level.FINE, "verifyPop unexpected failure", e);
+            logger.info("verifyPop unexpected failure", e);
             return false;
         }
     }
@@ -587,10 +591,10 @@ public final class Bls {
             if (result instanceof Integer) return ((Integer) result) == 0;
             return true;
         } catch (RuntimeException e) {
-            logger.log(Level.FINE, "verify runtime failure", e);
+            logger.info("verify runtime failure", e);
             return false;
         } catch (Exception e) {
-            logger.log(Level.FINE, "verify unexpected failure", e);
+            logger.info("verify unexpected failure", e);
             return false;
         }
     }
@@ -633,13 +637,20 @@ public final class Bls {
         Objects.requireNonNull(message);
         Objects.requireNonNull(aggSignatureCompressed);
 
+        String logCommiters="agg publicbls keys:";
+        for (final PublicKey pubkey : pubkeys) {
+            logCommiters+= pubkey.toHexString()+" ,";
+        }
+        logger.info(logCommiters);
+        logger.info("agg msg: {}", new String(message, StandardCharsets.UTF_8));
+        logger.info("agg sig: {}", new String(aggSignatureCompressed, StandardCharsets.UTF_8));
         if (pubkeys.isEmpty()) return false;
 
         final Signature aggSig;
         try {
             aggSig = signatureFromBytes(aggSignatureCompressed, true);
         } catch (IllegalArgumentException e) {
-            logger.log(Level.FINE, "fastAggregateVerify: invalid agg signature bytes", e);
+            logger.info("fastAggregateVerify: invalid agg signature bytes", e);
             return false; // Invalid signature format
         }
 
@@ -648,16 +659,16 @@ public final class Bls {
         final Set<String> pkSet = new HashSet<>();
         for (PublicKey pk : pubkeys) {
             if (!pk.isValid()) {
-                logger.log(Level.FINE, "fastAggregateVerify: invalid public key in list");
+                logger.warn("fastAggregateVerify: invalid public key in list");
                 return false;
             }
             if (REQUIRE_POP_REGISTRATION && !isPopRegistered(pk)) {
-                logger.log(Level.FINE, "fastAggregateVerify: public key not PoP-registered");
+                logger.warn("fastAggregateVerify: public key not PoP-registered");
                 return false;
             }
             final String enc = Base64.getEncoder().encodeToString(pk.toBytesCompressed());
             if (!pkSet.add(enc)) {
-                logger.log(Level.FINE, "fastAggregateVerify: duplicate public key detected");
+                logger.warn("fastAggregateVerify: duplicate public key detected");
                 return false; // duplicate pk -> reject
             }
         }
@@ -680,14 +691,19 @@ public final class Bls {
 
             Method fv = pairing.getClass().getMethod("finalverify");
             Object result = fv.invoke(pairing);
-            if (result instanceof Boolean) return (Boolean) result;
-            if (result instanceof Integer) return ((Integer) result) == 0;
+            if (result instanceof Boolean) {
+                logger.info("fastAggregateVerify: boolean result: {}", result);
+                return (Boolean) result;
+            }
+            if (result instanceof Integer){
+                logger.info("fastAggregateVerify: integer result: {}", result);
+                return ((Integer) result) == 0;}
             return true;
         } catch (RuntimeException e) {
-            logger.log(Level.FINE, "fastAggregateVerify runtime failure", e);
+            logger.warn("fastAggregateVerify runtime failure", e);
             return false;
         } catch (Exception e) {
-            logger.log(Level.FINE, "fastAggregateVerify unexpected failure", e);
+            logger.warn("fastAggregateVerify unexpected failure", e);
             return false;
         }
     }
@@ -712,12 +728,12 @@ public final class Bls {
         try {
             aggSig = signatureFromBytes(aggSignatureCompressed, true);
         } catch (IllegalArgumentException e) {
-            logger.log(Level.FINE, "aggregateVerify: invalid agg signature bytes", e);
+            logger.info("aggregateVerify: invalid agg signature bytes", e);
             return false; // Invalid signature format
         }
 
         if (!aggSig.isValid()) {
-            logger.log(Level.FINE, "aggregateVerify: aggregate signature invalid");
+            logger.info("aggregateVerify: aggregate signature invalid");
             return false;
         }
 
@@ -725,16 +741,16 @@ public final class Bls {
         final Set<String> pkSet = new HashSet<>();
         for (PublicKey pk : pubkeys) {
             if (!pk.isValid()) {
-                logger.log(Level.FINE, "aggregateVerify: invalid public key in list");
+                logger.info("aggregateVerify: invalid public key in list");
                 return false;
             }
             if (REQUIRE_POP_REGISTRATION && !isPopRegistered(pk)) {
-                logger.log(Level.FINE, "aggregateVerify: public key not PoP-registered");
+                logger.info("aggregateVerify: public key not PoP-registered");
                 return false;
             }
             final String enc = Base64.getEncoder().encodeToString(pk.toBytesCompressed());
             if (!pkSet.add(enc)) {
-                logger.log(Level.FINE, "aggregateVerify: duplicate public key detected");
+                logger.info("aggregateVerify: duplicate public key detected");
                 return false;
             }
         }
@@ -769,10 +785,10 @@ public final class Bls {
             if (result instanceof Integer) return ((Integer) result) == 0;
             return true;
         } catch (RuntimeException e) {
-            logger.log(Level.FINE, "aggregateVerify runtime failure", e);
+            logger.info("aggregateVerify runtime failure", e);
             return false;
         } catch (Exception e) {
-            logger.log(Level.FINE, "aggregateVerify unexpected failure", e);
+            logger.info("aggregateVerify unexpected failure", e);
             return false;
         }
     }
@@ -882,10 +898,10 @@ public final class Bls {
             }
             // If void or Boolean: nothing to do here
         } catch (NoSuchMethodException e) {
-            logger.log(Level.SEVERE, "Pairing." + methodName + " not found on binding", e);
+            logger.warn("Pairing." + methodName + " not found on binding", e);
             throw new RuntimeException("Pairing." + methodName + " not found on binding", e);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            logger.log(Level.SEVERE, "Pairing." + methodName + " invocation failed", e);
+            logger.warn("Pairing." + methodName + " invocation failed", e);
             throw new RuntimeException("Pairing." + methodName + " invocation failed", e);
         }
     }

@@ -47,7 +47,6 @@ public class PosBlockCreator {
   public PosBlock createBlock(
           final long headerTimeStampSeconds, final PosBlockHeader parentHeader, Address proposer) {
     var blockResult = besuBlockCreator.createBlock(headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
-
     log.info("transaction size:{}",blockResult.getTransactionSelectionResults().getSelectedTransactions().size());
     var round=new ConsensusRoundIdentifier(
             parentHeader.getRoundIdentifier().getSequenceNumber()+1,
@@ -63,6 +62,7 @@ public class PosBlockCreator {
 
   public PosBlock createSealedBlock(
       final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals,Address propser) {
+      log.debug("creating sealed block");
     final Block besuBlock = BlockUtil.toBesuBlock(block);
     final PosBlockHeader initialHeader = block.getHeader();
     final PosExtraData initialExtraData =
@@ -77,7 +77,8 @@ public class PosBlockCreator {
             initialExtraData.getValidators(),
             propser,
                 initialExtraData.getPublicKeys(),
-                initialExtraData.getBlsPublicKeys()
+                initialExtraData.getBlsPublicKeys(),
+                initialExtraData.getPops()
         );
 
     final BlockHeader sealedHeader =

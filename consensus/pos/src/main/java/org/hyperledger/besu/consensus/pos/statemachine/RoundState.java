@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import lombok.Getter;
 import lombok.Setter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
@@ -51,6 +52,7 @@ public class RoundState {
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
   private final Set<BlockAnnounce> blockAnnounceMessages = Sets.newLinkedHashSet();
   private final Set<ViewChange> viewChangeMessages = Sets.newLinkedHashSet();
+  private final Set<Bls.Signature>  blsSignaturesMessages = Sets.newLinkedHashSet();
   @Setter
   private PosMessage currentState;
   private final long height;
@@ -104,6 +106,11 @@ public class RoundState {
       LOG.trace("Round state added BlockAnnounce message ={}", msg);
     }
   }
+
+    public void addBlsSignatureMessage(final Bls.Signature msg) {
+        blsSignaturesMessages.add(msg);
+        LOG.trace("Round state added blsSignaturesMessages  ={}", msg);
+    }
 
   public void addViewChangeMessage(final ViewChange msg) {
       viewChangeMessages.add(msg);

@@ -130,6 +130,7 @@ class GenerateBlockchainConfig implements Runnable {
   private final List<Address> addressesForGenesisExtraData = new ArrayList<>();
   private final List<Bls.PublicKey> blsPksForGenesisExtraData = new ArrayList<>();
   private final List<SECPPublicKey> pksForGenesisExtraData = new ArrayList<>();
+  private final List<Bls.Signature> popsForGenesisExtraData = new ArrayList<>();
   private Path keysDirectory;
 
 
@@ -153,9 +154,18 @@ class GenerateBlockchainConfig implements Runnable {
       handleOutputDirectory();
       parseConfig();
       processEcCurve();
+        final ObjectNode configNode =
+                JsonUtil.getObjectNode(genesisConfig, "config")
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Missing config section in config file"));
+
+        final JsonGenesisConfigOptions genesisConfigOptions =
+                JsonGenesisConfigOptions.fromJsonObject(configNode);
       if (generateNodesKeys) {
         generateNodesKeys();
-        generateNodesBlsKeys();
+         if (genesisConfigOptions.isPos()) {
+              generateNodesBlsKeys();
+          }
       } else {
         importPublicKeysFromConfig();
       }
@@ -272,6 +282,7 @@ class GenerateBlockchainConfig implements Runnable {
         }
     }
 
+
     /**
      * Writes public and private keys in separate files. Both are written in the same directory named
      * with the address derived from the public key.
@@ -293,6 +304,8 @@ class GenerateBlockchainConfig implements Runnable {
         if (privateKey != null) {
             createFileAndWrite(nodeDirectoryPath, blsSecretKeyFileName, privateKey.toHexString());
         }
+        Bls.Signature pop =Bls.createPop(privateKey,publicKey);
+        popsForGenesisExtraData.add(pop);
     }
 
 
@@ -319,7 +332,7 @@ class GenerateBlockchainConfig implements Runnable {
     } else if (genesisConfigOptions.isPos()) {
       LOG.info("Generating Pos extra data.");
       final String extraData =
-          PosExtraDataCodec.encodeFromAddressesAndKeys(addressesForGenesisExtraData,pksForGenesisExtraData,blsPksForGenesisExtraData).toString();
+          PosExtraDataCodec.encodeFromAddressesAndKeys(addressesForGenesisExtraData,pksForGenesisExtraData,blsPksForGenesisExtraData,popsForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     }
   }

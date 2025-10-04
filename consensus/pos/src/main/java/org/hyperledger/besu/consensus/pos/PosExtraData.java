@@ -17,11 +17,14 @@ public class PosExtraData extends BftExtraData {
     private final Address proposer;
     private final Collection<SECPPublicKey> publicKeys;
     private final Collection<Bls.PublicKey> blsPublicKeys;
+    private final Collection<Bls.Signature> pops;
     public PosExtraData(Bytes vanityData, Collection<SECPSignature> seals, Optional<Vote> vote, int round,
-                        Collection<Address> validators, Address proposer, Collection<SECPPublicKey> publicKeys, Collection<Bls.PublicKey> blsPublicKeys) {
+                        Collection<Address> validators, Address proposer, Collection<SECPPublicKey> publicKeys,
+                        Collection<Bls.PublicKey> blsPublicKeys,Collection<Bls.Signature> pops) {
         super(vanityData, seals, vote, round, validators);
         this.proposer = proposer;
         this.publicKeys = publicKeys;
         this.blsPublicKeys = blsPublicKeys;
+        this.pops=pops;
     }
 }

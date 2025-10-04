@@ -39,6 +39,10 @@ public class NodeSet {
         .collect(Collectors.toList());
   }
 
+  public Node getNodeByIndex(int index) {
+      return new ArrayList<>(validatorMap.values()).get(index);
+  }
+
 //  public List<Node> getEligibleForSortition(long currentHeight) {
 //    return getNonCommitteeNodes().stream()
 //        .filter(v -> v.canRunSortition(currentHeight))

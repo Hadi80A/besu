@@ -82,6 +82,7 @@ public class RoundChangeManager {
      * @return the boolean
      */
     public boolean roundChangeQuorumReceived() {
+        LOG.debug("receivedMessages.size() {}, quorum {}, !actioned {}",receivedMessages.size(),quorum,!actioned);
       return receivedMessages.size() >= quorum && !actioned;
     }
 

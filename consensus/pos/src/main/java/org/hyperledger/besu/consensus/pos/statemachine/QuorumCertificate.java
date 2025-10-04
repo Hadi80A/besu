@@ -21,7 +21,6 @@ public class QuorumCertificate {
 
     private final BitSet bitmap;
 
-
     public QuorumCertificate(Bytes32 hash, Long height, Long round, Bytes aggregate, BitSet bitmap) {
         this.hash = hash;
         this.height = height;

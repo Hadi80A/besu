@@ -17,6 +17,7 @@ package org.hyperledger.besu.consensus.pos;
 import static org.hyperledger.besu.consensus.common.bft.Vote.ADD_BYTE_VALUE;
 import static org.hyperledger.besu.consensus.common.bft.Vote.DROP_BYTE_VALUE;
 
+import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
@@ -50,8 +51,17 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
           ImmutableBiMap.of(
                   VoteType.ADD, ADD_BYTE_VALUE,
                   VoteType.DROP, DROP_BYTE_VALUE);
-  private static final Logger log = LogManager.getLogger(PosExtraDataCodec.class);
+    private static final Logger log = LogManager.getLogger(PosExtraDataCodec.class);
     private static String ALGORITHM = "ECDSA";
+
+
+    @Setter
+    private static List<SECPPublicKey> publicKeys;
+    @Setter
+    private static List<Bls.PublicKey> blsPublicKeys;
+
+    @Setter
+    private static List<Bls.Signature> pops;
 
   /**
    * Default constructor.
@@ -76,7 +86,8 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
                             addresses));
   }
 
-    public static Bytes encodeFromAddressesAndKeys(final Collection<Address> addresses,Collection<SECPPublicKey> publicKeys,Collection<Bls.PublicKey> blsPublicKeys) {
+    public static Bytes encodeFromAddressesAndKeys(final Collection<Address> addresses,Collection<SECPPublicKey> publicKeys,
+                                                   Collection<Bls.PublicKey> blsPublicKeys,Collection<Bls.Signature> pops) {
         return new PosExtraDataCodec()
                 .encodePosData(
                         new PosExtraData(
@@ -87,7 +98,8 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
                                 addresses,
                                 null,
                                 publicKeys,
-                                blsPublicKeys
+                                blsPublicKeys,
+                                pops
                                 ));
     }
 
@@ -129,6 +141,7 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
   }
 
     public PosExtraData decodePos(final BlockHeader blockHeader) {
+      log.debug("decoding pos block header");
         final Object inputExtraData = blockHeader.getParsedExtraData();
         if (inputExtraData instanceof PosExtraData) {
             return (PosExtraData) inputExtraData;
@@ -142,10 +155,20 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
 
   @Override
   protected Bytes encode(final BftExtraData bftExtraData, final EncodingType encodingType) {
+      if(bftExtraData instanceof PosExtraData posExtraData) {
+          log.debug("encoding posExtraData");
+          return encodePosData(posExtraData);
+      }
+      log.debug("encoding BftExtraData");
     final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
     encoder.startList();
     encoder.writeBytes(bftExtraData.getVanityData());
     encoder.writeList(bftExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+
+      encoder.writeList(publicKeys, (publicKey, rlp) -> rlp.writeBytes(publicKey.getEncodedBytes()));
+      encoder.writeList(blsPublicKeys, (BlsPublicKey, rlp) -> rlp.writeBytes(Bytes.wrap(BlsPublicKey.toBytesCompressed())));
+
+      encoder.writeList(pops,(pops, rlp) -> rlp.writeBytes(Bytes.wrap(pops.toBytesCompressed())));
     if (bftExtraData.getVote().isPresent()) {
       encodeVote(encoder, bftExtraData.getVote().get());
     } else {
@@ -159,6 +182,10 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
                 bftExtraData.getSeals(), (committer, rlp) -> rlp.writeBytes(committer.encodedBytes()));
       }
     }
+    encoder.writeNull();
+
+
+
     encoder.endList();
 
     return encoder.encoded();
@@ -184,15 +211,20 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     return new Vote(recipient, vote);
   }
 
-
-
   public Bytes encodePosData(final PosExtraData posExtraData) {
     final BytesValueRLPOutput encoder = new BytesValueRLPOutput();
     encoder.startList();
     encoder.writeBytes(posExtraData.getVanityData());
     encoder.writeList(posExtraData.getValidators(), (validator, rlp) -> rlp.writeBytes(validator));
+//    log.debug("posExtraData.getValidators(){}",posExtraData.getValidators());
     encoder.writeList(posExtraData.getPublicKeys(), (publicKey, rlp) -> rlp.writeBytes(publicKey.getEncodedBytes()));
-    encoder.writeList(posExtraData.getBlsPublicKeys(), (BlsPublicKey, rlp) -> rlp.writeBytes(Bytes.wrap(BlsPublicKey.toBytesCompressed())));
+//    log.debug("posExtraData.getPublicKeys(){}",posExtraData.getPublicKeys());
+      encoder.writeList(posExtraData.getBlsPublicKeys(), (BlsPublicKey, rlp) -> rlp.writeBytes(Bytes.wrap(BlsPublicKey.toBytesCompressed())));
+//    log.debug("posExtraData.getBlsPublicKeys(){}",posExtraData.getBlsPublicKeys());
+
+      encoder.writeList(posExtraData.getPops(), (pop, rlp) ->
+              rlp.writeBytes(Bytes.wrap(pop.toBytesCompressed())));
+
 
     if (posExtraData.getVote().isPresent()) {
       encodeVote(encoder, posExtraData.getVote().get());
@@ -214,6 +246,12 @@ public class PosExtraDataCodec extends BftExtraDataCodec {
     }
 
     encoder.endList();
+//    try {
+//        PosExtraData extraData=decodePosData(encoder.encoded());
+//        log.debug("success");
+//    }catch (RLPException e) {
+//        throw new RLPException(e.getMessage());
+//    }
     return encoder.encoded();
   }
 
@@ -230,13 +268,61 @@ public PosExtraData decodePosData(final Bytes input) {
 
   // 2. validators list (may be empty list)
   final List<Address> validators = rlpInput.readList(Address::readFrom);
-  final List<SECPPublicKey> publickeys = rlpInput.readList(rlpIn ->{
-      Bytes publicKeyByte= rlpIn.readBytes();
-      return SECPPublicKey.create(publicKeyByte, ALGORITHM);
-  } );
-  final List<Bls.PublicKey> blsPublickeys = rlpInput.readList(rlpIn ->
-          Bls.publicKeyFromBytes(rlpIn.readBytes().toArray(),true)
-  );
+    final List<SECPPublicKey> publickeys;
+    if (rlpInput.isEndOfCurrentList()) {
+        publickeys = List.of();
+        log.debug(" public key empty");
+    }else {
+        if (!rlpInput.nextIsNull()) {
+            log.debug("validators{}", validators.size());
+            publickeys = rlpInput.readList(rlpIn -> {
+
+                Bytes publicKeyByte = rlpIn.readBytes();
+                return SECPPublicKey.create(publicKeyByte, ALGORITHM);
+            });
+
+            log.debug("public keys{}", publickeys.size());
+        } else {
+            rlpInput.skipNext();
+            publickeys = List.of();
+            log.debug(" public key skipped");
+        }
+    }
+
+  final List<Bls.PublicKey> blsPublickeys;
+    if(rlpInput.isEndOfCurrentList()){
+        blsPublickeys = List.of();
+        log.debug("blsPublic key empty");
+    }else {
+        if (!rlpInput.nextIsNull()) {
+            blsPublickeys = rlpInput.readList(rlpIn ->
+                    Bls.publicKeyFromBytes(rlpIn.readBytes().toArray(), true)
+            );
+            log.debug("blsPublic keys{}", blsPublickeys.size());
+        } else {
+            rlpInput.skipNext();
+            blsPublickeys = List.of();
+            log.debug("blsPublic key skipped");
+        }
+    }
+
+    final List<Bls.Signature> pops;
+    if(rlpInput.isEndOfCurrentList()){
+        pops = List.of();
+        log.debug("pops empty");
+    }else {
+        if (!rlpInput.nextIsNull()) {
+            pops = rlpInput.readList(rlpIn ->
+                    Bls.signatureFromBytes(rlpIn.readBytes().toArray(), true)
+            );
+            log.debug("pops{}", pops.size());
+        } else {
+            rlpInput.skipNext();
+            pops = List.of();
+            log.debug("pops skipped");
+        }
+    }
+
 
   // 3. optional vote (either null or a Vote list structure)
   final Optional<Vote> vote;
@@ -285,7 +371,7 @@ public PosExtraData decodePosData(final Bytes input) {
           seals.size(),
           proposer);
 
-  return new PosExtraData(vanityData, seals, vote, round, validators, proposer,publickeys,blsPublickeys);
+  return new PosExtraData(vanityData, seals, vote, round, validators, proposer,publickeys,blsPublickeys,pops);
 }
 
 }

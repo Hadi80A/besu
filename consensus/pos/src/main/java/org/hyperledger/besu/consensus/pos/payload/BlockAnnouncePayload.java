@@ -19,6 +19,7 @@ import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
+import org.hyperledger.besu.consensus.pos.statemachine.QuorumCertificate;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
@@ -28,14 +29,14 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 @SuperBuilder
 public class BlockAnnouncePayload extends PosPayload {
   private static final int TYPE = PosMessage.BLOCK_ANNOUNCE.getCode();
-  private final Hash digest;
+  private final QuorumCertificate quorumCertificate;
 
 
 //  private final SECPSignature aggregation;//todo
 
-  public BlockAnnouncePayload(ConsensusRoundIdentifier roundIdentifier, long height , Hash digest) {
+  public BlockAnnouncePayload(ConsensusRoundIdentifier roundIdentifier, long height, QuorumCertificate quorumCertificate) {
     super(roundIdentifier, height);
-      this.digest = digest;
+      this.quorumCertificate = quorumCertificate;
   }
 
   /**
@@ -48,11 +49,11 @@ public class BlockAnnouncePayload extends PosPayload {
     rlpInput.enterList();
     long height = rlpInput.readLong();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final Hash digest = Payload.readDigest(rlpInput);
+    QuorumCertificate  quorumCertificate= QuorumCertificate.readFrom(rlpInput);
 
     rlpInput.leaveList();
 
-    return new BlockAnnouncePayload(roundIdentifier,height,digest);
+    return new BlockAnnouncePayload(roundIdentifier,height,quorumCertificate);
   }
 
   @Override
@@ -60,7 +61,7 @@ public class BlockAnnouncePayload extends PosPayload {
     rlpOutput.startList();
     rlpOutput.writeLong(height);
     getRoundIdentifier().writeTo(rlpOutput);
-    rlpOutput.writeBytes(digest);
+    quorumCertificate.writeTo(rlpOutput);
 
     rlpOutput.endList();
   }

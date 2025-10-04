@@ -71,6 +71,7 @@ public class PosBlock {
   }
 
   public static PosBlock readFrom(RLPInput rlpInput) throws IOException {
+//    Block block= Block.readFrom(rlpInput, BftBlockHeaderFunctions.forCommittedSeal(new PosExtraDataCodec()));
     Block block= Block.readFrom(rlpInput, BftBlockHeaderFunctions.forCommittedSeal(new PosExtraDataCodec()));
     PosBlockHeader header= PosBlockHeader.readFrom(rlpInput,block.getHeader());
     return new PosBlock(block,header);
