@@ -641,6 +641,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 Bls.Signature blsSignature = getBlsSignature(block);
                 VotePayload unsigned = messageFactory.createVotePayload(block,blsSignature);
                 SignedData<VotePayload> signedData = currentRound.get().createSignedData(unsigned);
+
+
                 final Vote localVoteMessage = messageFactory.createVote(signedData);
                 getRoundState().addVoteMessage(localVoteMessage);
                 if (proposerSelector.getCurrentProposer().isPresent()) {
@@ -659,6 +661,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         String context= PosMessage.VOTE.getCode() +"||"+ block.getHeader().getRoundIdentifier().getRoundNumber()
                 +"||" + block.getHeader().getHeight() + "||" + block.getHash();
         byte[] message = context.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        // ensure you are using raw bytes not the "0x..." string
+
+
         return Bls.sign(blsKeyPair.getSecretKey(),message);
     }
 
@@ -732,6 +737,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                     final Commit localCommitMessage = messageFactory.createCommit(signedData);
                     getRoundState().addCommitMessage(localCommitMessage);
                     transmitter.multicastCommit(localCommitMessage);
+                    handleCommitMessage(localCommitMessage);
                 }
             }
         } catch (final SecurityModuleException e) {
@@ -791,11 +797,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("one_bits:{}",one_bits);
         }
         LOG.debug("commiters size={}", committers.size());
+        boolean fastAggregateVerify=Bls.fastAggregateVerify(committers,voteMessage,msg.getSignedPayload().getPayload().getQuorumCertificate().getAggregate().toArray())
+                ;
         if( validateHeightAndRound(msg.getSignedPayload().getPayload()) && currentRound.isPresent() &&
                 validateBlockHash(msg.getSignedPayload().getPayload().getDigest()) &&
-                !currentRound.get().isValidCommit()  &&
-                Bls.fastAggregateVerify(committers,voteMessage,msg.getSignedPayload().getPayload().getQuorumCertificate().getAggregate().toArray())
-        ) {
+                !currentRound.get().isValidCommit()  && fastAggregateVerify  ) {
             retryCounter =0;
             getRoundState().addCommitMessage(msg);
             currentRound.get().setValidCommit(true);
@@ -803,7 +809,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
         }else {
             LOG.debug("Invalid a commit message.");
-            LOG.debug("fast aggregate verify: {}", Bls.fastAggregateVerify(committers,voteMessage,msg.getSignedPayload().getPayload().getQuorumCertificate().getAggregate().toArray()));
+            LOG.debug("fast aggregate verify: {}",fastAggregateVerify);
         }
 //        startNewRound(new ConsensusRoundIdentifier(
 //                roundIdentifier.getSequenceNumber()+1,
