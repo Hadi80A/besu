@@ -20,7 +20,9 @@ import static org.hyperledger.besu.ethereum.mainnet.AbstractGasLimitSpecificatio
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftCoinbaseValidationRule;
 import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftValidatorsValidationRule;
+import org.hyperledger.besu.consensus.pos.validation.ValidateHeightForBlock;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.BaseFeeMarket;
@@ -33,6 +35,7 @@ import org.hyperledger.besu.ethereum.mainnet.headervalidationrules.TimestampMore
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.tuweni.units.bigints.UInt256;
 
@@ -43,7 +46,7 @@ public class PosBlockHeaderValidationRulesetFactory {
 
 
   public static BlockHeaderValidator.Builder blockHeaderValidator(
-      final Duration minimumTimeBetweenBlocks, final Optional<BaseFeeMarket> baseFeeMarket) {
+          final Duration minimumTimeBetweenBlocks, final Optional<BaseFeeMarket> baseFeeMarket, Supplier<Blockchain> blockchainProvider) {
     final BlockHeaderValidator.Builder ruleBuilder =
         new BlockHeaderValidator.Builder()
             .addRule(new AncestryValidationRule())
@@ -64,7 +67,7 @@ public class PosBlockHeaderValidationRulesetFactory {
             .addRule(new ConstantFieldValidationRule<>("Nonce", BlockHeader::getNonce, 0L))
             .addRule(new BftValidatorsValidationRule())
             .addRule(new BftCoinbaseValidationRule());
-//            .addRule(new BftCommitSealsValidationRule());
+//            .qaddRule(new BftCommitSealsValidationRule());
 
     // Currently the minimum acceptable time between blocks is 1 second. The timestamp of an
     // Ethereum header is stored as seconds since Unix epoch so blocks being produced more
@@ -75,6 +78,7 @@ public class PosBlockHeaderValidationRulesetFactory {
     if (minimumTimeBetweenBlocks.compareTo(Duration.ofSeconds(1)) >= 0) {
       ruleBuilder.addRule(new TimestampMoreRecentThanParent(minimumTimeBetweenBlocks.getSeconds()/5));
     }
+    ruleBuilder.addRule(new ValidateHeightForBlock(blockchainProvider));
     return ruleBuilder;
   }
 }

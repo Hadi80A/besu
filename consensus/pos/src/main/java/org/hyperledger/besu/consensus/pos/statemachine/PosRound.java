@@ -493,7 +493,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
 
   public boolean checkThreshold(Set<?> msg, boolean isVote) {
     if (isVote){
-      return msg.size() >= getRoundState().getQuorum();
+      return msg.size()+1 >= getRoundState().getQuorum();
 
     }else{
       return msg.size()-1 >= getRoundState().getQuorum();

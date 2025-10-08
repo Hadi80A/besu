@@ -573,6 +573,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                     }
                     else {
                         LOG.debug("seed{}",seed);
+                        LOG.debug("roundNumber.getRoundNumber()",roundNumber.getRoundNumber());
+                        LOG.debug("prevBlockHash",prevBlockHash);
+                        LOG.debug(" getRoundState().getHeight()", getRoundState().getHeight());
+                        LOG.debug("proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight())",
+                                proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight()));
 
                         LOG.debug("not verify vrf");
                     }
@@ -844,10 +849,14 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 //                boolean result= false;
 //                finalState.getBlockTimer().cancelTimer();
                 finalState.getBlockTimer().cancelTimer();
-                currentRound.get().importBlockToChain();
-                getRoundState().setCurrentState(PosMessage.SELECT_LEADER);
-                final long now = clock.millis() / 1000;
-                finalState.getBlockTimer().startTimer(roundIdentifier,()->now);
+                boolean isSuccess= currentRound.get().importBlockToChain();
+                if(isSuccess) {
+                    getRoundState().setCurrentState(PosMessage.SELECT_LEADER);
+                    final long now = clock.millis() / 1000;
+                    finalState.getBlockTimer().startTimer(roundIdentifier, () -> now);
+                }else {
+                    handleBlockTimerExpiry(roundIdentifier);
+                }
 //                while (retryCounter < 10 && !result) {
 //                    result = currentRound.get().importBlockToChain();
 //                }
@@ -855,6 +864,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 //                        roundIdentifier.getSequenceNumber() + 1,
 //                        roundIdentifier.getRoundNumber() + 1
 //                ));
+
             }else {
                 LOG.debug("Invalid a BlockAnnounce message.");
             }

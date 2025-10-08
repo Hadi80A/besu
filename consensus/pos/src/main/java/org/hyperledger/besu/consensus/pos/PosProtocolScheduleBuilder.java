@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.hyperledger.besu.config.BftConfigOptions;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.PosConfigOptions;
@@ -22,6 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.BaseBftProtocolScheduleBuilder;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
+import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.BaseFeeMarket;
@@ -34,9 +37,11 @@ import java.util.Optional;
 
 /** Defines the protocol behaviours for a blockchain using a BFT consensus mechanism. */
 public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
-  /** Default constructor. */
+    @Setter
+    @Getter
+    private static Blockchain blockchain;
+    /** Default constructor. */
   protected PosProtocolScheduleBuilder() {}
-
   /**
    * Create protocol schedule.
    *
@@ -125,6 +130,8 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
         config.getBlockPeriodMilliseconds() > 0
             ? Duration.ofMillis(config.getBlockPeriodMilliseconds())
             : Duration.ofSeconds(config.getBlockPeriodSeconds()),
-        baseFeeMarket);
+        baseFeeMarket,
+        PosProtocolScheduleBuilder::getBlockchain
+    );
   }
 }
