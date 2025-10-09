@@ -542,7 +542,8 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     final BftValidatorOverrides validatorOverrides =
         convertPosForks(genesisConfigOptions.getTransitions().getPosForks());
-
+    PosProtocolScheduleBuilder.setBlockchain(blockchain);
+    LOG.debug("blockchain is set");
     return new BftContext(
         BlockValidatorProvider.forkingValidatorProvider(
             blockchain, epochManager, bftBlockInterface, validatorOverrides),
