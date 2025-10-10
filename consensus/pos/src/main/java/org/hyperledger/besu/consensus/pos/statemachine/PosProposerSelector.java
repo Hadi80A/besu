@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.pos.core.Node;
 import org.hyperledger.besu.consensus.pos.core.NodeSet;
 import org.hyperledger.besu.consensus.pos.vrf.VRF;
@@ -32,6 +33,7 @@ public class PosProposerSelector {
     private final NodeKey nodeKey;     // local validator’s key
     private final long selfStake;      // local validator stake
     private Map<Long,Bytes32> seedMap;
+    private final PosConfigOptions posConfigOptions;
 //    private final String selfId;       // unique validator id
 
 //    private SECPPublicKey selfPublicKey;
@@ -41,11 +43,12 @@ public class PosProposerSelector {
     public PosProposerSelector(final NodeSet nodeSet,
                                final NodeKey nodeKey,
 //                               final String selfId,
-                               final long selfStake) {
+                               final long selfStake, PosConfigOptions posConfigOptions) {
         this.nodeSet = Objects.requireNonNull(nodeSet);
         this.nodeKey = Objects.requireNonNull(nodeKey);
 //        this.selfId = Objects.requireNonNull(selfId);
         this.selfStake = selfStake;
+        this.posConfigOptions = posConfigOptions;
         seedMap = new HashMap<>();
 //        this.selfPublicKey = nodeKey.getPublicKey();
     }
@@ -107,7 +110,11 @@ public class PosProposerSelector {
 
     public Bytes32 getSeedAtRound(long round, org.hyperledger.besu.datatypes.Hash prevBlockHash, long height) {
         if(round<0) {
-            return Bytes32.ZERO;
+            if(posConfigOptions.getSeed().isPresent()) {
+                return longToBytes32(posConfigOptions.getSeed().getAsLong());
+            }else {
+                return Bytes32.ZERO;
+            }
         }else{
             if(seedMap.containsKey(round)) {
                 return seedMap.get(round);
@@ -137,4 +144,12 @@ public class PosProposerSelector {
         if (t.compareTo(BigDecimal.ONE) > 0) t = BigDecimal.ONE;
         return t;
     }
+
+   private Bytes32 longToBytes32(long value) {
+        byte[] bytes32 = new byte[32];          // 32 zero bytes
+        ByteBuffer.wrap(bytes32, 24, 8)         // start at offset 24
+                .putLong(value);               // write 8 bytes in big-endian
+        return Bytes32.wrap(bytes32);
+    }
+
 }

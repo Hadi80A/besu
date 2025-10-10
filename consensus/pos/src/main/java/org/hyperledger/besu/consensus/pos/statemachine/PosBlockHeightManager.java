@@ -503,6 +503,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 if( proposerSelector.getCurrentProposer().isEmpty()) {
                     LOG.debug("SELECT LEADER not enough");
                 }else {
+                    boolean isProposerBefore=proposerSelector.isLocalProposer();
                    boolean isValidCandidates = !filterLeaders(Set.of(msg),
                             msg.getRoundIdentifier(), blockchain.getChainHeadHash()).isEmpty();
                     if(isValidCandidates) {
@@ -515,7 +516,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
                         }
                     }
-                    if (proposerSelector.isLocalProposer()) {
+                    if (proposerSelector.isLocalProposer() && !isProposerBefore) {
                         System.out.println("im leader");
                         currentRound.get().createProposalAndTransmit(clock, leaderProof);
                     }
@@ -857,14 +858,6 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 }else {
                     handleBlockTimerExpiry(roundIdentifier);
                 }
-//                while (retryCounter < 10 && !result) {
-//                    result = currentRound.get().importBlockToChain();
-//                }
-//                startNewRound(new ConsensusRoundIdentifier(
-//                        roundIdentifier.getSequenceNumber() + 1,
-//                        roundIdentifier.getRoundNumber() + 1
-//                ));
-
             }else {
                 LOG.debug("Invalid a BlockAnnounce message.");
             }

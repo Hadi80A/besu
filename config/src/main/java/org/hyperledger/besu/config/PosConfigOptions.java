@@ -16,6 +16,7 @@ package org.hyperledger.besu.config;
 
 import org.hyperledger.besu.datatypes.Address;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
@@ -46,4 +47,7 @@ public interface PosConfigOptions extends BftConfigOptions {
   OptionalLong getStartBlock();
 
   Address getContractAddress();
+  OptionalLong getSeed();
+
+  Map<String,Long> getInitialStake();
 }

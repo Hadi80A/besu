@@ -496,7 +496,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
       return msg.size()+1 >= getRoundState().getQuorum();
 
     }else{
-      return msg.size()-1 >= getRoundState().getQuorum();
+      return msg.size() >= getRoundState().getQuorum();
 
     }
   }

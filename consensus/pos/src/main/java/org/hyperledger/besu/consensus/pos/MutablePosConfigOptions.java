@@ -20,6 +20,7 @@ import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.bft.MutableBftConfigOptions;
 import org.hyperledger.besu.datatypes.Address;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
@@ -33,6 +34,10 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
     private Optional<String> validatorContractAddress;
     @Setter
     private Address contractAddress;
+    @Setter
+    private OptionalLong seed;
+    @Setter
+    private Map<String,Long> stakeMap;
   /**
    * Instantiates a new Mutable pos config options.
    *
@@ -43,6 +48,8 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
     this.validatorContractAddress =
         posConfigOptions.getValidatorContractAddress().map(String::toLowerCase);
     this.contractAddress=posConfigOptions.getContractAddress();
+    this.seed=posConfigOptions.getSeed();
+    this.stakeMap= posConfigOptions.getInitialStake();
   }
 
   @Override
@@ -59,4 +66,15 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
   public Address getContractAddress() {
     return contractAddress;
   }
+
+    @Override
+    public OptionalLong getSeed() {
+        return seed;
+    }
+
+    @Override
+    public Map<String, Long> getInitialStake() {
+        return stakeMap;
+    }
+
 }

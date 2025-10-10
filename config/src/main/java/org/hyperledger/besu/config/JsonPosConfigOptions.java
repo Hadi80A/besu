@@ -14,8 +14,10 @@
  */
 package org.hyperledger.besu.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hyperledger.besu.datatypes.Address;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -36,6 +38,8 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
   public static final String START_BLOCK = "startblock";
 
   public static final String CONTRACT_ADDRESS = "contractaddress";
+  public static final String SEED = "seed";
+  public static final String INITIAL_STAKE = "initialstake";
 
   /**
    * Instantiates a new Json QBFT config options.
@@ -65,7 +69,25 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
     return Address.ZERO;
   }
 
-  @Override
+    @Override
+    public OptionalLong getSeed() {
+        return JsonUtil.getLong(bftConfigRoot, SEED);
+    }
+
+    @Override
+    public Map<String, Long> getInitialStake() {
+      HashMap<String, Long> stakeMap = new HashMap<>();
+      if (JsonUtil.hasKey(bftConfigRoot, INITIAL_STAKE) && JsonUtil.getObjectNode(bftConfigRoot, INITIAL_STAKE).isPresent()) {
+          ObjectNode initialStakeObject = JsonUtil.getObjectNode(bftConfigRoot, INITIAL_STAKE).get();
+//          initialStakeObject;
+          initialStakeObject.forEachEntry((s, jsonNode)->{
+              stakeMap.put(s, jsonNode.asLong());
+          } );
+      }
+        return stakeMap;
+    }
+
+    @Override
   public Map<String, Object> asMap() {
     final Map<String, Object> map = super.asMap();
     final ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
@@ -74,7 +96,9 @@ public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosCon
     getValidatorContractAddress()
         .ifPresent((address) -> builder.put(VALIDATOR_CONTRACT_ADDRESS, address));
     getStartBlock().ifPresent((startBlock) -> builder.put(START_BLOCK, getStartBlock()));
-
+    builder.put(CONTRACT_ADDRESS, getContractAddress());
+    builder.put(SEED, getSeed());
+    builder.put(INITIAL_STAKE, getInitialStake());
     return builder.build();
   }
 }

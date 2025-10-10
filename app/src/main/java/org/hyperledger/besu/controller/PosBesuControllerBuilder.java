@@ -49,6 +49,7 @@ import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.MiningConfiguration;
+import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.EthProtocol;
 import org.hyperledger.besu.ethereum.eth.SnapProtocol;
@@ -58,9 +59,12 @@ import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.evm.account.Account;
+import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.worldstate.WorldState;
+import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.plugin.services.BesuEvents;
 import org.hyperledger.besu.util.Subscribers;
 
@@ -224,7 +228,12 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         new MessageTracker(bftConfig.getDuplicateMessageLimit());
 
     final PosRoundFactory.MessageFactory messageFactory = new PosRoundFactory.MessageFactory();
-    NodeSet nodeSet = createNodeSet(protocolContext);
+
+      MutableWorldState worldState = getMutableWorldState(protocolContext, blockchain);
+      if(blockchain.getChainHeadBlockNumber()==0){
+        readInitialStake(worldState,blockchain);
+    }
+    NodeSet nodeSet = createNodeSet(worldState,blockchain);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
 
@@ -232,7 +241,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     PosProposerSelector posProposerSelector = null;
     if (  nodeSet.getNode(localAddress).isPresent()) {
       posProposerSelector = new PosProposerSelector(nodeSet, nodeKey,
-              nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount());
+              nodeSet.getNode(localAddress).get().getStakeInfo().getStakedAmount(),posConfig);
     }
       Bls.KeyPair blsKeyPair;
       try {
@@ -328,21 +337,134 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
     return posMiningCoordinator;
   }
-  private NodeSet createNodeSet(ProtocolContext protocolContext) {
 
-    WorldStateArchive worldStateArchive = protocolContext.getWorldStateArchive();
-    Blockchain blockchain = protocolContext.getBlockchain();
+    // ---------- helpers ----------
+    private static Bytes32 computeMappingSlotForAddress(final Address addr, final long mappingSlotIndex) {
+        // pad address to 32 bytes (left pad)
+        Bytes addrBytes = Bytes.wrap(addr.toArray()); // 20 bytes
+        Bytes32 paddedKey = Bytes32.leftPad(addrBytes); // left-pad to 32 bytes
+        // slot index as 32 bytes
+        Bytes32 slotIndexBytes = uintToBytes32(BigInteger.valueOf(mappingSlotIndex));
+        Bytes concatenated = Bytes.concatenate(paddedKey, slotIndexBytes);
+        Bytes32 slotHash = Hash.keccak256(concatenated);
+        return slotHash;
+    }
 
+    private static Bytes32 uintToBytes32(final BigInteger value) {
+        byte[] asBytes = value.toByteArray();
+        byte[] out = new byte[32];
+        int srcPos = Math.max(0, asBytes.length - 32);
+        int length = Math.min(32, asBytes.length);
+        System.arraycopy(asBytes, srcPos, out, 32 - length, length);
+        return Bytes32.wrap(out);
+    }
+
+    private static UInt256 bytes32ToUInt256(final Bytes32 b) {
+        // UInt256.fromBytes or UInt256.valueOf depending on API:
+        return UInt256.fromBytes(b);
+    }
+
+    // ---------- set single validator stake (no commit here) ----------
+    private void setValidatorStake(final WorldUpdater updater,
+                                   final Address contractAddress,
+                                   final Address validatorAddress,
+                                   final BigInteger stakeWei,
+                                   final long mappingSlotIndex) {
+
+        // get (or create) contract account in updater
+        MutableAccount contract = updater.getOrCreate(contractAddress);
+
+        // compute storage slot (Solidity mapping: keccak(pad32(key) ++ pad32(slotIndex)))
+        Bytes32 slotHash = computeMappingSlotForAddress(validatorAddress, mappingSlotIndex);
+        UInt256 storageKey = bytes32ToUInt256(slotHash);
+        UInt256 storageValue = UInt256.valueOf(stakeWei);
+
+        // write into the contract storage (overlay)
+        contract.setStorageValue(storageKey, storageValue);
+
+        LOG.debug("WROTE to updater slot {} => value {} (wei) for validator {}", slotHash, stakeWei, validatorAddress);
+
+        // read back from the updater overlay to verify to write (immediate check)
+        UInt256 readBack = contract.getStorageValue(storageKey);
+        LOG.debug("READ-BACK from updater slot {} => {}", slotHash, readBack);
+        // don't commit here
+    }
+
+    // ---------- read initial stakes ----------
+    private void readInitialStake(final MutableWorldState worldState, final MutableBlockchain blockchain) {
+        final WorldUpdater updater = worldState.updater();
+        final BlockHeader genesisHeader = blockchain.getBlockHeader(0)
+                .orElseThrow(() -> new RuntimeException("Genesis block not found"));
+
+        LOG.debug("stake in config:");
+        final Address stakeManager = posConfig.getContractAddress();
+
+        // ensure the contract account exists in updater
+        MutableAccount contract = updater.getOrCreate(stakeManager);
+        if (contract == null) {
+            throw new RuntimeException("Cannot create stake manager account in updater");
+        }
+
+        // IMPORTANT: set this to the mapping slot index used by your solidity contract
+        final long mappingSlotIndex = 0L; // <-- change if the mapping isn't in slot 0
+
+        posConfig.getInitialStake().forEach((addrHex, amountEth) -> {
+            LOG.debug("{}: {}", addrHex, amountEth);
+
+            Address validator = Address.fromHexString(addrHex);
+
+            // Convert ETH to wei if amount is ETH in config
+            BigInteger stakeWei = BigInteger.valueOf(amountEth.longValue()).multiply(BigInteger.TEN.pow(18));
+
+            // Write but DON'T commit here
+            setValidatorStake(updater, stakeManager, validator, stakeWei, mappingSlotIndex);
+        });
+
+        // Now commit once
+        updater.commit();
+        LOG.debug("Updater committed initial stake writes.");
+
+        // Persist world state for genesis header (if required by your flow)
+        worldState.persist(genesisHeader);
+        LOG.debug("World state persisted for genesis header.");
+    }
+
+    // ---------- get validator stake ----------
+    private BigInteger getValidatorStake(final WorldState worldState,
+                                         final Address contractAddress,
+                                         final Address validatorAddress,
+                                         final long mappingSlotIndex) {
+        Account contractAccount = worldState.get(contractAddress);
+        if (contractAccount == null || contractAccount.isEmpty()) {
+            LOG.debug("contractAccount is null or empty");
+            return BigInteger.ZERO;
+        }
+
+        Bytes32 slotHash = computeMappingSlotForAddress(validatorAddress, mappingSlotIndex);
+        UInt256 storageKey = bytes32ToUInt256(slotHash);
+
+        UInt256 stored = contractAccount.getStorageValue(storageKey);
+        if (stored == null) return BigInteger.ZERO;
+        return stored.toBigInteger(); // value in wei
+    }
+
+    private static MutableWorldState getMutableWorldState(ProtocolContext protocolContext, MutableBlockchain blockchain) {
+        WorldStateArchive worldStateArchive = protocolContext.getWorldStateArchive();
+        BlockHeader genesisHeader =
+                blockchain
+                        .getBlockHeader(0)
+                        .orElseThrow(() -> new RuntimeException("Genesis block not found"));
+        WorldStateQueryParams params =
+                WorldStateQueryParams.withBlockHeaderAndUpdateNodeHead(genesisHeader);
+        return worldStateArchive.getWorldState(params)
+        .orElseThrow(() -> new RuntimeException("cannot get mutable world state"));
+    }
+
+    private NodeSet createNodeSet(MutableWorldState worldState, MutableBlockchain blockchain) {
     BlockHeader genesisHeader =
         blockchain
             .getBlockHeader(0)
             .orElseThrow(() -> new RuntimeException("Genesis block not found"));
-
-    WorldState worldState =
-        worldStateArchive
-            .get(genesisHeader.getStateRoot(), genesisHeader.getHash())
-            .orElseThrow(() -> new RuntimeException("Genesis state not available"));
-
     NodeSet nodeSet = new NodeSet();
 
     // Use your custom codec to decode extraData
@@ -382,9 +504,9 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
           account != null ? account.getBalance().toBigInteger() : BigInteger.ZERO;
 
       BigDecimal balanceEth = weiToEth(balanceWei);
-
+        final long mappingSlotIndex = 0L;
       // Get stake from contract
-      BigInteger stakeWei = getValidatorStake(worldState, stakeManager, validator);
+      BigInteger stakeWei = getValidatorStake(worldState, stakeManager, validator,mappingSlotIndex);
       BigDecimal stakeEth = weiToEth(stakeWei);
 
       System.out.printf(
@@ -392,7 +514,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
           id, validator.toHexString(), balanceEth.toString(), stakeEth.toString());
 
       // Build node info (customize as needed)
-      StakeInfo stake = StakeInfo.builder().stakedAmount(100).build();//todo
+      StakeInfo stake = StakeInfo.builder().stakedAmount(stakeEth.longValue()).build();//todo
 
       Node node =
           Node.builder()
@@ -408,7 +530,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
       LOG.debug("stake:{}", node.getStakeInfo().getStakedAmount());
       nodeSet.addOrUpdateNode(node);
     }
-
     System.out.println("Total validators: " + validators.size());
 
     //
@@ -460,6 +581,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     return nodeSet;
   }
 
+
     private static void registerPops(List<Bls.Signature> blsPops, List<Bls.PublicKey> blsPublicKeys) {
         PosExtraDataCodec.setPops(blsPops);
         for (int i = 0; i < blsPublicKeys.size() ; i++) {
@@ -476,28 +598,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP.ordinal());
   }
 
-  private BigInteger getValidatorStake(
-      WorldState worldState, Address contractAddress, Address validatorAddress) {
-    // 1. Get contract account
-    Account contractAccount = worldState.get(contractAddress);
-    if (contractAccount == null || contractAccount.isEmpty()) {
-      System.out.println("contractAccount is null or empty");
-      return BigInteger.ZERO;
-    }
-
-    // 2. Compute storage slot for validator's stake
-    // Slot = keccak256(validatorAddress + slot_index)
-    // slot_index = 0 (first slot in the contract storage layout)
-    Bytes32 key = Bytes32.leftPad(validatorAddress);
-    Bytes32 slotIndex = Bytes32.leftPad(Bytes.of(0)); // Slot 0 for mapping
-    Bytes concatenated = Bytes.concatenate(key, slotIndex);
-    Bytes32 slotHash = Hash.keccak256(concatenated);
-
-    // 3. Read storage value at computed slot
-    UInt256 stakeValue =
-        contractAccount.getStorageValue(UInt256.valueOf(slotHash.toUnsignedBigInteger()));
-    return stakeValue.toBigInteger();
-  }
 
   @Override
   protected PluginServiceFactory createAdditionalPluginServices(
