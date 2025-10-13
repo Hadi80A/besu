@@ -45,12 +45,10 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.MiningCoordinator;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.chain.DefaultBlockchain;
 import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
-import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.ethereum.core.MiningConfiguration;
-import org.hyperledger.besu.ethereum.core.MutableWorldState;
-import org.hyperledger.besu.ethereum.core.Util;
+import org.hyperledger.besu.ethereum.core.*;
 import org.hyperledger.besu.ethereum.eth.EthProtocol;
 import org.hyperledger.besu.ethereum.eth.SnapProtocol;
 import org.hyperledger.besu.ethereum.eth.manager.EthProtocolManager;
@@ -59,6 +57,8 @@ import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
+import org.hyperledger.besu.ethereum.rlp.RLP;
+import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.evm.account.Account;
@@ -66,6 +66,8 @@ import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.worldstate.WorldState;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.plugin.services.BesuEvents;
+import org.hyperledger.besu.plugin.services.storage.KeyValueStorage;
+import org.hyperledger.besu.plugin.services.storage.KeyValueStorageTransaction;
 import org.hyperledger.besu.util.Subscribers;
 
 import java.io.IOException;
@@ -232,11 +234,11 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
       MutableWorldState worldState = getMutableWorldState(protocolContext, blockchain);
       if(blockchain.getChainHeadBlockNumber()==0){
         readInitialStake(worldState,blockchain);
+          overwriteGenesisStateRoot(worldState,protocolContext,protocolSchedule);
     }
     NodeSet nodeSet = createNodeSet(worldState,blockchain);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
-
 
     PosProposerSelector posProposerSelector = null;
     if (  nodeSet.getNode(localAddress).isPresent()) {
@@ -427,6 +429,54 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         // Persist world state for genesis header (if required by your flow)
         worldState.persist(genesisHeader);
         LOG.debug("World state persisted for genesis header.");
+        // compute the world-state root after the writes
+        final Bytes32 computedRoot = worldState.rootHash();
+        final Bytes32 genesisRoot = genesisHeader.getStateRoot();
+
+        if (!computedRoot.equals(genesisRoot)) {
+              LOG.error("Genesis header stateRoot mismatch after applying initial stakes.");
+              LOG.error("  genesis.header.stateRoot = {}", genesisRoot);
+             LOG.error("  computed.worldState.root   = {}", computedRoot);
+
+            }else
+                LOG.info("Initial stakes applied and genesis stateRoot matches the on-disk genesis header.");
+
+    }
+    /**
+     * Overwrite the state-root of the already-persisted genesis header with the
+     * root that now includes the initial stakes.  Uses only the objects that
+     * BesuControllerBuilder already gives us.
+     */
+    private void overwriteGenesisStateRoot(final MutableWorldState worldState,
+                                           final ProtocolContext context, ProtocolSchedule protocolSchedule) {
+
+        final org.hyperledger.besu.datatypes.Hash newStateRoot = worldState.rootHash();
+        final Blockchain blockchain = context.getBlockchain();
+        final BlockHeader oldGenesis = blockchain
+                .getBlockHeader(0L)
+                .orElseThrow(() -> new IllegalStateException("Genesis header missing"));
+
+        // 1. Build a new header identical except for stateRoot
+        final BlockHeader newGenesis = BlockHeaderBuilder.create()
+                .populateFrom(oldGenesis)
+                .stateRoot(newStateRoot)
+                .nonce(oldGenesis.getNonce())
+                .blockHeaderFunctions(protocolSchedule
+                        .getByBlockHeader(oldGenesis)
+                        .getBlockHeaderFunctions())
+                .buildBlockHeader();
+
+        final KeyValueStorage headerStore = storageProvider
+                .getStorageBySegmentIdentifier(KeyValueSegmentIdentifier.BLOCKCHAIN);
+
+        final KeyValueStorageTransaction tx = headerStore.startTransaction();
+        tx.put(
+                    newGenesis.getHash().toArrayUnsafe(),
+                    RLP.encode(newGenesis::writeTo).toArray());
+            tx.commit();
+
+
+        LOG.info("Genesis stateRoot overwritten to {}", newStateRoot);
     }
 
     // ---------- get validator stake ----------
@@ -515,6 +565,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
       // Build node info (customize as needed)
       StakeInfo stake = StakeInfo.builder().stakedAmount(stakeEth.longValue()).build();//todo
+//      StakeInfo stake = StakeInfo.builder().stakedAmount(100L).build();//todo
 
       Node node =
           Node.builder()
