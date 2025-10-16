@@ -232,10 +232,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
     final PosRoundFactory.MessageFactory messageFactory = new PosRoundFactory.MessageFactory();
 
       MutableWorldState worldState = getMutableWorldState(protocolContext, blockchain);
-      if(blockchain.getChainHeadBlockNumber()==0){
-        readInitialStake(worldState,blockchain);
-          overwriteGenesisStateRoot(worldState,protocolContext,protocolSchedule);
-    }
     NodeSet nodeSet = createNodeSet(worldState,blockchain);
     ContractCaller contractCaller =
         new ContractCaller(posConfig.getContractAddress(), protocolContext);
@@ -366,114 +362,6 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         return UInt256.fromBytes(b);
     }
 
-    // ---------- set single validator stake (no commit here) ----------
-    private void setValidatorStake(final WorldUpdater updater,
-                                   final Address contractAddress,
-                                   final Address validatorAddress,
-                                   final BigInteger stakeWei,
-                                   final long mappingSlotIndex) {
-
-        // get (or create) contract account in updater
-        MutableAccount contract = updater.getOrCreate(contractAddress);
-
-        // compute storage slot (Solidity mapping: keccak(pad32(key) ++ pad32(slotIndex)))
-        Bytes32 slotHash = computeMappingSlotForAddress(validatorAddress, mappingSlotIndex);
-        UInt256 storageKey = bytes32ToUInt256(slotHash);
-        UInt256 storageValue = UInt256.valueOf(stakeWei);
-
-        // write into the contract storage (overlay)
-        contract.setStorageValue(storageKey, storageValue);
-
-        LOG.debug("WROTE to updater slot {} => value {} (wei) for validator {}", slotHash, stakeWei, validatorAddress);
-
-        // read back from the updater overlay to verify to write (immediate check)
-        UInt256 readBack = contract.getStorageValue(storageKey);
-        LOG.debug("READ-BACK from updater slot {} => {}", slotHash, readBack);
-        // don't commit here
-    }
-
-    // ---------- read initial stakes ----------
-    private void readInitialStake(final MutableWorldState worldState, final MutableBlockchain blockchain) {
-        final WorldUpdater updater = worldState.updater();
-        final BlockHeader genesisHeader = blockchain.getBlockHeader(0)
-                .orElseThrow(() -> new RuntimeException("Genesis block not found"));
-
-        LOG.debug("stake in config:");
-        final Address stakeManager = posConfig.getContractAddress();
-
-        // ensure the contract account exists in updater
-        MutableAccount contract = updater.getOrCreate(stakeManager);
-        if (contract == null) {
-            throw new RuntimeException("Cannot create stake manager account in updater");
-        }
-
-        // IMPORTANT: set this to the mapping slot index used by your solidity contract
-        final long mappingSlotIndex = 0L; // <-- change if the mapping isn't in slot 0
-
-        posConfig.getInitialStake().forEach((addrHex, amountEth) -> {
-            LOG.debug("{}: {}", addrHex, amountEth);
-
-            Address validator = Address.fromHexString(addrHex);
-
-            // Convert ETH to wei if amount is ETH in config
-            BigInteger stakeWei = BigInteger.valueOf(amountEth.longValue()).multiply(BigInteger.TEN.pow(18));
-
-            // Write but DON'T commit here
-            setValidatorStake(updater, stakeManager, validator, stakeWei, mappingSlotIndex);
-        });
-
-        // Now commit once
-        updater.commit();
-        LOG.debug("Updater committed initial stake writes.");
-
-        // Persist world state for genesis header (if required by your flow)
-//        worldState.persist(genesisHeader);
-        LOG.debug("World state persisted for genesis header.");
-        // compute the world-state root after the writes
-        final Bytes32 computedRoot = worldState.rootHash();
-        final Bytes32 genesisRoot = genesisHeader.getStateRoot();
-
-        if (!computedRoot.equals(genesisRoot)) {
-              LOG.error("Genesis header stateRoot mismatch after applying initial stakes.");
-              LOG.error("  genesis.header.stateRoot = {}", genesisRoot);
-             LOG.error("  computed.worldState.root   = {}", computedRoot);
-
-            }else
-                LOG.info("Initial stakes applied and genesis stateRoot matches the on-disk genesis header.");
-
-    }
-
-    private void overwriteGenesisStateRoot(final MutableWorldState worldState,
-                                           final ProtocolContext context, ProtocolSchedule protocolSchedule) {
-
-        final org.hyperledger.besu.datatypes.Hash newStateRoot = worldState.rootHash();
-        final Blockchain blockchain = context.getBlockchain();
-        final BlockHeader oldGenesis = blockchain
-                .getBlockHeader(0L)
-                .orElseThrow(() -> new IllegalStateException("Genesis header missing"));
-
-        // 1. Build a new header identical except for stateRoot
-        final BlockHeader newGenesis = BlockHeaderBuilder.create()
-                .populateFrom(oldGenesis)
-                .stateRoot(newStateRoot)
-                .nonce(oldGenesis.getNonce())
-                .blockHeaderFunctions(protocolSchedule
-                        .getByBlockHeader(oldGenesis)
-                        .getBlockHeaderFunctions())
-                .buildBlockHeader();
-        worldState.persist(newGenesis);
-        final KeyValueStorage headerStore = storageProvider
-                .getStorageBySegmentIdentifier(KeyValueSegmentIdentifier.BLOCKCHAIN);
-
-        final KeyValueStorageTransaction tx = headerStore.startTransaction();
-        tx.put(
-                    newGenesis.getHash().toArrayUnsafe(),
-                    RLP.encode(newGenesis::writeTo).toArray());
-            tx.commit();
-
-
-        LOG.info("Genesis stateRoot overwritten to {}", newStateRoot);
-    }
 
     // ---------- get validator stake ----------
     private BigInteger getValidatorStake(final WorldState worldState,

@@ -36,8 +36,7 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
     private Address contractAddress;
     @Setter
     private OptionalLong seed;
-    @Setter
-    private Map<String,Long> stakeMap;
+
   /**
    * Instantiates a new Mutable pos config options.
    *
@@ -49,7 +48,6 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
         posConfigOptions.getValidatorContractAddress().map(String::toLowerCase);
     this.contractAddress=posConfigOptions.getContractAddress();
     this.seed=posConfigOptions.getSeed();
-    this.stakeMap= posConfigOptions.getInitialStake();
   }
 
   @Override
@@ -70,11 +68,6 @@ public class MutablePosConfigOptions extends MutableBftConfigOptions implements 
     @Override
     public OptionalLong getSeed() {
         return seed;
-    }
-
-    @Override
-    public Map<String, Long> getInitialStake() {
-        return stakeMap;
     }
 
 }

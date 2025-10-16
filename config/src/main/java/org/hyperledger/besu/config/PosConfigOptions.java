@@ -49,5 +49,4 @@ public interface PosConfigOptions extends BftConfigOptions {
   Address getContractAddress();
   OptionalLong getSeed();
 
-  Map<String,Long> getInitialStake();
 }
