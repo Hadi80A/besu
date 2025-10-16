@@ -17,6 +17,8 @@ package org.hyperledger.besu.cli.subcommands.operator;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.cli.DefaultCommandValues;
 import org.hyperledger.besu.cli.util.VersionProvider;
 import org.hyperledger.besu.config.GenesisConfig;
@@ -38,6 +40,7 @@ import org.hyperledger.besu.ethereum.core.Util;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -170,6 +173,7 @@ class GenerateBlockchainConfig implements Runnable {
         importPublicKeysFromConfig();
       }
       processExtraData();
+      populateInitialStakesIntoAlloc();
       writeGenesisFile(outputDirectory, genesisFileName, genesisConfig);
     } catch (final IOException e) {
       LOG.error("An error occurred while trying to generate network configuration.", e);
@@ -417,6 +421,118 @@ class GenerateBlockchainConfig implements Runnable {
         JsonUtil.getJson(genesis).getBytes(UTF_8),
         StandardOpenOption.CREATE_NEW);
   }
+
+    /**
+     * Read pos.initialstake { address : stake } and write storage entries into genesis.alloc for the
+     * deployed StakeManager contract address found in genesis.config.pos.contractaddress
+     */
+    private void populateInitialStakesIntoAlloc() {
+        try {
+            final ObjectNode configNode =
+                    JsonUtil.getObjectNode(genesisConfig, "config")
+                            .orElseThrow(() -> new IllegalArgumentException("Missing config section in config file"));
+            final ObjectNode posNode =
+                    JsonUtil.getObjectNode(configNode, "pos").orElse(JsonUtil.createEmptyObjectNode());
+            // contract address string (may have 0x). If absent, nothing to do.
+            final String contractAddressRaw = JsonUtil.getString(posNode, "contractaddress", "");
+            if (contractAddressRaw == null || contractAddressRaw.isEmpty()) {
+                LOG.info("No pos.contractaddress present; skipping initial stake population.");
+                return;
+            }
+            final String contractAddressKey = normalizeAddressKey(contractAddressRaw);
+            final Optional<ArrayNode> initialStakeArrayOpt = JsonUtil.getArrayNode(posNode, "initialstake");
+            if (initialStakeArrayOpt.isEmpty()) {
+                LOG.info("No pos.initialstake array; nothing to populate.");
+                return;
+            }
+            final JsonNode initialStakeArray = initialStakeArrayOpt.get();
+            // Ensure alloc and contract entry exist
+            final ObjectNode allocNode = JsonUtil.getObjectNode(genesisConfig, "alloc")
+                    .orElseGet(() -> genesisConfig.putObject("alloc"));
+            final ObjectNode contractAllocNode = JsonUtil.getObjectNode(allocNode, contractAddressKey)
+                    .orElseGet(() -> allocNode.putObject(contractAddressKey));
+            final ObjectNode storageNode = JsonUtil.getObjectNode(contractAllocNode, "storage")
+                    .orElseGet(() -> contractAllocNode.putObject("storage"));
+            // mapping slot index for "mapping(address => Validator) validators;" — declared first => slot 0
+            final long mappingSlotIndex = 0L;
+            // use addressesForGenesisExtraData to map indexes -> addresses
+            final int stakesCount = initialStakeArray.size();
+            final int addressesCount = addressesForGenesisExtraData.size();
+            if (stakesCount == 0) {
+                LOG.info("pos.initialstake array is empty; nothing to populate.");
+                return;
+            }
+            if (stakesCount != addressesCount) {
+                LOG.warn(
+                        "initialstake array length ({}) does not match number of addressesForGenesisExtraData ({}). Will process min(lengths).",
+                        stakesCount, addressesCount);
+            }
+            final int toProcess = Math.min(stakesCount, addressesCount);
+            for (int i = 0; i < toProcess; i++) {
+                try {
+                    final JsonNode stakeNode = initialStakeArray.get(i);
+                    final BigInteger stakeBI = stakeNode.isTextual()
+                            ? new BigInteger(stakeNode.asText())
+                            : BigInteger.valueOf(stakeNode.asLong());
+                    // If you expect ETH amounts and want wei, replace stakeBI with:
+                     final BigInteger stakeToWrite = stakeBI.multiply(BigInteger.TEN.pow(18));
+//                    final BigInteger stakeToWrite = stakeBI;
+                    final Address addr = addressesForGenesisExtraData.get(i);
+                    final Bytes32 mappingSlot = computeMappingSlotForAddress(addr, mappingSlotIndex);
+                    // stake value (32-byte hex with 0x prefix, lowercase)
+                    final Bytes32 stakeValueBytes = uintToBytes32(stakeToWrite);
+                    final String stakeSlotHexKey = "0x" + mappingSlot.toHexString().substring(2).toLowerCase();
+                    final String stakeSlotHexValue = "0x" + stakeValueBytes.toHexString().substring(2).toLowerCase();
+                    storageNode.put(stakeSlotHexKey, stakeSlotHexValue);
+                    // exists bool stored at slot = mappingSlot + 1 (add numeric +1 to 32-byte hash)
+                    final String mappingSlotHexNoPrefix = mappingSlot.toHexString().substring(2);
+                    final BigInteger mappingSlotBI = new BigInteger(mappingSlotHexNoPrefix, 16);
+                    final BigInteger existsSlotBI = mappingSlotBI.add(BigInteger.ONE);
+                    final Bytes32 existsSlotKeyBytes = uintToBytes32(existsSlotBI);
+                    final String existsSlotHexKey = "0x" + existsSlotKeyBytes.toHexString().substring(2).toLowerCase();
+                    final Bytes32 existsValueBytes = uintToBytes32(BigInteger.ONE);
+                    final String existsSlotHexValue = "0x" + existsValueBytes.toHexString().substring(2).toLowerCase();
+                    storageNode.put(existsSlotHexKey, existsSlotHexValue);
+                    LOG.info("Populated initial stake for index {} addr {}: {} -> {}, {} -> {}",
+                            i, addr.toString(), stakeSlotHexKey, stakeSlotHexValue, existsSlotHexKey, existsSlotHexValue);
+                } catch (final Exception e) {
+                    LOG.error("Failed to populate initial stake for index {}: {}", i, e.getMessage());
+                }
+            }
+            if (stakesCount > addressesCount) {
+                LOG.warn("Ignored {} stake entries because there are fewer addresses than stakes.", stakesCount - addressesCount);
+            } else if (addressesCount > stakesCount) {
+                LOG.warn("Only populated {} of {} addresses (fewer stakes than addresses).", stakesCount, addressesCount);
+            }
+        } catch (final Exception e) {
+            LOG.error("Error populating initial stakes into alloc: {}", e.getMessage());
+        }
+    }
+    private static String normalizeAddressKey(final String raw) {
+        String s = raw.startsWith("0x") || raw.startsWith("0X") ? raw.substring(2) : raw;
+        // keep as-is (no leading 0x) to match typical genesis alloc keys in your example
+        return s;
+    }
+
+    /** Convert unsigned BigInteger to 32-byte Bytes32 left-padded. */
+    private static Bytes32 uintToBytes32(final BigInteger v) {
+        final byte[] src = v.toByteArray();
+        final byte[] dest = new byte[32];
+        // BigInteger.toByteArray may include a leading zero for sign; copy from the right
+        final int srcOffset = Math.max(0, src.length - 32);
+        final int length = Math.min(src.length, 32);
+        System.arraycopy(src, srcOffset, dest, 32 - length, length);
+        return Bytes32.wrap(dest);
+    }
+
+    /** Compute mapping slot like solidity: keccak(pad(key) ++ uint256(mappingSlotIndex)) */
+    private static Bytes32 computeMappingSlotForAddress(final Address addr, final long mappingSlotIndex) {
+        final Bytes addrBytes = Bytes.wrap(addr.toArray()); // 20 bytes
+        final Bytes32 paddedKey = Bytes32.leftPad(addrBytes);
+        final Bytes32 slotIndexBytes = uintToBytes32(BigInteger.valueOf(mappingSlotIndex));
+        final Bytes concatenated = Bytes.concatenate(paddedKey, slotIndexBytes);
+        return org.hyperledger.besu.crypto.Hash.keccak256(Bytes.wrap(concatenated.toArray()));
+    }
 
   private static boolean isAnyDuplicate(final String... values) {
     final Set<String> set = new HashSet<>();

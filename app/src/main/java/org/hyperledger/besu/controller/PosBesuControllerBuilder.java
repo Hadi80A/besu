@@ -427,7 +427,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         LOG.debug("Updater committed initial stake writes.");
 
         // Persist world state for genesis header (if required by your flow)
-        worldState.persist(genesisHeader);
+//        worldState.persist(genesisHeader);
         LOG.debug("World state persisted for genesis header.");
         // compute the world-state root after the writes
         final Bytes32 computedRoot = worldState.rootHash();
@@ -442,11 +442,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                 LOG.info("Initial stakes applied and genesis stateRoot matches the on-disk genesis header.");
 
     }
-    /**
-     * Overwrite the state-root of the already-persisted genesis header with the
-     * root that now includes the initial stakes.  Uses only the objects that
-     * BesuControllerBuilder already gives us.
-     */
+
     private void overwriteGenesisStateRoot(final MutableWorldState worldState,
                                            final ProtocolContext context, ProtocolSchedule protocolSchedule) {
 
@@ -465,7 +461,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                         .getByBlockHeader(oldGenesis)
                         .getBlockHeaderFunctions())
                 .buildBlockHeader();
-
+        worldState.persist(newGenesis);
         final KeyValueStorage headerStore = storageProvider
                 .getStorageBySegmentIdentifier(KeyValueSegmentIdentifier.BLOCKCHAIN);
 
@@ -492,7 +488,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
 
         Bytes32 slotHash = computeMappingSlotForAddress(validatorAddress, mappingSlotIndex);
         UInt256 storageKey = bytes32ToUInt256(slotHash);
-
+//        LOG.debug("storageKey for {}: {}", validatorAddress.toHexString(),storageKey);
         UInt256 stored = contractAccount.getStorageValue(storageKey);
         if (stored == null) return BigInteger.ZERO;
         return stored.toBigInteger(); // value in wei
