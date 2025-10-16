@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pos.payload;
 
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.SuperBuilder;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
@@ -29,6 +30,7 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 @SuperBuilder
 public class BlockAnnouncePayload extends PosPayload {
   private static final int TYPE = PosMessage.BLOCK_ANNOUNCE.getCode();
+  @Getter
   private final QuorumCertificate quorumCertificate;
 
 

@@ -133,7 +133,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         final long nextBlockHeight = getChainHeight();
 
         posExtraData = readPosData();
-
+        proposerSelector.setPreviousSeed(posExtraData.getSeed());
         final ConsensusRoundIdentifier roundIdentifier;
         if(nextBlockHeight>1) {
             roundIdentifier = new ConsensusRoundIdentifier(nextBlockHeight, posExtraData.getRound() + 1);
@@ -437,9 +437,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 List<SelectLeader> candidates = filterLeaders(getRoundState().getSelectLeaderMessages(),
                         msg.getRoundIdentifier(), blockchain.getChainHeadHash());
                 var seed = proposerSelector.seed(msg.getRoundIdentifier().getRoundNumber(), blockchain.getChainHeadHash(),
-                        getRoundState().getHeight(),
-                        proposerSelector.getSeedAtRound(msg.getRoundIdentifier().getRoundNumber()-1,blockchain.getChainHeadHash(),
-                                getRoundState().getHeight()));
+                        getRoundState().getHeight());
                 SelectLeader selected = null;
                 if (candidates.isEmpty()) {
                     if (currentRound.isPresent()) {
@@ -543,9 +541,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             LOG.debug("roundNumber.getRoundNumber(){}",roundNumber.getRoundNumber());
             LOG.debug("prevBlockHash{}",prevBlockHash);
             LOG.debug("getRoundState().getHeight(){}",getRoundState().getHeight());
-            LOG.debug("pervious seed{}",proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight()));
-            var seed = proposerSelector.seed(roundNumber.getRoundNumber(), prevBlockHash, getRoundState().getHeight(),
-                    proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight()));
+                   var seed = proposerSelector.seed(roundNumber.getRoundNumber(), prevBlockHash, getRoundState().getHeight());
+//                    proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight()));
+
             LOG.debug("seed is {}", seed);
 
 
@@ -574,10 +572,10 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                     }
                     else {
                         LOG.debug("seed{}",seed);
-                        LOG.debug("roundNumber.getRoundNumber()",roundNumber.getRoundNumber());
-                        LOG.debug("prevBlockHash",prevBlockHash);
-                        LOG.debug(" getRoundState().getHeight()", getRoundState().getHeight());
-                        LOG.debug("proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight())",
+                        LOG.debug("roundNumber.getRoundNumber(){}",roundNumber.getRoundNumber());
+                        LOG.debug("prevBlockHash{}",prevBlockHash);
+                        LOG.debug(" getRoundState().getHeight(){}", getRoundState().getHeight());
+                        LOG.debug("proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1{}, blockchain.getChainHeadHash(){}, getRoundState().getHeight()){}",
                                 proposerSelector.getSeedAtRound(roundNumber.getRoundNumber()-1, blockchain.getChainHeadHash(), getRoundState().getHeight()));
 
                         LOG.debug("not verify vrf");
@@ -850,7 +848,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 //                boolean result= false;
 //                finalState.getBlockTimer().cancelTimer();
                 finalState.getBlockTimer().cancelTimer();
-                boolean isSuccess= currentRound.get().importBlockToChain();
+                QuorumCertificate qc=msg.getSignedPayload().getPayload().getQuorumCertificate();
+                Bytes32 seed= proposerSelector.getSeedAtRound(
+                        roundIdentifier.getRoundNumber(),blockchain.getChainHeadHash(),
+                        msg.getSignedPayload().getPayload().getHeight());
+                boolean isSuccess= currentRound.get().importBlockToChain(qc,seed);
                 if(isSuccess) {
                     getRoundState().setCurrentState(PosMessage.SELECT_LEADER);
                     final long now = clock.millis() / 1000;

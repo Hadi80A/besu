@@ -346,7 +346,7 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
       }, delayMs, TimeUnit.MILLISECONDS);
   }
 
-  public boolean importBlockToChain() {
+  public boolean importBlockToChain(QuorumCertificate quorumCertificate, Bytes32 seed) {
     if (posProposerSelector.getCurrentProposer().isEmpty()){
       LOG.warn("No proposer selected for importBlockToChain");
       return false;
@@ -356,7 +356,9 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
                     roundState.getProposedBlock(),
                     roundState.getRoundIdentifier().getRoundNumber(),
                     roundState.getCommitSeals(),
-                    posProposerSelector.getCurrentProposer().get()
+                    posProposerSelector.getCurrentProposer().get(),
+                    quorumCertificate,
+                    seed
             );
 
     final long blockNumber = blockToImport.getHeader().getBesuBlockHeader().getNumber();
@@ -481,7 +483,8 @@ private SignedData<ProposePayload> createProposePayload(PosBlock block, VRF.Proo
     LOG.debug("roundNumber-1{}, Bytes32.wrap(block.getHash().toArray()){},\n" +
             "(block.getHeader().getNumber())-1{},posProposerSelector.getSeedAtRound(roundNumber-1){}",
             roundNumber, Bytes32.wrap(block.getHash().toArray()),
-            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()));
+            block.getHeader().getNumber()+1,
+            posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()));
     var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()),
             block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()) );
     if(maybeLeaderVRF.isPresent()) {

@@ -19,11 +19,13 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+import org.hyperledger.besu.consensus.pos.statemachine.QuorumCertificate;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
@@ -61,7 +63,8 @@ public class PosBlockCreator {
   }
 
   public PosBlock createSealedBlock(
-      final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals,Address propser) {
+          final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals, Address propser,
+          QuorumCertificate quorumCertificate, Bytes32 seed ) {
       log.debug("creating sealed block");
     final Block besuBlock = BlockUtil.toBesuBlock(block);
     final PosBlockHeader initialHeader = block.getHeader();
@@ -78,7 +81,9 @@ public class PosBlockCreator {
             propser,
                 initialExtraData.getPublicKeys(),
                 initialExtraData.getBlsPublicKeys(),
-                initialExtraData.getPops()
+                initialExtraData.getPops(),
+                quorumCertificate,seed
+
         );
 
     final BlockHeader sealedHeader =
