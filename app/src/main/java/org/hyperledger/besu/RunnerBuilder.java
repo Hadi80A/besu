@@ -21,8 +21,8 @@ import static java.util.function.Predicate.not;
 import static org.hyperledger.besu.controller.BesuController.CACHE_PATH;
 
 import org.hyperledger.besu.cli.config.EthNetworkConfig;
-import org.hyperledger.besu.cli.config.NetworkName;
 import org.hyperledger.besu.cli.options.EthstatsOptions;
+import org.hyperledger.besu.config.NetworkDefinition;
 import org.hyperledger.besu.controller.BesuController;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -70,6 +70,7 @@ import org.hyperledger.besu.ethereum.core.Synchronizer;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
+import org.hyperledger.besu.ethereum.mainnet.BalConfiguration;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.config.DiscoveryConfiguration;
 import org.hyperledger.besu.ethereum.p2p.config.NetworkingConfiguration;
@@ -170,6 +171,7 @@ public class RunnerBuilder {
   private WebSocketConfiguration webSocketConfiguration;
   private InProcessRpcConfiguration inProcessRpcConfiguration;
   private ApiConfiguration apiConfiguration;
+  private BalConfiguration balConfiguration = BalConfiguration.DEFAULT;
   private Path dataDir;
   private Optional<Path> pidPath = Optional.empty();
   private MetricsConfiguration metricsConfiguration;
@@ -394,6 +396,17 @@ public class RunnerBuilder {
   }
 
   /**
+   * Sets the block access list configuration.
+   *
+   * @param balConfiguration the BAL configuration
+   * @return the runner builder
+   */
+  public RunnerBuilder balConfiguration(final BalConfiguration balConfiguration) {
+    this.balConfiguration = balConfiguration;
+    return this;
+  }
+
+  /**
    * Add Permissioning configuration.
    *
    * @param permissioningConfiguration the permissioning configuration
@@ -612,7 +625,7 @@ public class RunnerBuilder {
     if (discoveryEnabled) {
       final List<EnodeURL> bootstrap;
       if (ethNetworkConfig.bootNodes() == null) {
-        bootstrap = EthNetworkConfig.getNetworkConfig(NetworkName.MAINNET).bootNodes();
+        bootstrap = EthNetworkConfig.getNetworkConfig(NetworkDefinition.MAINNET).bootNodes();
       } else {
         bootstrap = ethNetworkConfig.bootNodes();
       }
@@ -974,7 +987,8 @@ public class RunnerBuilder {
                   EthStatsConnectOptions.fromParams(
                       ethstatsOptions.getEthstatsUrl(),
                       ethstatsOptions.getEthstatsContact(),
-                      ethstatsOptions.getEthstatsCaCert()),
+                      ethstatsOptions.getEthstatsCaCert(),
+                      ethstatsOptions.getEthstatsReportInterval()),
                   blockchainQueries,
                   besuController.getProtocolManager(),
                   transactionPool,
@@ -1259,6 +1273,7 @@ public class RunnerBuilder {
                 besuController.getProtocolManager().ethContext().getEthPeers(),
                 consensusEngineServer,
                 apiConfiguration,
+                balConfiguration,
                 enodeDnsConfiguration,
                 transactionSimulator,
                 ethScheduler);
