@@ -1865,8 +1865,6 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
       besuControllerBuilder.isParallelTxProcessingEnabled(
           subStorageConfiguration.getParallelTxProcessingEnabled());
     }
-    besuControllerBuilder.isBlockAccessListEnabled(
-        apiConfigurationOptions.apiConfiguration().isBlockAccessListEnabled());
 
     if(besuControllerBuilder instanceof PosBesuControllerBuilder posBesuControllerBuilder){
         posBesuControllerBuilder.setDataDir(dataDir());

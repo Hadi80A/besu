@@ -26,6 +26,7 @@ import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.MiningConfiguration;
+import org.hyperledger.besu.ethereum.mainnet.BalConfiguration;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.BaseFeeMarket;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.FeeMarket;
@@ -66,7 +67,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
       final MiningConfiguration miningConfiguration,
       final BadBlockManager badBlockManager,
       final boolean isParallelTxProcessingEnabled,
-      final boolean isBlockAccessListEnabled,
+      final BalConfiguration balConfiguration,
       final MetricsSystem metricsSystem) {
     return new PosProtocolScheduleBuilder()
         .createProtocolSchedule(
@@ -78,7 +79,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
             miningConfiguration,
             badBlockManager,
             isParallelTxProcessingEnabled,
-                isBlockAccessListEnabled,
+                balConfiguration,
             metricsSystem);
   }
 
@@ -104,7 +105,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
       final MiningConfiguration miningConfiguration,
       final BadBlockManager badBlockManager,
       final boolean isParallelTxProcessingEnabled,
-      final boolean isBlockAccessListEnabled,
+      final BalConfiguration balConfiguration,
       final MetricsSystem metricsSystem) {
     return create(
         config,
@@ -115,7 +116,7 @@ public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
         miningConfiguration,
         badBlockManager,
         isParallelTxProcessingEnabled,
-            isBlockAccessListEnabled,
+            balConfiguration,
         metricsSystem);
 
   }

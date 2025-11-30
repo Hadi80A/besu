@@ -554,7 +554,7 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
         miningConfiguration,
         badBlockManager,
         isParallelTxProcessingEnabled,
-            isBlockAccessListEnabled,
+            balConfiguration,
         metricsSystem);
   }
 
