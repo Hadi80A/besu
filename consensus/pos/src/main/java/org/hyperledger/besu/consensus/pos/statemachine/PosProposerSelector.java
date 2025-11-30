@@ -25,11 +25,12 @@ import java.util.Optional;
 
 @Log4j2
 @Setter
+@Getter
 public class PosProposerSelector {
 
     private static final double LAMBDA =1.0; // tune so ≈1 leader is expected per round
     private static final long EPS = 1L;
-
+    private final Map<Address, BigDecimal> allScore;
     private final NodeSet nodeSet;     // all validators
     private final NodeKey nodeKey;     // local validator’s key
     private final long selfStake;      // local validator stake
@@ -39,6 +40,8 @@ public class PosProposerSelector {
     private Bytes32 previousSeed;
 //    private SECPPublicKey selfPublicKey;
     private Optional<Address> currentLeader = Optional.empty();
+    @Getter
+    private BigDecimal leaderScore;
     @Getter
     private Bytes32 leaderY;
     public PosProposerSelector(final NodeSet nodeSet,
@@ -51,6 +54,7 @@ public class PosProposerSelector {
         this.selfStake = selfStake;
         this.posConfigOptions = posConfigOptions;
         seedMap = new HashMap<>();
+        allScore = new HashMap<>();
 //        this.selfPublicKey = nodeKey.getPublicKey();
     }
 
@@ -88,12 +92,15 @@ public class PosProposerSelector {
             log.warn("totalCapSum <= 0; falling back to false");
             return false;
         }
+
 // T = LAMBDA / sum_i max(eps, wi)
         final BigDecimal T = BigDecimal.valueOf(LAMBDA).divide(new BigDecimal(totalCapSum), MathContext.DECIMAL128);
 // score = y / max(eps, wi)
         final BigDecimal score = yFraction.divide(wiCap, MathContext.DECIMAL128);
         log.debug("canLeader: addr={}, yFrac={}, stake={}, max(eps,wi)={}, score={}, T={}",
                 nodeAddress, yFraction, stake, wiCap, score, T);
+
+        allScore.put(node.getAddress(),score);
         return score.compareTo(T) < 0;
     }
     public Optional<Address> getCurrentProposer() {

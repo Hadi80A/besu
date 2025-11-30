@@ -34,6 +34,7 @@ import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -49,7 +50,6 @@ import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
-import org.hyperledger.besu.evm.log.Log;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -439,6 +439,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                 var seed = proposerSelector.seed(msg.getRoundIdentifier().getRoundNumber(), blockchain.getChainHeadHash(),
                         getRoundState().getHeight());
                 SelectLeader selected = null;
+
                 if (candidates.isEmpty()) {
                     if (currentRound.isPresent()) {
                         LOG.debug("currentRound.get().getNodeSet()totalSize(){}", currentRound.get().getNodeSet().totalSize());
@@ -455,11 +456,14 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                     selected = candidates.getFirst();
                     LOG.debug("candidates.size()==1 {}", selected.getAuthor());
                     leaderProof= selected.getSignedPayload().getPayload().getProof();
-                    Bytes32 selectedY= VRF.hash(selected.getSignedPayload().getPayload().getPublicKey(), seed, leaderProof);
+                    BigDecimal score= proposerSelector.getAllScore().get(selected.getAuthor());
+                       var y= VRF.hash(selected.getSignedPayload().getPayload().getPublicKey(), seed, leaderProof);
                     proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
-                    proposerSelector.setLeaderY(selectedY);
+                    proposerSelector.setLeaderScore(score);
+                    proposerSelector.setLeaderY(y);
                 } else {
                     LOG.debug("candidates.size()= {}", candidates.size());
+                    BigDecimal selectedScore = BigDecimal.ZERO;
                     Bytes32 selectedY = Bytes32.ZERO;
                     if(currentRound.isPresent()) {
                         LOG.debug("yes");
@@ -468,18 +472,31 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                             Optional<Node> optionalNode = currentRound.get().getNodeSet().getNode(candidate.getAuthor());
                             if(optionalNode.isPresent()) {
                                 var publicKey = candidate.getSignedPayload().getPayload().getPublicKey();
-                                var y = VRF.hash(publicKey, seed, proof);
-                                LOG.debug("y vrf {}, author{}", y,candidate.getAuthor());
-                                if (Objects.isNull(selected) || y.compareTo(selectedY) > 0) {
+                                var score = proposerSelector.getAllScore().get(optionalNode.get().getAddress());
+                                LOG.debug(" author{}",candidate.getAuthor());
+                                LOG.debug("score{}", score);
+                                if (Objects.isNull(selected) || score.compareTo(selectedScore) < 0) {
                                     LOG.debug("previous selected:{}", selected);
-                                    selectedY = y;
+                                    selectedScore = score;
                                     selected = candidate;
+                                    selectedY =VRF.hash(publicKey, seed, proof);
                                 }//todo:, if y equal -> instead of ID, we select earlier msg
+                                else if (Objects.isNull(selected) || score.compareTo(selectedScore) == 0) {
+                                    LOG.debug("previous selected:{}", selected);
+
+                                    var y = VRF.hash(publicKey, seed, proof);
+                                    if (y.compareTo(selectedY) < 0){
+                                        selectedScore = score;
+                                        selected = candidate;
+                                        selectedY =y;
+                                    }
+                                }
                             }
                         }
                         if (Objects.nonNull(selected)) {
                             leaderProof= selected.getSignedPayload().getPayload().getProof();
                             proposerSelector.setCurrentLeader(Optional.of(selected.getAuthor()));
+                            proposerSelector.setLeaderScore(selectedScore);
                             proposerSelector.setLeaderY(selectedY);
 
                         }
@@ -508,10 +525,17 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
                         var publicKey = msg.getSignedPayload().getPayload().getPublicKey();
                         var proof = msg.getSignedPayload().getPayload().getProof();
                         var y = VRF.hash(publicKey, proposerSelector.getSeedAtRound(msg.getRoundIdentifier().getRoundNumber(), blockchain.getChainHeadHash(), getRoundState().getHeight()), proof);
+                        var score = proposerSelector.getAllScore().get(msg.getAuthor());
                         LOG.debug("new y vrf {}, author{}", y,msg.getAuthor());
-                        if( y.compareTo(proposerSelector.getLeaderY()) > 0){
+                        if( score.compareTo(proposerSelector.getLeaderScore()) < 0){
+                            proposerSelector.setLeaderScore(score);
                             proposerSelector.setLeaderY(y);
                             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
+                        } else  if( score.compareTo(proposerSelector.getLeaderScore()) == 0){
+                            if( y.compareTo(proposerSelector.getLeaderY()) <0 ) {
+                                proposerSelector.setLeaderY(y);
+                                proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
+                            }
                         }
                     }
                     if (proposerSelector.isLocalProposer() && !isProposerBefore) {

@@ -21,4 +21,9 @@ public class ValidateHeightForBlock implements DetachedBlockHeaderValidationRule
 
         return header.getNumber() != blockchainProvider.get().getChainHeadBlock().getHeader().getNumber();
     }
+
+    @Override
+    public String toString() {
+        return "ValidateHeightForBlock";
+    }
 }
