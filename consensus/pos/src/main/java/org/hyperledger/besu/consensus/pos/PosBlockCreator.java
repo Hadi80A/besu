@@ -22,10 +22,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.BftExtraData;
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
-import org.hyperledger.besu.consensus.pos.statemachine.QuorumCertificate;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
@@ -34,64 +30,73 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
 
 import java.util.Collection;
+
+
 @Data
 @Builder
-//@NoArgsConstructor
-//@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class PosBlockCreator {
 
-  private static final Logger log = LogManager.getLogger(PosBlockCreator.class);
-  private final BlockCreator besuBlockCreator;
-  private final PosExtraDataCodec posExtraDataCodec;
+    private static final Logger log = LogManager.getLogger(PosBlockCreator.class);
+    private final BlockCreator besuBlockCreator;
+    private final PosExtraDataCodec posExtraDataCodec;
 
+    // Phase 3 Artifact: The seed used for FTS in this round.
+    private final Bytes32 seed;
 
-  public PosBlock createBlock(
-          final long headerTimeStampSeconds, final PosBlockHeader parentHeader, Address proposer) {
-    var blockResult = besuBlockCreator.createBlock(headerTimeStampSeconds, parentHeader.getBesuBlockHeader());
-    log.info("transaction size:{}",blockResult.getTransactionSelectionResults().getSelectedTransactions().size());
-    var round=new ConsensusRoundIdentifier(
-            parentHeader.getRoundIdentifier().getSequenceNumber()+1,
-            parentHeader.getRoundIdentifier().getRoundNumber()+1
-    );
-//    PosBlockHeader header=PosBlockHeader.builder()
-//            .besuHeader(blockResult.getBlock().getHeader())
-//            .roundIdentifier(round)
-//            .proposer(proposer)
-//            .build();
-    return new PosBlock(blockResult.getBlock(),round,proposer);
-  }
+    /**
+     * Explicit constructor to match the factory usage.
+     */
+    public PosBlockCreator(final BlockCreator besuBlockCreator,
+                           final PosExtraDataCodec posExtraDataCodec,
+                           final Bytes32 seed) {
+        this.besuBlockCreator = besuBlockCreator;
+        this.posExtraDataCodec = posExtraDataCodec;
+        this.seed = seed;
+    }
 
-  public PosBlock createSealedBlock(
-          final PosBlock block, final int roundNumber, final Collection<SECPSignature> commitSeals, Address propser,
-          QuorumCertificate quorumCertificate, Bytes32 seed ) {
-      log.debug("creating sealed block");
-    final Block besuBlock = BlockUtil.toBesuBlock(block);
-    final PosBlockHeader initialHeader = block.getHeader();
-    final PosExtraData initialExtraData =
-        posExtraDataCodec.decodePos(BlockUtil.toBesuBlockHeader(initialHeader));
+    /**
+     * Creates a candidate block.
+     * The underlying creator typically produces a block with basic/template extra data.
+     *
+     * @param headerTimeStampSeconds the timestamp for the new block
+     * @param parentHeader the parent block header
+     * @return the candidate Block (unsigned/template)
+     */
+    public Block createBlock(final long headerTimeStampSeconds, final BlockHeader parentHeader) {
+        var blockResult = besuBlockCreator.createBlock(headerTimeStampSeconds, parentHeader);
+        return blockResult.getBlock();
+    }
 
-    final PosExtraData sealedExtraData =
-        new PosExtraData(
-            initialExtraData.getVanityData(),
-            commitSeals,
-            initialExtraData.getVote(),
-            roundNumber,
-            initialExtraData.getValidators(),
-            propser,
-                initialExtraData.getPublicKeys(),
-                initialExtraData.getBlsPublicKeys(),
-                initialExtraData.getPops(),
-                quorumCertificate,seed
+    /**
+     * Finalizes the block by injecting the Proposer's signature and PoS metadata.
+     *
+     * @param block The template block.
+     * @param roundNumber The current round.
+     * @param commitSeals The Proposer's ECDSA signature (DSS).
+     * @param proposer The Proposer's address.
+     * @return The fully formed and signed Block.
+     */
+    public Block createSealedBlock(
+            final Block block,
+            final int roundNumber,
+            final Collection<SECPSignature> commitSeals,
+            final Address proposer) {
 
-        );
+        log.debug("Creating sealed block for round {}", roundNumber);
+        final BlockHeader initialHeader = block.getHeader();
 
-    final BlockHeader sealedHeader =
-        BlockHeaderBuilder.fromHeader(BlockUtil.toBesuBlockHeader(initialHeader))
-            .extraData(posExtraDataCodec.encodePosData(sealedExtraData))
-            .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(posExtraDataCodec))
-            .buildBlockHeader();
-    final Block sealedBesuBlock = new Block(sealedHeader, besuBlock.getBody());
-    return new PosBlock(sealedBesuBlock,block.getPosBlockHeader());
-  }
+        // Decode the existing extra data from the template block to preserve fields
+        // (e.g. validators, vote, vanity) that were set by the upstream creator.
+        final BftExtraData initialExtraData = posExtraDataCodec.decode(initialHeader);
+
+        // Rebuild the header with the new ExtraData
+        final BlockHeader sealedHeader =
+                BlockHeaderBuilder.fromHeader(initialHeader)
+                        .extraData(posExtraDataCodec.encode(initialExtraData))
+                        .blockHeaderFunctions(BftBlockHeaderFunctions.forOnchainBlock(posExtraDataCodec))
+                        .buildBlockHeader();
+
+        return new Block(sealedHeader, block.getBody());
+    }
 }

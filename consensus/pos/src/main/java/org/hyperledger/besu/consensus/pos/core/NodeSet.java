@@ -1,93 +1,97 @@
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pos.core;
 
 import org.hyperledger.besu.datatypes.Address;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-/**
- * Manages the set of validators participating in Pactus consensus.
- * Handles stake updates, sortition, and committee rotation.
- */
 public class NodeSet {
 
-  // Map of validator ID to Node object
-  private final Map<Address, Node> validatorMap = new ConcurrentHashMap<>();
+    // Map of validator Address to Node object
+    private final Map<Address, Node> validatorMap = new ConcurrentHashMap<>();
 
-  public void addOrUpdateNode(Node node) {
-    validatorMap.put(node.getAddress(), node);
-  }
+    /**
+     * Adds or updates a node in the set.
+     * @param node the node information
+     */
+    public void addOrUpdateNode(final Node node) {
+        validatorMap.put(node.getAddress(), node);
+    }
 
-  public Optional<Node> getNode(Address address) {
-    return Optional.ofNullable(validatorMap.get(address));
-  }
+    public Optional<Node> getNode(final Address address) {
+        return Optional.ofNullable(validatorMap.get(address));
+    }
 
-  public Collection<Node> getAllNodes() {
-    return validatorMap.values();
-  }
+    public Collection<Node> getAllNodes() {
+        return validatorMap.values();
+    }
 
-  public List<Node> getCommitteeNodes() {
-    return validatorMap.values().stream()
-        .filter(Node::isInCommittee)
-        .collect(Collectors.toList());
-  }
+    /**
+     * Returns all nodes sorted by Address.
+     * Essential for deterministic consensus operations (e.g., FTS Leader Selection).
+     *
+     * @return List of nodes sorted by Address.
+     */
+    public List<Node> getSortedNodes() {
+        return validatorMap.values().stream()
+                .sorted(Comparator.comparing(Node::getAddress))
+                .collect(Collectors.toList());
+    }
 
-  public List<Node> getNonCommitteeNodes() {
-    return validatorMap.values().stream()
-        .filter(v -> !v.isInCommittee())
-        .collect(Collectors.toList());
-  }
+    /**
+     * Retrieves a node by its index in the sorted list of validators.
+     * Used for mapping bitfields in messages to specific validators.
+     *
+     * @param index the 0-based index
+     * @return the Node at that index
+     */
+    public Node getNodeByIndex(final int index) {
+        List<Node> sorted = getSortedNodes();
+        if (index < 0 || index >= sorted.size()) {
+            throw new IndexOutOfBoundsException("Validator index " + index + " out of bounds (size: " + sorted.size() + ")");
+        }
+        return sorted.get(index);
+    }
 
-  public Node getNodeByIndex(int index) {
-      return new ArrayList<>(validatorMap.values()).get(index);
-  }
+    public List<Node> getCommitteeNodes() {
+        // In simple LCR/FTS, effectively all staked nodes are eligible,
+        // but we retain the 'inCommittee' flag for potential optimization or rotation logic.
+        return validatorMap.values().stream()
+                .filter(Node::isInCommittee)
+                .collect(Collectors.toList());
+    }
 
-//  public List<Node> getEligibleForSortition(long currentHeight) {
-//    return getNonCommitteeNodes().stream()
-//        .filter(v -> v.canRunSortition(currentHeight))
-//        .collect(Collectors.toList());
-//  }
-//
-//  public Optional<Node> getOldestCommitteeMember(long currentHeight) {
-//    return getCommitteeNodes().stream()
-//        .filter(v -> v.shouldBeRemoved(currentHeight))
-//        .min(Comparator.comparingLong(Node::getLastJoinedHeight));
-//  }
+    public List<Node> getNonCommitteeNodes() {
+        return validatorMap.values().stream()
+                .filter(v -> !v.isInCommittee())
+                .collect(Collectors.toList());
+    }
 
-//  public boolean isInCommittee(String id) {
-//    Node v = validatorMap.get(id);
-//    return v != null && v.isInCommittee();
-//  }
-//
-//  public void markAsJoined(String id, long currentHeight) {
-//    Node v = validatorMap.get(id);
-//    if (v != null) {
-//      v.setInCommittee(true);
-//      v.setLastJoinedHeight(currentHeight);
-//    }
-//  }
+    public int committeeSize() {
+        return (int) validatorMap.values().stream().filter(Node::isInCommittee).count();
+    }
 
-//  public void markAsRemoved(String id) {
-//    Node v = validatorMap.get(id);
-//    if (v != null) {
-//      v.setInCommittee(false);
-//    }
-//  }
-
-//  public void updateStake(String id, long amount, long height) {
-//    Node v = validatorMap.get(id);
-//    if (v != null) {
-//      v.getStakeInfo().setStakedAmount(amount);
-//      v.getStakeInfo().setActivationHeight(height);
-//    }
-//  }
-
-  public int committeeSize() {
-    return (int) validatorMap.values().stream().filter(Node::isInCommittee).count();
-  }
-
-  public int totalSize() {
-    return validatorMap.size();
-  }
+    public int totalSize() {
+        return validatorMap.size();
+    }
 }

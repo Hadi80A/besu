@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
 import lombok.Getter;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
@@ -22,56 +23,52 @@ import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
-
-import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The Proposal. */
-
+/**
+ * The Propose message wrapper.
+ *
+ * <p>Phase 4: Block Propagation
+ * Wraps the signed ProposePayload (containing the new Block) for wire transmission.
+ * This is the critical message for LCR consensus, carrying the candidate block
+ * for the current slot.
+ */
 @Getter
 public class Propose extends BftMessage<ProposePayload> {
 
-//  private static final PosExtraDataCodec BFT_EXTRA_DATA_ENCODER = new PosExtraDataCodec();
-  private static final Logger LOG = LoggerFactory.getLogger(Propose.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Propose.class);
 
-  /**
-   * Instantiates a new Proposal.
-   *
-   * @param payload the payload
-//   * @param certificate the certificate
-   */
-  public Propose(
-          final SignedData<ProposePayload> payload
-  ) {
-    super(payload);
-//    this.proposedBlock = proposedBlock;
-  }
+    /**
+     * Instantiates a new Proposal message.
+     *
+     * @param payload the signed payload containing the block
+     */
+    public Propose(final SignedData<ProposePayload> payload) {
+        super(payload);
+    }
 
-  /**
-   * Gets round change certificate.
-   *
-   * @return the round change certificate
-   */
+    @Override
+    public Bytes encode() {
+        final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
+        rlpOut.startList();
+        getSignedPayload().writeTo(rlpOut);
+        rlpOut.endList();
+        LOG.trace("Encoding Propose payload for round {}", getRoundIdentifier());
+        return rlpOut.encoded();
+    }
 
-  @Override
-  public Bytes encode() {
-    final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
-    rlpOut.startList();
-    getSignedPayload().writeTo(rlpOut);
-    rlpOut.endList();
-    LOG.debug("Encoding Propose payload");
-    return rlpOut.encoded();
-  }
-
-  public static Propose decode(final Bytes data) {
-    final RLPInput rlpIn = RLP.input(data);
-    rlpIn.enterList();
-    final SignedData<ProposePayload> payload =
-        PayloadDeserializers.readSignedProposalPayloadFrom(rlpIn);
-
-    rlpIn.leaveList();
-    return new Propose(payload);
-  }
-
+    /**
+     * Decodes a Propose message from raw RLP bytes.
+     *
+     * @param data the RLP encoded data
+     * @return the decoded Propose message
+     */
+    public static Propose decode(final Bytes data) {
+        final RLPInput rlpIn = RLP.input(data);
+        rlpIn.enterList();
+        final SignedData<ProposePayload> payload = PayloadDeserializers.readSignedProposalPayloadFrom(rlpIn);
+        rlpIn.leaveList();
+        return new Propose(payload);
+    }
 }

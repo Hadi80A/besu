@@ -23,44 +23,44 @@ import org.apache.tuweni.bytes.Bytes;
 /** The Vote message data. */
 public class VoteMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = PosMessage.VOTE.getCode();
+    private static final int MESSAGE_CODE = PosMessage.VOTE.getCode();
 
-  private VoteMessageData(final Bytes data) {
-    super(data);
-  }
+    private VoteMessageData(final Bytes data) {
+        super(data);
+    }
 
-  /**
-   * Instantiate VoteMessageData from message data.
-   *
-   * @param messageData the message data
-   * @return the vote message data
-   */
-  public static VoteMessageData fromMessageData(final MessageData messageData) {
-    return fromMessageData(
-        messageData, MESSAGE_CODE, VoteMessageData.class, VoteMessageData::new);
-  }
+    /**
+     * Instantiate VoteMessageData from message data.
+     *
+     * @param messageData the message data
+     * @return the vote message data
+     */
+    public static VoteMessageData fromMessageData(final MessageData messageData) {
+        return fromMessageData(
+                messageData, MESSAGE_CODE, VoteMessageData.class, VoteMessageData::new);
+    }
 
-  /**
-   * Decode.
-   *
-   * @return the vote
-   */
-  public Vote decode() {
-    return Vote.decode(data);
-  }
+    /**
+     * Decode.
+     *
+     * @return the vote
+     */
+    public Vote decode() {
+        return Vote.decode(data);
+    }
 
-  /**
-   * Create vote message data.
-   *
-   * @param vote the vote
-   * @return the vote message data
-   */
-  public static VoteMessageData create(final Vote vote) {
-    return new VoteMessageData(vote.encode());
-  }
+    /**
+     * Create vote message data.
+     *
+     * @param vote the vote
+     * @return the vote message data
+     */
+    public static VoteMessageData create(final Vote vote) {
+        return new VoteMessageData(vote.encode());
+    }
 
-  @Override
-  public int getCode() {
-    return MESSAGE_CODE;
-  }
+    @Override
+    public int getCode() {
+        return MESSAGE_CODE;
+    }
 }

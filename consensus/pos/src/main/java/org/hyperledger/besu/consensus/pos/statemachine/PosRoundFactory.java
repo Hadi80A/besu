@@ -16,6 +16,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.config.PosConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
@@ -23,16 +24,15 @@ import org.hyperledger.besu.consensus.pos.PosBlockCreator;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
 import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.PosProtocolSchedule;
-import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.*;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
-import org.hyperledger.besu.consensus.pos.vrf.VRF;
 import org.hyperledger.besu.crypto.SECPPublicKey;
-import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.util.Subscribers;
 
 /** The Pos round factory. */
@@ -54,14 +54,6 @@ public class PosRoundFactory {
 
     /**
      * Instantiates a new Pos round factory.
-     *
-     * @param finalState the final state
-     * @param protocolContext the protocol context
-     * @param protocolSchedule the protocol schedule
-     * @param minedBlockObservers the mined block observers
-     * @param messageValidatorFactory the message validator factory
-     * @param messageFactory the message factory
-     * @param posExtraDataCodec the bft extra data codec
      */
     public PosRoundFactory(
             final PosFinalState finalState,
@@ -70,7 +62,10 @@ public class PosRoundFactory {
             final Subscribers<PosMinedBlockObserver> minedBlockObservers,
             final MessageValidatorFactory messageValidatorFactory,
             final MessageFactory messageFactory,
-            final PosExtraDataCodec posExtraDataCodec, ContractCaller contractCaller, NodeSet nodeSet, PosProposerSelector proposerSelector) {
+            final PosExtraDataCodec posExtraDataCodec,
+            ContractCaller contractCaller,
+            NodeSet nodeSet,
+            PosProposerSelector proposerSelector) {
         this.finalState = finalState;
         this.blockCreatorFactory = finalState.getBlockCreatorFactory();
         this.protocolContext = protocolContext;
@@ -87,40 +82,38 @@ public class PosRoundFactory {
 
     /**
      * Create new pos round.
-     *
-     * @param parentHeader the parent header
-     * @param round the round
-     * @return the pos round
      */
-    public PosRound createNewRound(final PosBlockHeader parentHeader, final int round) {
-        long nextBlockHeight = parentHeader.getBesuBlockHeader().getNumber() + 1;
+    public PosRound createNewRound(final BlockHeader parentHeader, final int round) {
+        long nextBlockHeight = parentHeader.getNumber() + 1;
         final ConsensusRoundIdentifier roundIdentifier =
                 new ConsensusRoundIdentifier(nextBlockHeight, round);
 
         final RoundState roundState =
                 new RoundState(
                         roundIdentifier,
-                        finalState.getQuorum(),
+                        (int) finalState.getQuorum(),
                         nextBlockHeight
-                        );
+                );
 
         return createNewRoundWithState(parentHeader, roundState);
     }
 
-    /**
-     * Create new Pos round with state.
-     *
-     * @param parentHeader the parent header
-     * @param roundState the round state
-     * @return the pos round
-     */
+
     public PosRound createNewRoundWithState(
-            final PosBlockHeader parentHeader, final RoundState roundState) {
-        final PosBlockCreator blockCreator =
-                blockCreatorFactory.create(roundState.getRoundIdentifier().getRoundNumber());
-//
+            final BlockHeader parentHeader, final RoundState roundState) {
+
+        final int roundNumber = roundState.getRoundIdentifier().getRoundNumber();
+
+        // Retrieve seed for FTS (Phase 3)
+        // Note: Logic for seed retrieval may depend on whether it's round 0 or a future round.
+        Bytes32 seed = proposerSelector.getSeedAtRound(
+                roundNumber,
+                parentHeader.getHash());
+
+        final PosBlockCreator blockCreator = blockCreatorFactory.create(roundNumber, seed);
+
         final PosMessageTransmitter messageTransmitter =
-                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress());
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(), finalState.getLocalAddress());
 
         return new PosRound(
                 roundState,
@@ -139,10 +132,10 @@ public class PosRoundFactory {
                 nodeSet,
                 proposerSelector,
                 finalState
-                );
+        );
     }
 
-    public static class MessageFactory{
+    public static class MessageFactory {
 
         public Propose createPropose(SignedData<ProposePayload> payload) {
             return new Propose(payload);
@@ -151,75 +144,22 @@ public class PosRoundFactory {
             return new Vote(payload);
         }
 
-        public Commit createCommit(SignedData<CommitPayload> payload) {
-            return new Commit(payload);
-        }
-        public BlockAnnounce createBlockAnnounce(SignedData<BlockAnnouncePayload> payload) {
-            return new BlockAnnounce(payload);
-        }
-        public ViewChange createViewChange(SignedData<ViewChangePayload> payload) {
-            return new ViewChange(payload);
-        }
-        public SelectLeader createSelectLeader(SignedData<SelectLeaderPayload> payload) {
-            return new SelectLeader(payload);
-        }
 
-
-        public SelectLeaderPayload createSelectLeaderPayload(ConsensusRoundIdentifier round, long height, VRF.Proof proof,
-                                                             boolean isCandidate, SECPPublicKey publicKey) {
-            return SelectLeaderPayload.builder()
-                    .roundIdentifier(round)
-                    .height(height)
-                    .proof(proof)
-                    .isCandidate(isCandidate)
-                    .publicKey(publicKey)
-                    .build();
-        }
-
-        public BlockAnnouncePayload createBlockAnnouncePayload(ConsensusRoundIdentifier round, long height,QuorumCertificate quorumCertificate) {
-            return BlockAnnouncePayload.builder()
-                    .roundIdentifier(round)
-                    .height(height)
-                    .quorumCertificate(quorumCertificate)
-                    .build();
-        }
-        
-        public CommitPayload createCommitPayload(PosBlock block, QuorumCertificate quorumCertificate) {
-            return CommitPayload.builder()
-                    .roundIdentifier(block.getHeader().getRoundIdentifier())
-                    .height(block.getHeader().getHeight())
-                    .digest(block.getHash())
-                    .quorumCertificate(quorumCertificate)
-                    .build();
-        }
-
-        public ViewChangePayload createViewChangePayload(ConsensusRoundIdentifier roundIdentifier,long height) {
-            log.debug("createViewChangePayload roundIdentifier={} height={}", roundIdentifier, height);
-            return ViewChangePayload.builder()
-                    .roundIdentifier(roundIdentifier)
-                    .height(height)
-                    .build();
-        }
-
-
-        public ProposePayload createProposePayload(ConsensusRoundIdentifier round, long height, PosBlock block, VRF.Proof proof) {
+        // Updated for LCR: Removed VRF Proof
+        public ProposePayload createProposePayload( Block block,ConsensusRoundIdentifier roundIdentifier) {
             return ProposePayload.builder()
-                    .roundIdentifier(round)
-                    .height(height)
                     .proposedBlock(block)
-                    .proof(proof)
+                    .roundIdentifier(roundIdentifier)
                     .build();
         }
 
-        public VotePayload createVotePayload(PosBlock block, Bls.Signature blsSignature) {
+        // Updated for LCR: Removed BLS Signature
+        public VotePayload createVotePayload(Block block,ConsensusRoundIdentifier roundIdentifier) {
             return VotePayload.builder()
                     .digest(block.getHash())
-                    .roundIdentifier(block.getHeader().getRoundIdentifier())
-                    .height(block.getHeader().getHeight())
-                    .signature(blsSignature)
+                    .roundIdentifier(roundIdentifier)
+                    // BLS Signature removed
                     .build();
         }
-
-
     }
 }

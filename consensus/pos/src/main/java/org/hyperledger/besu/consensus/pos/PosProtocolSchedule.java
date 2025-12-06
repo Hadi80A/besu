@@ -13,43 +13,65 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 package org.hyperledger.besu.consensus.pos;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
+
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 
-/**
- * Adaptor class to allow a {@link ProtocolSchedule} to be used as a {@link PosProtocolSchedule}.
- */
-public class PosProtocolSchedule{
 
-  private final ProtocolSchedule besuProtocolSchedule;
-  private final ProtocolContext context;
+public class PosProtocolSchedule {
 
-  /**
-   * Constructs a new Pos protocol schedule.
-   *
-   * @param besuProtocolSchedule The Besu protocol schedule.
-   * @param context The protocol context.
-   */
-  public PosProtocolSchedule(
-      final ProtocolSchedule besuProtocolSchedule, final ProtocolContext context) {
-      this.besuProtocolSchedule = besuProtocolSchedule;
-    this.context = context;
-  }
+    private final ProtocolSchedule besuProtocolSchedule;
+    private final ProtocolContext context;
 
-  public PosBlockImporter getBlockImporter(final PosBlockHeader header) {
-    return new PosBlockImporter(
-        getProtocolSpecByBlockHeader(header).getBlockImporter(), context);
-  }
+    /**
+     * Constructs a new Pos protocol schedule.
+     *
+     * @param besuProtocolSchedule The Besu protocol schedule.
+     * @param context The protocol context (Blockchain, WorldState) used for state-dependent checks.
+     */
+    public PosProtocolSchedule(
+            final ProtocolSchedule besuProtocolSchedule, final ProtocolContext context) {
+        this.besuProtocolSchedule = besuProtocolSchedule;
+        this.context = context;
+    }
 
+    /**
+     * Gets the PoS-specific block importer.
+     * This wrapper handles LCR (Largest Chain Rule) logic during block import.
+     *
+     * @param header the PoS block header
+     * @return the PoS block importer
+     */
+    public BlockImporter getBlockImporter(final BlockHeader header) {
+        return getProtocolSpecByBlockHeader(header).getBlockImporter();
 
-  public PosBlockValidator getBlockValidator(final PosBlockHeader header) {
-    return new PosBlockValidator(
-        getProtocolSpecByBlockHeader(header).getBlockValidator(), context);
-  }
+    }
 
-  private ProtocolSpec getProtocolSpecByBlockHeader(final PosBlockHeader header) {
-    return besuProtocolSchedule.getByBlockHeader(BlockUtil.toBesuBlockHeader(header));
-  }
+    /**
+     * Gets the PoS-specific block validator.
+     * This validator is responsible for Phase 5 checks:
+     * 1. Verify the DSS (ECDSA) signature of the block.
+     * 2. Verify the FTS (Follow-the-Satoshi) leader selection for the specific slot.
+     *
+     * @param header the PoS block header
+     * @return the PoS block validator
+     */
+    public PosBlockValidator getBlockValidator(final BlockHeader header) {
+        return new PosBlockValidator(
+                getProtocolSpecByBlockHeader(header).getBlockValidator(), context);
+    }
+
+    /**
+     * Retrieves the underlying Besu ProtocolSpec based on the block number/header.
+     *
+     * @param header the PoS block header
+     * @return the ProtocolSpec
+     */
+    private ProtocolSpec getProtocolSpecByBlockHeader(final BlockHeader header) {
+        // Unwrap the PoS header to get the standard Besu header for schedule lookup
+        return besuProtocolSchedule.getByBlockHeader(header);
+    }
 }

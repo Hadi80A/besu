@@ -16,99 +16,64 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
-import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
-/** The NoOp block height manager. */
+/**
+ * The NoOp block height manager.
+ *
+ * <p>Used when the local node is not a validator.
+ * Effectively silences the Consensus State Machine for this node.
+ */
 public class NoOpBlockHeightManager implements BasePosBlockHeightManager {
 
-  private final PosBlockHeader parentHeader;
+    private final BlockHeader parentHeader;
 
-  /**
-   * Instantiates a new NoOp block height manager.
-   *
-   * @param parentHeader the parent header
-   */
-  public NoOpBlockHeightManager(final PosBlockHeader parentHeader) {
-    this.parentHeader = parentHeader;
-  }
+    /**
+     * Instantiates a new NoOp block height manager.
+     *
+     * @param parentHeader the parent header
+     */
+    public NoOpBlockHeightManager(final BlockHeader parentHeader) {
+        this.parentHeader = parentHeader;
+    }
 
-  @Override
-  public void handleBlockTimerExpiry(final ConsensusRoundIdentifier roundIdentifier) {}
+    @Override
+    public void handleBlockTimerExpiry(final ConsensusRoundIdentifier roundIdentifier) {}
 
-  @Override
-  public void roundExpired(final RoundExpiry expire) {}
+    @Override
+    public void roundExpired(final RoundExpiry expire) {}
 
+    @Override
+    public long getChainHeight() {
+        return parentHeader.getNumber() + 1;
+    }
 
-  @Override
-  public long getChainHeight() {
-    return parentHeader.getBesuBlockHeader().getNumber() + 1;
-  }
+    @Override
+    public BlockHeader getParentBlockHeader() {
+        return parentHeader;
+    }
 
-  @Override
-  public BlockHeader getParentBlockHeader() {
-    return parentHeader.getBesuBlockHeader();
-  }
+    // --- No-Op Implementation of Message Handlers ---
 
-  @Override
-  public void handleProposalMessage(Propose msg) {
+    @Override
+    public void handleProposalMessage(final Propose msg) {}
 
-  }
+    @Override
+    public void handleVoteMessage(final Vote msg) {}
 
-  @Override
-  public void handleVoteMessage(Vote msg) {
+    @Override
+    public void consumeProposeMessage(final Propose msg) {}
 
-  }
+    @Override
+    public void consumeVoteMessage(final Vote msg) {}
 
-  @Override
-  public void handleCommitMessage(Commit msg) {
-
-  }
-
-  @Override
-  public void handleViewChangePayload(ViewChange message) {
-
-  }
-
-  @Override
-  public void handleSelectLeaderMessage(SelectLeader message) {
-
-  }
-
-  @Override
-  public void consumeProposeMessage(Propose msg) {
-
-  }
-
-  @Override
-  public void consumeVoteMessage(Vote msg) {
-
-  }
-
-  @Override
-  public void consumeCommitMessage(Commit msg) {
-
-  }
-
-  @Override
-  public void consumeBlockAnnounceMessage(BlockAnnounce msg) {
-
-  }
-
-  @Override
-  public void consumeViewChangeMessage(ViewChange message) {
-
-  }
-
-  @Override
-  public void consumeSelectLeaderMessage(SelectLeader message) {
-
-  }
-
-  @Override
-  public boolean checkValidState(int msgCode) {
-    return false;
-  }
+    /**
+     * Returns false to indicate that no consensus messages are valid for processing
+     * in this passive state.
+     */
+    @Override
+    public boolean checkValidState(final int msgCode) {
+        return false;
+    }
 }

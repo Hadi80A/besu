@@ -14,78 +14,80 @@
  */
 package org.hyperledger.besu.consensus.pos.payload;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.SuperBuilder;
-import org.apache.tuweni.bytes.Bytes;
+import lombok.extern.slf4j.Slf4j;
+import org.hyperledger.besu.consensus.common.bft.BftBlockHeaderFunctions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
+import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.consensus.pos.vrf.VRF;
+import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import java.io.IOException;
-
-/** The Proposal payload. */
-//@AllArgsConstructor
+/**
+ * The Proposal payload.
+ *
+ * <p>Phase 4: Block Propagation
+ * Carries the proposed block for the current round.
+ * Updated for Pure PoS to remove VRF proofs, as leader selection is deterministic (FTS).
+ */
+@Slf4j
 @Getter
 @SuperBuilder
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 public class ProposePayload extends PosPayload {
-  private static final int TYPE = PosMessage.PROPOSE.getCode();
-private PosBlock proposedBlock;
 
-  private VRF.Proof proof;
+    private static final int TYPE = PosMessage.PROPOSE.getCode();
 
-  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, PosBlock proposedBlock ,VRF.Proof proof) {
-    super(roundIdentifier, height);
-    this.proposedBlock = proposedBlock;
-    this.proof = proof;
-  }
+    private final Block proposedBlock;
 
-  public static ProposePayload readFrom(final RLPInput rlpInput) {
-    rlpInput.enterList();
-    final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final long height = rlpInput.readLong();
-      final PosBlock proposedBlock;
-      try {
-          proposedBlock = PosBlock.readFrom(rlpInput);
-      } catch (IOException e) {
-          throw new RuntimeException(e);
-      }
-      Bytes proofBytes = rlpInput.readBytes();
+    private static final PosExtraDataCodec posExtraDataCodec= new PosExtraDataCodec();
+    /**
+     * Constructor for the Proposal Payload.
+     *
+     * @param roundIdentifier   The round this proposal belongs to.
+     * @param proposedBlock     The actual block being proposed.
+c
+     */
+    public ProposePayload(final ConsensusRoundIdentifier roundIdentifier,
+                          final Block proposedBlock) {
+        super(roundIdentifier);
+        this.proposedBlock = proposedBlock;
+    }
 
-      final VRF.Proof proof=new VRF.Proof(proofBytes.toArray());
-      rlpInput.leaveList();
+    /**
+     * Deserializes the payload from RLP input.
+     *
+     * @param rlpInput RLP source
+     * @return The ProposePayload instance
+     */
+    public static ProposePayload readFrom(final RLPInput rlpInput) {
+        rlpInput.enterList();
+        final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
 
-      return new ProposePayload(roundIdentifier,height,proposedBlock,proof);
-  }
+        // PosBlock.readFrom throws unchecked RLPException on failure, no explicit catch needed
+        final Block proposedBlock = Block.readFrom(rlpInput, BftBlockHeaderFunctions.forCommittedSeal(posExtraDataCodec));
 
+        rlpInput.leaveList();
+        log.debug("read proposedBlock");
+        return new ProposePayload(roundIdentifier, proposedBlock );
+    }
 
-  @Override
-  public void writeTo(final RLPOutput rlpOutput) {
-    rlpOutput.startList();
-    getRoundIdentifier().writeTo(rlpOutput);
-    rlpOutput.writeLong(getHeight());
-      try {
-          proposedBlock.writeTo(rlpOutput);
-      } catch (JsonProcessingException e) {
-          throw new RuntimeException(e);
-      }
-      rlpOutput.writeBytes(Bytes.wrap(proof.bytes()));
-      rlpOutput.endList();
-  }
+    @Override
+    public void writeTo(final RLPOutput rlpOutput) {
+        rlpOutput.startList();
+        getRoundIdentifier().writeTo(rlpOutput);
 
-  /**
-   * Gets digest.
-   *
-   * @return the digest
-   */
+        // PosBlock.writeTo throws unchecked RLPException on failure, no explicit catch needed
+        proposedBlock.writeTo(rlpOutput);
+        log.debug("writeTo");
+        rlpOutput.endList();
+    }
 
-  @Override
-  public int getMessageType() {
-    return TYPE;
-  }
-
+    @Override
+    public int getMessageType() {
+        return TYPE;
+    }
 }

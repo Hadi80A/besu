@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.consensus.pos.messagewrappers;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.payload.PayloadDeserializers;
@@ -21,50 +22,57 @@ import org.hyperledger.besu.consensus.pos.payload.VotePayload;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
-
-import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
-/** The Vote. */
+/**
+ * The Vote message wrapper.
+ *
+ * <p>Phase: Legacy / Optional Finality
+ * Wraps a VotePayload. In the core Pure PoS (LCR) algorithm, block validity is
+ * implicitly determined by the FTS leader selection and chain extension, rather
+ * than an explicit BFT voting phase. This message type is retained for wire protocol
+ * compatibility and future finality gadget support.
+ */
 public class Vote extends BftMessage<VotePayload> {
 
-  /**
-   * Instantiates a new Vote.
-   *
-   * @param payload the payload
-   */
-  public Vote(final SignedData<VotePayload> payload) {
-    super(payload);
-  }
+    /**
+     * Instantiates a new Vote message.
+     *
+     * @param payload the signed vote payload
+     */
+    public Vote(final SignedData<VotePayload> payload) {
+        super(payload);
+    }
 
+    /**
+     * Gets the block hash (digest) this vote attests to.
+     *
+     * @return the block hash
+     */
+    public Hash getDigest() {
+        return getPayload().getDigest();
+    }
 
-  /**
-   * Gets digest.
-   *
-   * @return the digest
-   */
-  public Hash getDigest() {
-    return getPayload().getDigest();
-  }
+    @Override
+    public Bytes encode() {
+        final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
+        rlpOut.startList();
+        getSignedPayload().writeTo(rlpOut);
+        rlpOut.endList();
+        return rlpOut.encoded();
+    }
 
-  @Override
-  public Bytes encode() {
-    final BytesValueRLPOutput rlpOut = new BytesValueRLPOutput();
-    rlpOut.startList();
-    getSignedPayload().writeTo(rlpOut);
-    rlpOut.endList();
-    return rlpOut.encoded();
-  }
-
-
-  public static Vote decode(final Bytes data) {
-    final RLPInput rlpIn = RLP.input(data);
-    rlpIn.enterList();
-    final SignedData<VotePayload> payload =
-            PayloadDeserializers.readSignedVotePayloadFrom(rlpIn);
-
-    rlpIn.leaveList();
-    return new Vote(payload);
-  }
-
+    /**
+     * Decodes a Vote message from raw RLP bytes.
+     *
+     * @param data the RLP encoded data
+     * @return the decoded Vote message
+     */
+    public static Vote decode(final Bytes data) {
+        final RLPInput rlpIn = RLP.input(data);
+        rlpIn.enterList();
+        final SignedData<VotePayload> payload = PayloadDeserializers.readSignedVotePayloadFrom(rlpIn);
+        rlpIn.leaveList();
+        return new Vote(payload);
+    }
 }

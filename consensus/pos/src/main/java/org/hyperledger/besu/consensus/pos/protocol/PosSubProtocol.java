@@ -25,63 +25,60 @@ import java.util.stream.Collectors;
 
 public class PosSubProtocol implements SubProtocol {
 
-  /** The constant NAME. */
-  public static String NAME = "POS";
+    /** The constant NAME. */
+    public static String NAME = "POS";
 
 
-  public static final Capability POS = Capability.create(NAME, 1);
+    public static final Capability POS = Capability.create(NAME, 1);
 
-  private static final PosSubProtocol INSTANCE = new PosSubProtocol();
+    private static final PosSubProtocol INSTANCE = new PosSubProtocol();
 
-  // Precomputed map for fast lookup by code
-  private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
-          Arrays.stream(PosMessage.values()).collect(Collectors.toMap(PosMessage::getCode, m -> m));
+    // Precomputed map for fast lookup by code
+    private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
+            Arrays.stream(PosMessage.values()).collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
-  /** Default constructor. */
-  public PosSubProtocol() {}
+    /** Default constructor. */
+    public PosSubProtocol() {}
 
 
-  public static PosSubProtocol get() {
-    return INSTANCE;
-  }
-
-  @Override
-  public String getName() {
-    return NAME;
-  }
-
-  @Override
-  public int messageSpace(final int protocolVersion) {
-    return PosMessage.MESSAGE_SPACE.getCode();
-  }
-
-  @Override
-  public boolean isValidMessageCode(final int protocolVersion, final int code) {
-    PosMessage message = CODE_TO_MESSAGE.get(code);
-    if (message == null) {
-      return false;
+    public static PosSubProtocol get() {
+        return INSTANCE;
     }
-    return switch (message) {
-      case PROPOSE, VOTE, COMMIT, VIEW_CHANGE , SELECT_LEADER,BLOCK_ANNOUNCE-> true;
-      default -> false;
-    };
-  }
 
-  @Override
-  public String messageName(final int protocolVersion, final int code) {
-    PosMessage message = CODE_TO_MESSAGE.get(code);
-    if (message == null) {
-      return INVALID_MESSAGE_NAME;
+    @Override
+    public String getName() {
+        return NAME;
     }
-    return switch (message) {
-      case PROPOSE -> "Proposal";
-      case VOTE -> "Vote";
-      case COMMIT -> "Commit";
-      case VIEW_CHANGE -> "ViewChange";
-      case SELECT_LEADER -> "SelectLeader";
-      case BLOCK_ANNOUNCE -> "BlockAnnounce";
-      default -> INVALID_MESSAGE_NAME;
-    };
-  }
+
+    @Override
+    public int messageSpace(final int protocolVersion) {
+        return PosMessage.MESSAGE_SPACE.getCode();
+    }
+
+    @Override
+    public boolean isValidMessageCode(final int protocolVersion, final int code) {
+        PosMessage message = CODE_TO_MESSAGE.get(code);
+        if (message == null) {
+            return false;
+        }
+        return switch (message) {
+            case PROPOSE, VOTE, COMMIT-> true;
+            default -> false;
+        };
+    }
+
+    @Override
+    public String messageName(final int protocolVersion, final int code) {
+        PosMessage message = CODE_TO_MESSAGE.get(code);
+        if (message == null) {
+            return INVALID_MESSAGE_NAME;
+        }
+        return switch (message) {
+            case PROPOSE -> "Proposal";
+            case VOTE -> "Vote";
+            case COMMIT -> "Commit";
+            default -> INVALID_MESSAGE_NAME;
+        };
+    }
 
 }

@@ -24,6 +24,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.bytes.DelegatingBytes32;
 
+
 /** A 32-bytes hash value as used in Ethereum blocks, usually the result of the KEC algorithm. */
 public class Hash extends DelegatingBytes32 {
 
@@ -62,7 +63,7 @@ public class Hash extends DelegatingBytes32 {
    */
   public static final Hash EMPTY_BAL_HASH = EMPTY_LIST_HASH;
 
-  /**
+    /**
    * Instantiates a new Hash.
    *
    * @param bytes raw bytes

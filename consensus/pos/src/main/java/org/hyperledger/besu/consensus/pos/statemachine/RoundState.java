@@ -17,113 +17,86 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 import lombok.Getter;
 import lombok.Setter;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.pos.bls.Bls;
-import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
-import org.hyperledger.besu.consensus.pos.core.PosBlock;
 import org.hyperledger.besu.crypto.SECPSignature;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
+import org.hyperledger.besu.ethereum.core.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The Round state defines how a round will operate. */
-// Data items used to define how a round will operate
+/**
+ * The Round state defines the current status and messages received for a specific consensus round.
+ *
+ * <p>Updated for Pure PoS (LCR):
+ * - Removed BLS signatures (DSS/ECDSA used instead).
+ * - BFT collections (Votes, Commits) are retained for architectural compatibility
+ *   but remain unused in the LCR flow (Nakamoto-style).
+ */
 @Getter
 public class RoundState {
-  private static final Logger LOG = LoggerFactory.getLogger(RoundState.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RoundState.class);
 
-  private final ConsensusRoundIdentifier roundIdentifier;
-  private final long quorum;
+    private final ConsensusRoundIdentifier roundIdentifier;
+    private final long quorum;
 
-  @Setter
-  private Propose proposeMessage;
+    @Setter
+    private Propose proposeMessage;
 
-  // Must track the actual Prepare message, not just the sender, as these may need to be reused
-  // to send out in a PrepareCertificate.
-  private final Set<Propose> proposeMessages = Sets.newLinkedHashSet();
-  private final Set<Vote> voteMessages = Sets.newLinkedHashSet();
-  private final Set<SelectLeader> selectLeaderMessages = Sets.newLinkedHashSet();
-  private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
-  private final Set<BlockAnnounce> blockAnnounceMessages = Sets.newLinkedHashSet();
-  private final Set<ViewChange> viewChangeMessages = Sets.newLinkedHashSet();
-  private final Set<Bls.Signature>  blsSignaturesMessages = Sets.newLinkedHashSet();
-  @Setter
-  private PosMessage currentState;
-  private final long height;
+    // LCR Message Storage
+    private final Set<Propose> proposeMessages = Sets.newLinkedHashSet();
 
-  /**
-   * Instantiates a new Round state.
-   *
-   * @param roundIdentifier the round identifier
-   * @param quorum the quorum
-   */
-  public RoundState(
-          final ConsensusRoundIdentifier roundIdentifier,
-          final int quorum, long height) {
-    this.roundIdentifier = roundIdentifier;
-    this.quorum = quorum;
-    this.height = height;
-    this.currentState=PosMessage.SELECT_LEADER;
-  }
+    // Legacy BFT Message Storage (Retained for Controller compatibility, unused in LCR)
+    private final Set<Vote> voteMessages = Sets.newLinkedHashSet();
 
-  public void addSelectLeaderMessage(final SelectLeader msg) {
-//    if (Objects.nonNull(proposeMessage)) {
-      selectLeaderMessages.add(msg);
-      LOG.trace("Round state added selectleader message ={}", msg);
-//    }
-  }
+    @Setter
+    private State currentState;
 
-  public void addProposalMessage(final Propose msg) {
-//    if (Objects.nonNull(proposeMessage)) {
-    proposeMessages.add(msg);
-    LOG.trace("Round state added Propose message ={}", msg);
-//    }
-  }
+    private final long height;
 
-
-  public void addVoteMessage(final Vote msg) {
-    if (Objects.nonNull(proposeMessage)) {
-      voteMessages.add(msg);
-      LOG.trace("Round state added vote message ={}", msg);
-    }
-  }
-  public void addCommitMessage(final Commit msg) {
-    if (Objects.nonNull(proposeMessage)) {
-      commitMessages.add(msg);
-      LOG.trace("Round state added commit message ={}", msg);
-    }
-  }
-
-  public void addBlockAnnounceMessage(final BlockAnnounce msg) {
-    if (Objects.nonNull(blockAnnounceMessages)) {
-      blockAnnounceMessages.add(msg);
-      LOG.trace("Round state added BlockAnnounce message ={}", msg);
-    }
-  }
-
-    public void addBlsSignatureMessage(final Bls.Signature msg) {
-        blsSignaturesMessages.add(msg);
-        LOG.trace("Round state added blsSignaturesMessages  ={}", msg);
+    /**
+     * Instantiates a new Round state.
+     *
+     * @param roundIdentifier the round identifier
+     * @param quorum the quorum (unused in LCR but kept for API compatibility)
+     * @param height the block height
+     */
+    public RoundState(
+            final ConsensusRoundIdentifier roundIdentifier,
+            final int quorum,
+            long height) {
+        this.roundIdentifier = roundIdentifier;
+        this.quorum = quorum;
+        this.height = height;
+        // Default start state matching the PosBlockHeightManager logic
+        this.currentState = State.PROPOSE;
     }
 
-  public void addViewChangeMessage(final ViewChange msg) {
-      viewChangeMessages.add(msg);
-      LOG.trace("Round state added viewChangeMessages message ={}", msg);
-  }
+    public void addProposalMessage(final Propose msg) {
+        proposeMessages.add(msg);
+        LOG.trace("Round state added Propose message = {}", msg);
+    }
 
-  public Collection<SECPSignature> getCommitSeals() {
-    return Collections.emptyList();//todo
-  }
+    public void addVoteMessage(final Vote msg) {
+        voteMessages.add(msg);
+        LOG.trace("Round state added vote message = {}", msg);
+    }
 
+    /**
+     * Returns the seals (signatures) required to finalize the block.
+     * In LCR, the block is sealed by the Proposer at creation time.
+     *
+     * @return Empty list (as seals are already in the block header).
+     */
+    public Collection<SECPSignature> getCommitSeals() {
+        return Collections.emptyList();
+    }
 
-
-  public PosBlock getProposedBlock() {
-    return proposeMessage.getSignedPayload().getPayload().getProposedBlock();
-  }
+    public Block getProposedBlock() {
+        return proposeMessage != null ? proposeMessage.getSignedPayload().getPayload().getProposedBlock() : null;
+    }
 }

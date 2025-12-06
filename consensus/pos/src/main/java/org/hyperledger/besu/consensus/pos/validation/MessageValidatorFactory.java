@@ -14,7 +14,6 @@
  */
 package org.hyperledger.besu.consensus.pos.validation;
 
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
 import org.hyperledger.besu.consensus.common.bft.BftContext;
 import org.hyperledger.besu.consensus.common.bft.BftExtraDataCodec;
 import org.hyperledger.besu.consensus.common.bft.BftProtocolSchedule;
@@ -26,28 +25,29 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 
 import java.util.Collection;
 
-/** The Message validator factory. */
+
 public class MessageValidatorFactory {
 
-//    private final ProposerSelector proposerSelector;
     private final ProtocolContext protocolContext;
     private final BftProtocolSchedule protocolSchedule;
-//    private final BftExtraDataCodec bftExtraDataCodec;
 
-
+    /**
+     * Constructor matching the BFT architecture signature.
+     * Unused parameters (ProposerSelector, Codec) are retained for compatibility
+     * with the controller builder but not stored if irrelevant to LCR.
+     */
     public MessageValidatorFactory(
             final ProposerSelector proposerSelector,
             final BftProtocolSchedule protocolSchedule,
             final ProtocolContext protocolContext,
             final BftExtraDataCodec bftExtraDataCodec) {
-//        this.proposerSelector = proposerSelector;
         this.protocolSchedule = protocolSchedule;
         this.protocolContext = protocolContext;
-//        this.bftExtraDataCodec = bftExtraDataCodec;
     }
 
     /**
-     * Get the list of validators that are applicable after the given block
+     * Get the list of validators that are applicable after the given block.
+     * Used to determine the active validator set (Ledger of Stake).
      *
      * @param protocolContext the protocol context
      * @param parentHeader the parent header
@@ -62,7 +62,7 @@ public class MessageValidatorFactory {
     }
 
     /**
-     * Get the list of validators that are applicable for the given block
+     * Get the list of validators that are applicable for the given block.
      *
      * @param protocolContext the protocol context
      * @param parentHeader the parent header
@@ -76,17 +76,8 @@ public class MessageValidatorFactory {
                 .getValidatorsForBlock(parentHeader);
     }
 
-//    private SignedDataValidator createSignedDataValidator(
-//            final ConsensusRoundIdentifier roundIdentifier, final BlockHeader parentHeader) {
-//
-//        return new SignedDataValidator(
-//                getValidatorsAfterBlock(protocolContext, parentHeader),
-//                proposerSelector.selectProposerForRound(roundIdentifier),
-//                roundIdentifier);
-//    }
-
     /**
-     * Create message validator.
+     * Create message validator for a specific round.
      *
      * @param roundIdentifier the round identifier
      * @param parentHeader the parent header
@@ -94,47 +85,12 @@ public class MessageValidatorFactory {
      */
     public MessageValidator createMessageValidator(
             final ConsensusRoundIdentifier roundIdentifier, final BlockHeader parentHeader) {
-        final Collection<Address> validators = getValidatorsAfterBlock(protocolContext, parentHeader);
 
-        final BftBlockInterface bftBlockInterface =
-                protocolContext.getConsensusContext(BftContext.class).getBlockInterface();
-
+        // In Pure PoS, we validate proposals against the ProtocolSchedule (Header Rules).
+        // Complex BFT SignedDataValidators are not needed for LCR.
         return new MessageValidator(
-//                createSignedDataValidator(roundIdentifier, parentHeader),
-//                new ProposalBlockConsistencyValidator(),
                 protocolContext,
                 protocolSchedule
-//                new RoundChangeCertificateValidator(
-//                        validators,
-//                        (ri) -> createSignedDataValidator(ri, parentHeader),
-//                        roundIdentifier.getSequenceNumber(),
-//                        bftExtraDataCodec,
-//                        bftBlockInterface)
-                        );
+        );
     }
-
-
-//    public RoundChangeMessageValidator createRoundChangeMessageValidator(
-//            final long chainHeight, final BlockHeader parentHeader) {
-//        final Collection<Address> validators = getValidatorsAfterBlock(protocolContext, parentHeader);
-//
-//        final BftBlockInterface bftBlockInterface =
-//                protocolContext.getConsensusContext(BftContext.class).getBlockInterface();
-//        return new RoundChangeMessageValidator(
-//                new RoundChangePayloadValidator(
-//                        (roundIdentifier) -> createSignedDataValidator(roundIdentifier, parentHeader),
-//                        validators,
-//                        BftHelpers.prepareMessageCountForQuorum(
-//                                BftHelpers.calculateRequiredValidatorQuorum(validators.size())),
-//                        chainHeight),
-//                new ProposalBlockConsistencyValidator(),
-//                bftBlockInterface);
-//    }
-
-
-//    public FutureRoundProposalMessageValidator createFutureRoundProposalMessageValidator(
-//            final long chainHeight, final BlockHeader parentHeader) {
-//
-//        return new FutureRoundProposalMessageValidator(this, chainHeight, parentHeader);
-//    }
 }

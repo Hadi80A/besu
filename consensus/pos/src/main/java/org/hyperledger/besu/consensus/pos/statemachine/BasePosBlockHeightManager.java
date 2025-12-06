@@ -15,45 +15,44 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
-import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.consensus.pos.messagewrappers.*;
 
-/** The interface Base pos block height manager. */
+/**
+ * The interface Base pos block height manager.
+ * Defines the contract for processing consensus messages at a specific block height.
+ *
+ * <p>In the context of Pure PoS (LCR + DSS), BFT-specific phases (Vote, Commit)
+ * are not functionally required but are retained here for architectural compatibility.
+ */
 public interface BasePosBlockHeightManager extends BaseBlockHeightManager {
 
-  void handleProposalMessage(final Propose msg);
-  void handleVoteMessage(final Vote msg);
-  void handleCommitMessage(final Commit msg);
-  void handleViewChangePayload(final ViewChange message);
-  void handleSelectLeaderMessage(final SelectLeader message);
-  void consumeProposeMessage(final Propose msg);
-  void consumeVoteMessage(final Vote msg);
-  void consumeCommitMessage(final Commit msg);
-  void consumeBlockAnnounceMessage(final BlockAnnounce msg);
+    // --- Phase 4 & 5: Proposal Handling (Active in LCR) ---
 
-  void consumeViewChangeMessage(final ViewChange message);
-  void consumeSelectLeaderMessage(final SelectLeader message);
+    /**
+     * Process a Proposal message that has been verified for the current round.
+     */
+    void handleProposalMessage(final Propose msg);
 
-  boolean checkValidState(int msgCode);
-//
-//  /**
-//   * Handle prepare payload.
-//   *
-//   * @param prepare the prepare
-//   */
-//  void handlePreparePayload(Prepare prepare);
-//
-//  /**
-//   * Handle commit payload.
-//   *
-//   * @param commit the commit
-//   */
-//  void handleCommitPayload(Commit commit);
-//
-//  /**
-//   * Handle round change payload.
-//   *
-//   * @param roundChange the round change
-//   */
-//  void handleRoundChangePayload(RoundChange roundChange);
+    /**
+     * Consume a raw Proposal message from the network.
+     */
+    void consumeProposeMessage(final Propose msg);
+
+    // --- Phase 2: Round/Time Slot Management (Active in LCR) ---
+
+
+
+    // --- Legacy BFT / VRF Methods (No-Ops in LCR/FTS) ---
+    // These are kept to satisfy the PosController's message dispatching logic.
+
+    void handleVoteMessage(final Vote msg);
+
+    void consumeVoteMessage(final Vote msg);
+
+    /**
+     * Checks if the message code is valid for the current state.
+     * @param msgCode the message code
+     * @return true if valid
+     */
+    boolean checkValidState(int msgCode);
 }

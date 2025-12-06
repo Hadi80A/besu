@@ -24,148 +24,112 @@ import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
-import org.hyperledger.besu.consensus.pos.messagewrappers.ViewChange;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
 import java.time.Clock;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+
+/**
+ * Holds the static/final state and configuration for the PoS consensus engine.
+ * Shared across different rounds and block height managers.
+ */
 @Getter
 public class PosFinalState {
-  private final ValidatorProvider validatorProvider;
 
-  final Map<Address, ViewChange> receivedMessages;
-    /**
-     * -- GETTER --
-     *  Gets node key.
-     *
-     */
-    @Getter
+    private final ValidatorProvider validatorProvider;
     private final NodeKey nodeKey;
-    /**
-     * -- GETTER --
-     *  Gets local address.
-     *
-     */
-    @Getter
     private final Address localAddress;
-  private final ProposerSelector proposerSelector;
-    /**
-     * -- GETTER --
-     *  Gets the validator multicaster.
-     *
-     */
-    @Getter
+    private final ProposerSelector proposerSelector;
     private final ValidatorMulticaster validatorMulticaster;
-    /**
-     * -- GETTER --
-     *  Gets round timer.
-     *
-     */
-    @Getter
     private final RoundTimer roundTimer;
-  @Getter
-  private final BlockTimer blockTimer;
-    /**
-     * -- GETTER --
-     *  Gets block creator factory.
-     *
-     */
-    @Getter
+    private final BlockTimer blockTimer;
     private final PosBlockCreatorFactory blockCreatorFactory;
-    /**
-     * -- GETTER --
-     *  Gets clock.
-     *
-     */
-    @Getter
     private final Clock clock;
-
-    @Getter
     private final BftFinalState bftFinalState;
-  /**
-   * Constructs a new POS final state.
-   *
-   * @param validatorProvider the validator provider
-   * @param nodeKey the node key
-   * @param localAddress the local address
-   * @param proposerSelector the proposer selector
-   * @param validatorMulticaster the validator multicaster
-   * @param roundTimer the round timer
-   * @param blockTimer the block timer
-   * @param blockCreatorFactory the block creator factory
-   * @param clock the clock
-   */
-  public PosFinalState(
-          final ValidatorProvider validatorProvider,
-          final NodeKey nodeKey,
-          final Address localAddress,
-          final ProposerSelector proposerSelector,
-          final ValidatorMulticaster validatorMulticaster,
-          final RoundTimer roundTimer,
-          final BlockTimer blockTimer,
-          final PosBlockCreatorFactory blockCreatorFactory,
-          final Clock clock, BftFinalState bftFinalState) {
-    this.validatorProvider = validatorProvider;
-      this.receivedMessages = new HashMap<>();
-      this.nodeKey = nodeKey;
-    this.localAddress = localAddress;
-    this.proposerSelector = proposerSelector;
-    this.validatorMulticaster = validatorMulticaster;
-    this.roundTimer = roundTimer;
-    this.blockTimer = blockTimer;
-    this.blockCreatorFactory = blockCreatorFactory;
-    this.clock = clock;
-    this.bftFinalState = bftFinalState;
-  }
-
-  /**
-   * Gets validators.
-   *
-   * @return the validators
-   */
-  public Collection<Address> getValidators() {
-    return validatorProvider.getValidatorsAtHead();
-  }
 
     /**
-   * Is local node validator.
-   *
-   * @return the boolean
-   */
-
-  public boolean isLocalNodeValidator() {
-    return getValidators().contains(localAddress);
-  }
-
-
-    public int getQuorum() {
-      int count=getValidators().size();
-      return (2*count)/3;
+     * Constructs a new POS final state.
+     *
+     * @param validatorProvider the validator provider
+     * @param nodeKey the node key
+     * @param localAddress the local address
+     * @param proposerSelector the generic proposer selector (interface)
+     * @param validatorMulticaster the validator multicaster
+     * @param roundTimer the round timer
+     * @param blockTimer the block timer
+     * @param blockCreatorFactory the block creator factory
+     * @param clock the clock
+     * @param bftFinalState the underlying BFT final state wrapper
+     */
+    public PosFinalState(
+            final ValidatorProvider validatorProvider,
+            final NodeKey nodeKey,
+            final Address localAddress,
+            final ProposerSelector proposerSelector,
+            final ValidatorMulticaster validatorMulticaster,
+            final RoundTimer roundTimer,
+            final BlockTimer blockTimer,
+            final PosBlockCreatorFactory blockCreatorFactory,
+            final Clock clock,
+            final BftFinalState bftFinalState) {
+        this.validatorProvider = validatorProvider;
+        this.nodeKey = nodeKey;
+        this.localAddress = localAddress;
+        this.proposerSelector = proposerSelector;
+        this.validatorMulticaster = validatorMulticaster;
+        this.roundTimer = roundTimer;
+        this.blockTimer = blockTimer;
+        this.blockCreatorFactory = blockCreatorFactory;
+        this.clock = clock;
+        this.bftFinalState = bftFinalState;
     }
 
+    /**
+     * Gets the current set of validators.
+     *
+     * @return the validators
+     */
+    public Collection<Address> getValidators() {
+        return validatorProvider.getValidatorsAtHead();
+    }
 
     /**
-   * Is local node proposer for round.
-   *
-   * @param roundIdentifier the round identifier
-   * @return the boolean
-   */
+     * Checks if the local node is a validator.
+     *
+     * @return true if local node is in the validator set
+     */
+    public boolean isLocalNodeValidator() {
+        return getValidators().contains(localAddress);
+    }
 
-  public boolean isLocalNodeProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
-    return getProposerForRound(roundIdentifier).equals(localAddress);
-  }
+    /**
+     * Calculates the quorum required for Round Change (ViewChange).
+     * Typically 2/3 of the validator count.
+     *
+     * @return the quorum size
+     */
+    public int getQuorum() {
+        return BftHelpers.calculateRequiredValidatorQuorum(getValidators().size());
+    }
 
-  /**
-   * Gets proposer for round.
-   *
-   * @param roundIdentifier the round identifier
-   * @return the proposer for round
-   */
-  public Address getProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
-    return proposerSelector.selectProposerForRound(roundIdentifier);
-  }
+    /**
+     * Checks if local node is the proposer for the given round (using generic selector).
+     *
+     * @param roundIdentifier the round identifier
+     * @return true if local node is proposer
+     */
+    public boolean isLocalNodeProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
+        return getProposerForRound(roundIdentifier).equals(localAddress);
+    }
 
+    /**
+     * Gets proposer for a specific round (using generic selector).
+     *
+     * @param roundIdentifier the round identifier
+     * @return the proposer for round
+     */
+    public Address getProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
+        return proposerSelector.selectProposerForRound(roundIdentifier);
+    }
 }

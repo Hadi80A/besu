@@ -1,3 +1,17 @@
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pos.core;
 
 import lombok.AllArgsConstructor;
@@ -5,24 +19,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Represents stake-related data for a validator.
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class StakeInfo {
 
-
-  /** The amount of PAC coins staked by the validator (in smallest unit). */
-  private long stakedAmount;
-
-    //  private long activationHeight;
-
-    //  private long withdrawableHeight;
-
-    //  private boolean active;
-
-    //  private boolean unbonding;
+    /**
+     * The amount of native coin staked by the validator.
+     * This value determines the probability of leader selection in FTS.
+     */
+    private long stakedAmount;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 ConsenSys AG.
+ * Copyright ConsenSys AG.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,110 +20,65 @@ import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
-/** The Payload deserializers. */
+/**
+ * Utility class to deserialize RLP inputs into SignedData wrappers.
+ *
+ * <p>Phase 5: Propagation
+ * This component is the entry point for converting raw network bytes into
+ * authenticated internal objects (Payload + ECDSA Signature).
+ */
 public class PayloadDeserializers {
-  /** Default constructor. */
-  protected PayloadDeserializers() {}
 
-  public static SignedData<SelectLeaderPayload> readSignedSelectLeaderPayloadFrom(final RLPInput rlpInput) {
+    /** Default constructor. */
+    protected PayloadDeserializers() {}
 
-    rlpInput.enterList();
-    final SelectLeaderPayload unsignedMessageData = SelectLeaderPayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
 
-    return from(unsignedMessageData, signature);
-  }
+    public static SignedData<ProposePayload> readSignedProposalPayloadFrom(final RLPInput rlpInput) {
+        rlpInput.enterList();
+        final ProposePayload unsignedMessageData = ProposePayload.readFrom(rlpInput);
+        final SECPSignature signature = readSignature(rlpInput);
+        rlpInput.leaveList();
 
-  public static SignedData<ProposePayload> readSignedProposalPayloadFrom(final RLPInput rlpInput) {
+        return from(unsignedMessageData, signature);
+    }
 
-    rlpInput.enterList();
-    final ProposePayload unsignedMessageData = ProposePayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
+    /**
+     * Read signed vote payload from rlp input.
+     *
+     * @param rlpInput the rlp input
+     * @return the signed data
+     */
+    public static SignedData<VotePayload> readSignedVotePayloadFrom(final RLPInput rlpInput) {
+        rlpInput.enterList();
+        final VotePayload unsignedMessageData = VotePayload.readFrom(rlpInput);
+        final SECPSignature signature = readSignature(rlpInput);
+        rlpInput.leaveList();
 
-    return from(unsignedMessageData, signature);
-  }
+        return from(unsignedMessageData, signature);
+    }
 
-  public static SignedData<BlockAnnouncePayload> readSignedBlockAnnouncePayloadFrom(final RLPInput rlpInput) {
 
-    rlpInput.enterList();
-    final BlockAnnouncePayload unsignedMessageData = BlockAnnouncePayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
 
-    return from(unsignedMessageData, signature);
-  }
+    /**
+     * Create signed payload data from unsigned message data.
+     *
+     * @param <M> the type parameter
+     * @param unsignedMessageData the unsigned message data
+     * @param signature the signature
+     * @return the signed data
+     */
+    protected static <M extends Payload> SignedData<M> from(
+            final M unsignedMessageData, final SECPSignature signature) {
+        return SignedData.create(unsignedMessageData, signature);
+    }
 
-  /**
-   * Read signed prepare payload from rlp input.
-   *
-   * @param rlpInput the rlp input
-   * @return the signed data
-   */
-  public static SignedData<VotePayload> readSignedVotePayloadFrom(final RLPInput rlpInput) {
-
-    rlpInput.enterList();
-    final VotePayload unsignedMessageData = VotePayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
-
-    return from(unsignedMessageData, signature);
-  }
-
-  /**
-   * Read signed commit payload from rlp input.
-   *
-   * @param rlpInput the rlp input
-   * @return the signed data
-   */
-  public static SignedData<CommitPayload> readSignedCommitPayloadFrom(final RLPInput rlpInput) {
-
-    rlpInput.enterList();
-    final CommitPayload unsignedMessageData = CommitPayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
-
-    return from(unsignedMessageData, signature);
-  }
-
-  /**
-   * Read signed round change payload from rlp input.
-   *
-   * @param rlpInput the rlp input
-   * @return the signed data
-   */
-  public static SignedData<ViewChangePayload> readSignedViewChangePayloadFrom(
-      final RLPInput rlpInput) {
-
-    rlpInput.enterList();
-    final ViewChangePayload unsignedMessageData = ViewChangePayload.readFrom(rlpInput);
-    final SECPSignature signature = readSignature(rlpInput);
-    rlpInput.leaveList();
-
-    return from(unsignedMessageData, signature);
-  }
-
-  /**
-   * Create signed payload data from unsigned message data.
-   *
-   * @param <M> the type parameter
-   * @param unsignedMessageData the unsigned message data
-   * @param signature the signature
-   * @return the signed data
-   */
-  protected static <M extends Payload> SignedData<M> from(
-      final M unsignedMessageData, final SECPSignature signature) {
-    return SignedData.create(unsignedMessageData, signature);
-  }
-
-  /**
-   * Read signature from signed message.
-   *
-   * @param signedMessage the signed message
-   * @return the secp signature
-   */
-  protected static SECPSignature readSignature(final RLPInput signedMessage) {
-    return signedMessage.readBytes(SignatureAlgorithmFactory.getInstance()::decodeSignature);
-  }
+    /**
+     * Read signature from signed message.
+     *
+     * @param signedMessage the signed message
+     * @return the secp signature
+     */
+    protected static SECPSignature readSignature(final RLPInput signedMessage) {
+        return signedMessage.readBytes(SignatureAlgorithmFactory.getInstance()::decodeSignature);
+    }
 }

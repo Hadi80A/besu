@@ -1,80 +1,71 @@
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.pos.payload;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
-import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
-import org.hyperledger.besu.consensus.pos.bls.Bls;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
-import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
-import java.math.BigInteger;
-
+/**
+ * The Vote payload.
+ *
+ * <p>Updated for Pure PoS (LCR):
+ * Removed BLS Signature field. LCR does not utilize threshold signature aggregation.
+ * This payload acts as a simple attestation to a block hash, authenticated by the 
+ * outer SignedData (ECDSA) wrapper.
+ */
 @Getter
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 @SuperBuilder
 public class VotePayload extends PosPayload {
-  private static final int TYPE = PosMessage.VOTE.getCode();
+    private static final int TYPE = PosMessage.VOTE.getCode();
 
-  /**
-   * Canonical secp256k1 curve order 'n' (from SEC2 / secp256k1 parameters).
-   * Hex: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-   */
-  private static final BigInteger SECP256K1_CURVE_ORDER =
-          new BigInteger("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16);
+    private final Hash digest;
 
-  private final Hash digest;
-  private final Bls.Signature signature;
+    protected VotePayload(
+            final ConsensusRoundIdentifier roundIdentifier,
+            final Hash digest) {
+        super(roundIdentifier);
+        this.digest = digest;
+    }
 
-  protected VotePayload(
-          final ConsensusRoundIdentifier roundIdentifier, final long height, final Hash digest, final Bls.Signature signature) {
-    super(roundIdentifier, height);
-    this.digest = digest;
-    this.signature = signature;
-  }
+    public static VotePayload readFrom(final RLPInput rlpInput) {
+        rlpInput.enterList();
+        final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
+        final Hash digest = Payload.readDigest(rlpInput);
+        rlpInput.leaveList();
 
-  public static VotePayload readFrom(final RLPInput rlpInput) {
-    rlpInput.enterList();
-    final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
-    final Hash digest = Payload.readDigest(rlpInput);
-    final long height = rlpInput.readLong();
+        return new VotePayload(roundIdentifier, digest);
+    }
 
-    final Bytes signatureBytes = rlpInput.readBytes();
-    Bls.Signature blsSignature =Bls.Signature.signatureFromCompressed(signatureBytes.toArray()) ;
-    // read signature in (r, s, recId/recParity) scalar fields
-//    final BigInteger r = rlpInput.readBigIntegerScalar();
-//    final BigInteger s = rlpInput.readBigIntegerScalar();
-//    final byte recId = rlpInput.readByte();
-    rlpInput.leaveList();
+    @Override
+    public void writeTo(final RLPOutput rlpOutput) {
+        rlpOutput.startList();
+        getRoundIdentifier().writeTo(rlpOutput);
+        rlpOutput.writeBytes(digest);
+        rlpOutput.endList();
+    }
 
-//    // validate/construct signature using the curve order (n)
-//    final SECPSignature secpSignature =
-//            SECPSignature.create(r, s, recId, SECP256K1_CURVE_ORDER);
-
-    return new VotePayload(roundIdentifier, height, digest,blsSignature);
-  }
-
-  @Override
-  public void writeTo(final RLPOutput rlpOutput) {
-    rlpOutput.startList();
-    getRoundIdentifier().writeTo(rlpOutput);
-    rlpOutput.writeBytes(digest);
-    rlpOutput.writeLong(getHeight());
-    rlpOutput.writeBytes(Bytes.wrap(signature.toBytesCompressed()));
-//    rlpOutput.writeBigIntegerScalar(signature.getR());
-//    rlpOutput.writeBigIntegerScalar(signature.getS());
-//    rlpOutput.writeByte(signature.getRecId());
-    rlpOutput.endList();
-  }
-
-  @Override
-  public int getMessageType() {
-    return TYPE;
-  }
-
+    @Override
+    public int getMessageType() {
+        return TYPE;
+    }
 }

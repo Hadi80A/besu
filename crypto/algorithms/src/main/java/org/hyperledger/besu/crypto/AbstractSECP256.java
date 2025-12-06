@@ -41,14 +41,17 @@ import org.bouncycastle.jcajce.provider.asymmetric.ec.KeyPairGeneratorSpi;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECPoint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The Abstract secp256. */
 public abstract class AbstractSECP256 implements SignatureAlgorithm {
 
   /** The constant PROVIDER. */
   public static final String PROVIDER = "BC";
+    private static final Logger log = LoggerFactory.getLogger(AbstractSECP256.class);
 
-  /** The Curve. */
+    /** The Curve. */
   protected final ECDomainParameters curve;
 
   /** The Half curve order. */
@@ -96,7 +99,7 @@ public abstract class AbstractSECP256 implements SignatureAlgorithm {
       final BigInteger nativeS,
       final SECPPublicKey publicKey,
       final Bytes32 dataHash) {
-
+    log.debug("normaliseSignature");
     BigInteger s = nativeS;
     // Automatically adjust the S component to be less than or equal to half the curve
     // order, if necessary. This is required because for every signature (r,s) the signature
@@ -112,6 +115,7 @@ public abstract class AbstractSECP256 implements SignatureAlgorithm {
       // s = 8, so (-8 % 10 == 2) thus both (r, 8) and (r, 2) are valid solutions.
       // 10 - 8 == 2, giving us always the latter solution, which is canonical.
       s = curve.getN().subtract(s);
+        log.debug("normaliseSignature2");
     }
 
     // Now we have to work backwards to figure out the recId needed to recover the signature.
@@ -129,6 +133,7 @@ public abstract class AbstractSECP256 implements SignatureAlgorithm {
           "Could not construct a recoverable key. This should never happen.");
     }
 
+      log.debug("normaliseSignature3");
     return new SECPSignature(nativeR, s, (byte) recId);
   }
 

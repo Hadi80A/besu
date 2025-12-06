@@ -17,25 +17,35 @@ package org.hyperledger.besu.consensus.pos.payload;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.SuperBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.payload.Payload;
 import org.hyperledger.besu.datatypes.Hash;
 
-import org.apache.tuweni.bytes.Bytes;
-
-/** The Pos payload. */
 
 @AllArgsConstructor
 @Getter
 @SuperBuilder
 public abstract class PosPayload implements Payload {
-  protected final ConsensusRoundIdentifier roundIdentifier;
-  protected final long height;
-  /** Default constructor. */
 
+    private static final Logger log = LogManager.getLogger(PosPayload.class);
+    protected final ConsensusRoundIdentifier roundIdentifier;
 
-  @Override
-  public Hash hashForSignature() {
-    return Hash.hash(Bytes.concatenate(Bytes.of(getMessageType()), encoded()));
-  }
+    /**
+     * Generates the hash that will be signed by the ECDSA key.
+     * Structure: Keccak256(MessageType || RLP(Payload))
+     *
+     * @return The 32-byte hash to sign.
+     */
+    @Override
+    public Hash hashForSignature() {
+        log.debug("hashForSignature");
+        // DSS: The signature covers the type + content to prevent replay across message types.
+        Bytes concatenate = Bytes.concatenate(Bytes.of(getMessageType()), encoded());
+        log.debug("hashForSignature concatenate");
+        return Hash.hash(concatenate);
+
+    }
 }

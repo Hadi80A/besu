@@ -36,103 +36,99 @@ import org.hyperledger.besu.plugin.services.MetricsSystem;
 import java.time.Duration;
 import java.util.Optional;
 
-/** Defines the protocol behaviours for a blockchain using a BFT consensus mechanism. */
+/** Defines the protocol behaviours for a blockchain using the Pure PoS consensus mechanism. */
 public class PosProtocolScheduleBuilder extends BaseBftProtocolScheduleBuilder {
+
     @Setter
     @Getter
     private static Blockchain blockchain;
+
     /** Default constructor. */
-  protected PosProtocolScheduleBuilder() {}
-  /**
-   * Create protocol schedule.
-   *
-   * @param config the config
-   * @param forksSchedule the forks schedule
-   * @param isRevertReasonEnabled the is revert reason enabled
-   * @param bftExtraDataCodec the bft extra data codec
-   * @param evmConfiguration the evm configuration
-   * @param miningConfiguration the mining parameters
-   * @param badBlockManager the cache to use to keep invalid blocks
-   * @param isParallelTxProcessingEnabled indicates whether parallel transaction is enabled
-   * @param metricsSystem A metricSystem instance to be able to expose metrics in the underlying
-   *     calls
-   * @return the protocol schedule
-   */
-  public static BftProtocolSchedule create(
-      final GenesisConfigOptions config,
-      final ForksSchedule<PosConfigOptions> forksSchedule,
-      final boolean isRevertReasonEnabled,
-      final BftExtraDataCodec bftExtraDataCodec,
-      final EvmConfiguration evmConfiguration,
-      final MiningConfiguration miningConfiguration,
-      final BadBlockManager badBlockManager,
-      final boolean isParallelTxProcessingEnabled,
-      final BalConfiguration balConfiguration,
-      final MetricsSystem metricsSystem) {
-    return new PosProtocolScheduleBuilder()
-        .createProtocolSchedule(
-            config,
-            forksSchedule,
-            isRevertReasonEnabled,
-            bftExtraDataCodec,
-            evmConfiguration,
-            miningConfiguration,
-            badBlockManager,
-            isParallelTxProcessingEnabled,
+    protected PosProtocolScheduleBuilder() {}
+
+    /**
+     * Create protocol schedule.
+     *
+     * @param config the config
+     * @param forksSchedule the forks schedule
+     * @param isRevertReasonEnabled the is revert reason enabled
+     * @param bftExtraDataCodec the bft extra data codec (PosExtraDataCodec)
+     * @param evmConfiguration the evm configuration
+     * @param miningConfiguration the mining parameters
+     * @param badBlockManager the cache to use to keep invalid blocks
+     * @param isParallelTxProcessingEnabled indicates whether parallel transaction is enabled
+     * @param metricsSystem A metricSystem instance to be able to expose metrics in the underlying calls
+     * @return the protocol schedule
+     */
+    public static BftProtocolSchedule create(
+            final GenesisConfigOptions config,
+            final ForksSchedule<PosConfigOptions> forksSchedule,
+            final boolean isRevertReasonEnabled,
+            final BftExtraDataCodec bftExtraDataCodec,
+            final EvmConfiguration evmConfiguration,
+            final MiningConfiguration miningConfiguration,
+            final BadBlockManager badBlockManager,
+            final boolean isParallelTxProcessingEnabled,
+            final BalConfiguration balConfiguration,
+            final MetricsSystem metricsSystem) {
+        return new PosProtocolScheduleBuilder()
+                .createProtocolSchedule(
+                        config,
+                        forksSchedule,
+                        isRevertReasonEnabled,
+                        bftExtraDataCodec,
+                        evmConfiguration,
+                        miningConfiguration,
+                        badBlockManager,
+                        isParallelTxProcessingEnabled,
+                        balConfiguration,
+                        metricsSystem);
+    }
+
+    /**
+     * Create protocol schedule (Overloaded).
+     */
+    public static BftProtocolSchedule create(
+            final GenesisConfigOptions config,
+            final ForksSchedule<PosConfigOptions> forksSchedule,
+            final BftExtraDataCodec bftExtraDataCodec,
+            final EvmConfiguration evmConfiguration,
+            final MiningConfiguration miningConfiguration,
+            final BadBlockManager badBlockManager,
+            final boolean isParallelTxProcessingEnabled,
+            final BalConfiguration balConfiguration,
+            final MetricsSystem metricsSystem) {
+        return create(
+                config,
+                forksSchedule,
+                false,
+                bftExtraDataCodec,
+                evmConfiguration,
+                miningConfiguration,
+                badBlockManager,
+                isParallelTxProcessingEnabled,
                 balConfiguration,
-            metricsSystem);
-  }
+                metricsSystem);
+    }
 
-  /**
-   * Create protocol schedule.
-   *
-   * @param config the config
-   * @param forksSchedule the forks schedule
-   * @param bftExtraDataCodec the bft extra data codec
-   * @param evmConfiguration the evm configuration
-   * @param miningConfiguration the mining parameters
-   * @param badBlockManager the cache to use to keep invalid blocks
-   * @param isParallelTxProcessingEnabled indicates whether parallel transaction is enabled.
-   * @param metricsSystem A metricSystem instance to be able to expose metrics in the underlying
-   *     calls
-   * @return the protocol schedule
-   */
-  public static BftProtocolSchedule create(
-      final GenesisConfigOptions config,
-      final ForksSchedule<PosConfigOptions> forksSchedule,
-      final BftExtraDataCodec bftExtraDataCodec,
-      final EvmConfiguration evmConfiguration,
-      final MiningConfiguration miningConfiguration,
-      final BadBlockManager badBlockManager,
-      final boolean isParallelTxProcessingEnabled,
-      final BalConfiguration balConfiguration,
-      final MetricsSystem metricsSystem) {
-    return create(
-        config,
-        forksSchedule,
-        false,
-        bftExtraDataCodec,
-        evmConfiguration,
-        miningConfiguration,
-        badBlockManager,
-        isParallelTxProcessingEnabled,
-            balConfiguration,
-        metricsSystem);
+    /**
+     * Creates the validation rules for Block Headers in PoS.
+     * This wires the LCR/FTS validation logic via the PosBlockHeaderValidationRulesetFactory.
+     */
+    @Override
+    protected BlockHeaderValidator.Builder createBlockHeaderRuleset(
+            final BftConfigOptions config, final FeeMarket feeMarket) {
 
-  }
+        final Optional<BaseFeeMarket> baseFeeMarket =
+                Optional.of(feeMarket).filter(FeeMarket::implementsBaseFee).map(BaseFeeMarket.class::cast);
 
-  @Override
-  protected BlockHeaderValidator.Builder createBlockHeaderRuleset(
-      final BftConfigOptions config, final FeeMarket feeMarket) {
-    final Optional<BaseFeeMarket> baseFeeMarket =
-        Optional.of(feeMarket).filter(FeeMarket::implementsBaseFee).map(BaseFeeMarket.class::cast);
-
-    return PosBlockHeaderValidationRulesetFactory.blockHeaderValidator(
-        config.getBlockPeriodMilliseconds() > 0
-            ? Duration.ofMillis(config.getBlockPeriodMilliseconds())
-            : Duration.ofSeconds(config.getBlockPeriodSeconds()),
-        baseFeeMarket,
-        PosProtocolScheduleBuilder::getBlockchain
-    );
-  }
+        // Pass the Blockchain accessor so validators can look up Parent Blocks for FTS seed generation
+        return PosBlockHeaderValidationRulesetFactory.blockHeaderValidator(
+                config.getBlockPeriodMilliseconds() > 0
+                        ? Duration.ofMillis(config.getBlockPeriodMilliseconds())
+                        : Duration.ofSeconds(config.getBlockPeriodSeconds()),
+                baseFeeMarket,
+                PosProtocolScheduleBuilder::getBlockchain
+        );
+    }
 }

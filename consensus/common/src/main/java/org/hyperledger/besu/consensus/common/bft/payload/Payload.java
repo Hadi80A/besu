@@ -20,11 +20,13 @@ import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The interface Payload. */
 public interface Payload extends RoundSpecific {
 
-  /**
+    /**
    * Write to.
    *
    * @param rlpOutput the rlp output

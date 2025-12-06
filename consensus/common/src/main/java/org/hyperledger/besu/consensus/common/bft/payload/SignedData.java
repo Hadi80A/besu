@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.consensus.common.bft.payload;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.crypto.SignatureAlgorithmFactory;
 import org.hyperledger.besu.datatypes.Address;
@@ -37,11 +39,11 @@ public class SignedData<M extends Payload> implements Authored {
 
   private static final BigInteger HALF_CURVE_ORDER =
       SignatureAlgorithmFactory.getInstance().getHalfCurveOrder();
+    private static final Logger log = LogManager.getLogger(SignedData.class);
 
-  private final Address sender;
+    private final Address sender;
   private final SECPSignature signature;
   private final M unsignedPayload;
-
   /**
    * Create signed data.
    *
@@ -54,6 +56,7 @@ public class SignedData<M extends Payload> implements Authored {
   public static <T extends Payload> SignedData<T> create(
       final T payload, final SECPSignature signature) {
     final Hash msgHash = payload.hashForSignature();
+    log.debug(" SignedData<T> create");
     return new SignedData<>(payload, Util.signatureToAddress(signature, msgHash), signature);
   }
 

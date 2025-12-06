@@ -14,27 +14,41 @@
  */
 package org.hyperledger.besu.consensus.pos;
 
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFactory;
 
 /**
  * Adaptor class to allow a {@link BftBlockCreatorFactory} to be used as a {@link
  * PosBlockCreatorFactory}.
+ *
+ * <p>Phase 4: Block Creation
+ * Factories the component responsible for assembling a new block.
+ * Injects the FTS Seed into the creator so it can be sealed into the block header.
  */
 public class PosBlockCreatorFactory {
 
-  private final BftBlockCreatorFactory<?> posBlockCreatorFactory;
-  private final PosExtraDataCodec posExtraDataCodec;
+    private final BftBlockCreatorFactory<?> posBlockCreatorFactory;
+    private final PosExtraDataCodec posExtraDataCodec;
 
+    public PosBlockCreatorFactory(
+            final BftBlockCreatorFactory<?> bftBlockCreatorFactory,
+            final PosExtraDataCodec posExtraDataCodec) {
+        this.posBlockCreatorFactory = bftBlockCreatorFactory;
+        this.posExtraDataCodec = posExtraDataCodec;
+    }
 
-  public PosBlockCreatorFactory(
-      final BftBlockCreatorFactory<?> bftBlockCreatorFactory,
-      final PosExtraDataCodec posExtraDataCodec) {
-    this.posBlockCreatorFactory = bftBlockCreatorFactory;
-    this.posExtraDataCodec = posExtraDataCodec;
-  }
-
-  public PosBlockCreator create(final int roundNumber) {
-    return new PosBlockCreator(
-        posBlockCreatorFactory.create(roundNumber), posExtraDataCodec);
-  }
+    /**
+     * Creates a BlockCreator for the specific round.
+     *
+     * @param roundNumber The current slot/round number.
+     * @param seed The FTS randomness seed active for this round (to be included in ExtraData).
+     * @return The PosBlockCreator instance.
+     */
+    public PosBlockCreator create(final int roundNumber, final Bytes32 seed) {
+        return new PosBlockCreator(
+                posBlockCreatorFactory.create(roundNumber),
+                posExtraDataCodec,
+                seed
+        );
+    }
 }

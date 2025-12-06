@@ -19,7 +19,6 @@ import static org.hyperledger.besu.ethereum.mainnet.AbstractGasLimitSpecificatio
 
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftCoinbaseValidationRule;
-import org.hyperledger.besu.consensus.common.bft.headervalidationrules.BftValidatorsValidationRule;
 import org.hyperledger.besu.consensus.pos.validation.ValidateHeightForBlock;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
@@ -39,46 +38,62 @@ import java.util.function.Supplier;
 
 import org.apache.tuweni.units.bigints.UInt256;
 
-/** The Ibft block header validation ruleset factory. */
+/**
+ * The PoS block header validation ruleset factory.
+ * Configures the static checks for Phase 5 (Verification).
+ */
 public class PosBlockHeaderValidationRulesetFactory {
-  /** Default constructor. */
-  private PosBlockHeaderValidationRulesetFactory() {}
 
+    /** Default constructor. */
+    private PosBlockHeaderValidationRulesetFactory() {}
 
-  public static BlockHeaderValidator.Builder blockHeaderValidator(
-          final Duration minimumTimeBetweenBlocks, final Optional<BaseFeeMarket> baseFeeMarket, Supplier<Blockchain> blockchainProvider) {
-    final BlockHeaderValidator.Builder ruleBuilder =
-        new BlockHeaderValidator.Builder()
-            .addRule(new AncestryValidationRule())
-            .addRule(new GasUsageValidationRule())
-            .addRule(
-                new GasLimitRangeAndDeltaValidationRule(
-                    DEFAULT_MIN_GAS_LIMIT, DEFAULT_MAX_GAS_LIMIT, baseFeeMarket))
-            .addRule(new TimestampBoundedByFutureParameter(1))
-            .addRule(
-                new ConstantFieldValidationRule<>(
-                    "MixHash", BlockHeader::getMixHash, BftHelpers.EXPECTED_MIX_HASH))
-            .addRule(
-                new ConstantFieldValidationRule<>(
-                    "OmmersHash", BlockHeader::getOmmersHash, Hash.EMPTY_LIST_HASH))
-            .addRule(
-                new ConstantFieldValidationRule<>(
-                    "Difficulty", BlockHeader::getDifficulty, UInt256.ONE))
-            .addRule(new ConstantFieldValidationRule<>("Nonce", BlockHeader::getNonce, 0L))
-            .addRule(new BftValidatorsValidationRule())
-            .addRule(new BftCoinbaseValidationRule());
-//            .qaddRule(new BftCommitSealsValidationRule());
+    public static BlockHeaderValidator.Builder blockHeaderValidator(
+            final Duration minimumTimeBetweenBlocks,
+            final Optional<BaseFeeMarket> baseFeeMarket,
+            final Supplier<Blockchain> blockchainProvider) {
 
-    // Currently the minimum acceptable time between blocks is 1 second. The timestamp of an
-    // Ethereum header is stored as seconds since Unix epoch so blocks being produced more
-    // frequently than once a second cannot pass this validator. For non-production scenarios
-    // (e.g. for testing block production much more frequently than once a second) Besu has
-    // an experimental 'xblockperiodmilliseconds' option for BFT chains. If this is enabled
-    // we cannot apply the TimestampMoreRecentThanParent validation rule so we do not add it
-    if (minimumTimeBetweenBlocks.compareTo(Duration.ofSeconds(1)) >= 0) {
-      ruleBuilder.addRule(new TimestampMoreRecentThanParent(minimumTimeBetweenBlocks.getSeconds()/5));
+        final BlockHeaderValidator.Builder ruleBuilder =
+                new BlockHeaderValidator.Builder()
+                        // 1. Basic Ancestry (Parent Hash check)
+                        .addRule(new AncestryValidationRule())
+
+                        // 2. Gas Validity
+                        .addRule(new GasUsageValidationRule())
+                        .addRule(
+                                new GasLimitRangeAndDeltaValidationRule(
+                                        DEFAULT_MIN_GAS_LIMIT, DEFAULT_MAX_GAS_LIMIT, baseFeeMarket))
+
+                        // 3. Timestamp Validity (Phase 2: Time Slot)
+                        .addRule(new TimestampBoundedByFutureParameter(1))
+
+                        // 4. Fixed Fields (Non-PoW compliance)
+                        .addRule(
+                                new ConstantFieldValidationRule<>(
+                                        "MixHash", BlockHeader::getMixHash, BftHelpers.EXPECTED_MIX_HASH))
+                        .addRule(
+                                new ConstantFieldValidationRule<>(
+                                        "OmmersHash", BlockHeader::getOmmersHash, Hash.EMPTY_LIST_HASH))
+
+                        // 5. Difficulty (LCR Weight)
+                        // Fixed to 1. This means "Cumulative Difficulty" == "Chain Length".
+                        .addRule(
+                                new ConstantFieldValidationRule<>(
+                                        "Difficulty", BlockHeader::getDifficulty, UInt256.ONE))
+                        .addRule(new ConstantFieldValidationRule<>("Nonce", BlockHeader::getNonce, 0L))
+
+                        // 6. DSS Authentication (Phase 5)
+                        // Verifies that the 'Coinbase' matches the signer recovered from the ECDSA signature in extraData.
+                        .addRule(new BftCoinbaseValidationRule());
+
+        // 7. Time Slot Enforcement
+        // Ensures block timestamp strictly progresses relative to parent.
+        if (minimumTimeBetweenBlocks.compareTo(Duration.ofSeconds(1)) >= 0) {
+            ruleBuilder.addRule(new TimestampMoreRecentThanParent(minimumTimeBetweenBlocks.getSeconds() / 5));
+        }
+
+        // 8. Chain Continuity
+        ruleBuilder.addRule(new ValidateHeightForBlock(blockchainProvider));
+
+        return ruleBuilder;
     }
-    ruleBuilder.addRule(new ValidateHeightForBlock(blockchainProvider));
-    return ruleBuilder;
-  }
 }

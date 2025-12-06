@@ -23,11 +23,14 @@ import org.hyperledger.besu.plugin.services.securitymodule.SecurityModule;
 import org.hyperledger.besu.plugin.services.securitymodule.data.Signature;
 
 import org.apache.tuweni.bytes.Bytes32;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The Node key. */
 public class NodeKey {
 
-  private final SecurityModule securityModule;
+    private static final Logger log = LoggerFactory.getLogger(NodeKey.class);
+    private final SecurityModule securityModule;
   private final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithmFactory.getInstance();
 
   /**
@@ -47,9 +50,10 @@ public class NodeKey {
    */
   public SECPSignature sign(final Bytes32 dataHash) {
     final Signature signature = securityModule.sign(dataHash);
-
+    log.debug("sign");
     return signatureAlgorithm.normaliseSignature(
         signature.getR(), signature.getS(), getPublicKey(), dataHash);
+
   }
 
   /**

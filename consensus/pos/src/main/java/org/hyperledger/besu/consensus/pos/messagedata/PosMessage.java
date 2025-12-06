@@ -16,21 +16,27 @@ package org.hyperledger.besu.consensus.pos.messagedata;
 
 import lombok.Getter;
 
+/**
+ * Defines the P2P wire protocol message codes for the PoS SubProtocol.
+ */
 @Getter
 public enum PosMessage {
-  BLOCK_ANNOUNCE(0x7),
-  SELECT_LEADER(0x8),
-  PROPOSE(0x9),
-  VOTE(0x10),
-  COMMIT(0x11),
-  VIEW_CHANGE(0x12),
-  PRE_VOTE(0x13),
-  MAIN_VOTE(0x14),
-  DECIDE(0x15),
-  MESSAGE_SPACE(0x16);
-  private final int code;
 
-  PosMessage(int code) {
-    this.code = code;
-  }
+
+
+    // Phase 4: Block Proposal (Core LCR)
+    PROPOSE(0x9),
+
+    // Legacy / Finality Gadget Placeholders (Unused in Core LCR)
+    VOTE(0x10),
+    COMMIT(0x11),
+
+    // Protocol Definition
+    MESSAGE_SPACE(0x16);
+
+    private final int code;
+
+    PosMessage(int code) {
+        this.code = code;
+    }
 }

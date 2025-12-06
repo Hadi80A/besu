@@ -15,13 +15,12 @@
 package org.hyperledger.besu.consensus.pos.statemachine;
 
 import org.hyperledger.besu.config.PosConfigOptions;
-import org.hyperledger.besu.consensus.pos.bls.Bls;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.validation.MessageValidatorFactory;
 
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
 import org.slf4j.Logger;
@@ -38,9 +37,9 @@ public class PosBlockHeightManagerFactory {
     private final PosConfigOptions posConfig;
     private final PosRoundFactory.MessageFactory messageFactory;
     private final PosProposerSelector posProposerSelector;
-    private final Bls.KeyPair blsKeyPair;
     private final EthPeers ethPeers;
     private final SyncState syncState;
+
     /**
      * Instantiates a new Pos block height manager factory.
      *
@@ -48,13 +47,19 @@ public class PosBlockHeightManagerFactory {
      * @param roundFactory            the round factory
      * @param messageValidatorFactory the message validator factory
      * @param messageFactory          the message factory
-     * @param blsKeyPair
+     * @param posProposerSelector     the proposer selector
+     * @param ethPeers                the eth peers
+     * @param syncState               the sync state
      */
     public PosBlockHeightManagerFactory(
             final PosFinalState finalState,
             final PosRoundFactory roundFactory,
-            final MessageValidatorFactory messageValidatorFactory, PosConfigOptions posConfig,
-            final PosRoundFactory.MessageFactory messageFactory, PosProposerSelector posProposerSelector, EthPeers ethPeers, SyncState syncState, Bls.KeyPair blsKeyPair) {
+            final MessageValidatorFactory messageValidatorFactory,
+            final PosConfigOptions posConfig,
+            final PosRoundFactory.MessageFactory messageFactory,
+            final PosProposerSelector posProposerSelector,
+            final EthPeers ethPeers,
+            final SyncState syncState) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
         this.messageValidatorFactory = messageValidatorFactory;
@@ -63,19 +68,20 @@ public class PosBlockHeightManagerFactory {
         this.posProposerSelector = posProposerSelector;
         this.ethPeers = ethPeers;
         this.syncState = syncState;
-        this.blsKeyPair = blsKeyPair;
+        // Removed BLS KeyPair assignment
     }
 
     /**
      * Create base pos block height manager.
      *
      * @param parentHeader the parent header
+     * @param blockchain   the blockchain
      * @return the base pos block height manager
      */
-    public BasePosBlockHeightManager create(final PosBlockHeader parentHeader, Blockchain blockchain) {
+    public BasePosBlockHeightManager create(final BlockHeader parentHeader, Blockchain blockchain) {
         if (finalState.isLocalNodeValidator()) {
             LOG.debug("Local node is a validator");
-            return createFullBlockHeightManager(parentHeader,blockchain);
+            return createFullBlockHeightManager(parentHeader, blockchain);
         } else {
             LOG.debug("Local node is a non-validator");
             return createNoOpBlockHeightManager(parentHeader);
@@ -89,11 +95,11 @@ public class PosBlockHeightManagerFactory {
      * @return the no-op height manager
      */
     protected BasePosBlockHeightManager createNoOpBlockHeightManager(
-            final PosBlockHeader parentHeader) {
+            final BlockHeader parentHeader) {
         return new NoOpBlockHeightManager(parentHeader);
     }
 
-    private BasePosBlockHeightManager createFullBlockHeightManager(final PosBlockHeader parentHeader,Blockchain blockchain) {
+    private BasePosBlockHeightManager createFullBlockHeightManager(final BlockHeader parentHeader, Blockchain blockchain) {
         return new PosBlockHeightManager(
                 parentHeader,
                 finalState,
@@ -101,13 +107,12 @@ public class PosBlockHeightManagerFactory {
                 finalState.getClock(),
                 messageFactory,
                 posProposerSelector,
-                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(),finalState.getLocalAddress()),
+                new PosMessageTransmitter(messageFactory, finalState.getValidatorMulticaster(), finalState.getLocalAddress()),
                 posConfig,
                 blockchain,
                 ethPeers,
-                syncState,
-                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
-                blsKeyPair
-                );
+                syncState
+                // Removed BLS KeyPair injection
+        );
     }
 }

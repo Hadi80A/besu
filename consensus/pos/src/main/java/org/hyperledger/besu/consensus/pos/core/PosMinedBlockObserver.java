@@ -14,12 +14,20 @@
  */
 package org.hyperledger.besu.consensus.pos.core;
 
-/** Observer for mined blocks in pos */
+import org.hyperledger.besu.ethereum.core.Block;
+
+/**
+ * Observer for mined (created) blocks in the PoS consensus.
+ *
+ * <p>Implemented by components that need to react to new local blocks,
+ * such as the BlockPropagator (to gossip to peers) or the TransactionPool (to remove included txs).
+ */
 public interface PosMinedBlockObserver {
-  /**
-   * Called when a block is mined
-   *
-   * @param block the mined block
-   */
-  void blockMined(PosBlock block);
+
+    /**
+     * Called when a block is mined/created by the local node.
+     *
+     * @param block the mined block
+     */
+    void blockMined(Block block);
 }

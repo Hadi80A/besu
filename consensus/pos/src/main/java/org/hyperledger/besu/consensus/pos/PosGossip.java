@@ -29,52 +29,76 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Class responsible for rebroadcasting IBFT messages to known validators */
+/**
+ * Class responsible for rebroadcasting PoS messages to known validators.
+ *
+ * <p>Phase 5: Propagation
+ * Ensures that Proposals (Blocks) and ViewChanges (Round Timeouts) are disseminated
+ * throughout the validator set to maintain consensus liveness.
+ */
 public class PosGossip implements Gossiper {
 
-  private final ValidatorMulticaster multicaster;
+    private static final Logger LOG = LoggerFactory.getLogger(PosGossip.class);
+    private final ValidatorMulticaster multicaster;
 
-  /**
-   * Constructor that attaches gossip logic to a set of multicaster
-   *
-   * @param multicaster Network connections to the remote validators
-   */
-  public PosGossip(final ValidatorMulticaster multicaster) {
-    this.multicaster = multicaster;
-  }
+    // Cache the mapping from code to Enum to avoid repeated stream operations
+    private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
+            Arrays.stream(PosMessage.values())
+                    .collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
-  /**
-   * Retransmit a given IBFT message to other known validators nodes
-   *
-   * @param message The raw message to be gossiped
-   */
-  @Override
-  public void send(final Message message) {
-    final MessageData messageData = message.getData();
-    final Authored decodedMessage;
-      Map<Integer, PosMessage> CODE_TO_MESSAGE =
-              Arrays.stream(PosMessage.values())
-                      .collect(Collectors.toMap(PosMessage::getCode, m -> m));
-      decodedMessage = switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
-          case PosMessage.SELECT_LEADER -> SelectLeaderMessageData.fromMessageData(messageData).decode();
-          case PosMessage.PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
-          case PosMessage.COMMIT -> CommitMessageData.fromMessageData(messageData).decode();
-          case PosMessage.VOTE -> VoteMessageData.fromMessageData(messageData).decode();
-//          VoteMessageData.fromMessageData(messageData).decode();
-          case PosMessage.VIEW_CHANGE -> ViewChangeMessageData.fromMessageData(messageData).decode();
-          case PosMessage.BLOCK_ANNOUNCE -> BlockAnnounceMessageData.fromMessageData(messageData).decode();
+    /**
+     * Constructor that attaches gossip logic to a set of multicaster.
+     *
+     * @param multicaster Network connections to the remote validators
+     */
+    public PosGossip(final ValidatorMulticaster multicaster) {
+        this.multicaster = multicaster;
+    }
 
-          default -> throw new IllegalArgumentException(
-                  "Received message does not conform to any recognised pos message structure.");
-      };
-      if (decodedMessage == null) {
-        return;
-      }
-    final List<Address> excludeAddressesList =
-        Lists.newArrayList(
-            message.getConnection().getPeerInfo().getAddress(), decodedMessage.getAuthor());
+    /**
+     * Retransmit a given PoS message to other known validators nodes.
+     *
+     * @param message The raw message to be gossiped
+     */
+    @Override
+    public void send(final Message message) {
+        final MessageData messageData = message.getData();
+        final PosMessage posMessage = CODE_TO_MESSAGE.get(messageData.getCode());
 
-    multicaster.send(messageData, excludeAddressesList);
-  }
+        if (posMessage == null) {
+            LOG.trace("Received message with unknown code: {}", messageData.getCode());
+            return;
+        }
+
+        final Authored decodedMessage;
+
+        try {
+            decodedMessage = switch (posMessage) {
+                // Active LCR Messages
+                case PROPOSE -> ProposalMessageData.fromMessageData(messageData).decode();
+
+                case VOTE -> VoteMessageData.fromMessageData(messageData).decode();
+
+                default -> throw new IllegalArgumentException(
+                        "Received message does not conform to any recognised pos message structure.");
+            };
+        } catch (final Exception e) {
+            LOG.warn("Failed to decode message for gossip: {}", e.getMessage());
+            return;
+        }
+
+        if (decodedMessage == null) {
+            return;
+        }
+
+        // Exclude the sender and the author of the message from the re-broadcast list
+        final List<Address> excludeAddressesList =
+                Lists.newArrayList(
+                        message.getConnection().getPeerInfo().getAddress(), decodedMessage.getAuthor());
+
+        multicaster.send(messageData, excludeAddressesList);
+    }
 }

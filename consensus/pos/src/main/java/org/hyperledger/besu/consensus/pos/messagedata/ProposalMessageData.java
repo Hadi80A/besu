@@ -15,47 +15,57 @@
 package org.hyperledger.besu.consensus.pos.messagedata;
 
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
-
 import org.apache.tuweni.bytes.Bytes;
 
-/** The Proposal message data. */
+/**
+ * The Proposal message data.
+ *
+ * <p>Phase 4: Block Propagation
+ * Represents the raw RLPx payload for a Propose message on the wire.
+ * Contains the serialized block (header + body) and the Proposer's signature.
+ */
 public class ProposalMessageData extends AbstractBftMessageData {
 
-  private static final int MESSAGE_CODE = PosMessage.PROPOSE.getCode();
+    private static final int MESSAGE_CODE = PosMessage.PROPOSE.getCode();
 
-  private ProposalMessageData(final Bytes data) {
-    super(data);
-  }
+    private ProposalMessageData(final Bytes data) {
+        super(data);
+    }
 
-  /**
-   * From message data create proposal message data.
-   *
-   * @param messageData the message data
-   * @return the proposal message data
-   */
-  public static ProposalMessageData fromMessageData(final MessageData messageData) {
-    return fromMessageData(
-        messageData, MESSAGE_CODE, ProposalMessageData.class, ProposalMessageData::new);
-  }
+    /**
+     * Instantiate ProposalMessageData from generic message data.
+     *
+     * @param messageData the message data
+     * @return the proposal message data
+     */
+    public static ProposalMessageData fromMessageData(final MessageData messageData) {
+        return fromMessageData(
+                messageData, MESSAGE_CODE, ProposalMessageData.class, ProposalMessageData::new);
+    }
 
-  /**
-   * Decode.
-   *
-   * @return the proposal
-   */
-  public Propose decode() {
-    return Propose.decode(data);
-  }
+    /**
+     * Decode the internal RLP data into a Propose wrapper.
+     *
+     * @return the propose wrapper
+     */
+    public Propose decode() {
+        return Propose.decode(data);
+    }
 
-  public static ProposalMessageData create(final Propose propose) {
-    return new ProposalMessageData(propose.encode());
-  }
+    /**
+     * Create ProposalMessageData from a Propose wrapper.
+     *
+     * @param propose the propose wrapper
+     * @return the encoded message data
+     */
+    public static ProposalMessageData create(final Propose propose) {
+        return new ProposalMessageData(propose.encode());
+    }
 
-  @Override
-  public int getCode() {
-    return MESSAGE_CODE;
-  }
+    @Override
+    public int getCode() {
+        return MESSAGE_CODE;
+    }
 }

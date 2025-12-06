@@ -14,23 +14,18 @@
  */
 package org.hyperledger.besu.consensus.pos.statemachine;
 
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.Gossiper;
 import org.hyperledger.besu.consensus.common.bft.MessageTracker;
 import org.hyperledger.besu.consensus.common.bft.SynchronizerUpdater;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBftController;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
-import org.hyperledger.besu.consensus.pos.PosExtraData;
-import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
-import org.hyperledger.besu.consensus.pos.core.PosBlockHeader;
 import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.messagedata.*;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,126 +33,106 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** The Pos controller. */
+/**
+ * The PoS Controller.
+ *
+ * <p>Phase 5: Propagation (Reception)
+ * Acts as the dispatcher for incoming consensus messages. It decodes the RLPX messages
+ * and forwards them to the current BlockHeightManager for the active LCR state machine.
+ */
 public class PosController extends BaseBftController {
-  private static final Logger LOG = LoggerFactory.getLogger(PosController.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PosController.class);
 
-  private BasePosBlockHeightManager currentHeightManager;
-  private final PosBlockHeightManagerFactory posBlockHeightManagerFactory;
-//  private StakeManagerInteractor stakeManager;
-  private final Blockchain blockchain;
-
-  public PosController(
-          final Blockchain blockchain,
-          final PosFinalState posFinalState,
-          final PosBlockHeightManagerFactory posBlockHeightManagerFactory,
-          final Gossiper gossiper,
-          final MessageTracker duplicateMessageTracker,
-          final FutureMessageBuffer futureMessageBuffer,
-          final SynchronizerUpdater synchronizerUpdater) {
-
-    super(
-        blockchain,
-        posFinalState.getBftFinalState(),
-        gossiper,
-        duplicateMessageTracker,
-        futureMessageBuffer,
-        synchronizerUpdater);
-
-    this.posBlockHeightManagerFactory = posBlockHeightManagerFactory;
-//    this.stakeManager=stakeManager;
-      this.blockchain = blockchain;
-  }
-
-  @Override
-  protected void handleMessage(final Message message) {
-    final MessageData messageData = message.getData();
-    Map<Integer, PosMessage> CODE_TO_MESSAGE =
+    // Optimization: Static map for O(1) message code lookup
+    private static final Map<Integer, PosMessage> CODE_TO_MESSAGE =
             Arrays.stream(PosMessage.values())
                     .collect(Collectors.toMap(PosMessage::getCode, m -> m));
 
-    LOG.debug("received a message: {}", messageData);
-    if (!currentHeightManager.checkValidState(messageData.getCode())){
-      LOG.warn("received a message with invalid state code: {}", messageData.getCode());
-      return;
+    private BasePosBlockHeightManager currentHeightManager;
+    private final PosBlockHeightManagerFactory posBlockHeightManagerFactory;
+    private final Blockchain blockchain;
+
+    public PosController(
+            final Blockchain blockchain,
+            final PosFinalState posFinalState,
+            final PosBlockHeightManagerFactory posBlockHeightManagerFactory,
+            final Gossiper gossiper,
+            final MessageTracker duplicateMessageTracker,
+            final FutureMessageBuffer futureMessageBuffer,
+            final SynchronizerUpdater synchronizerUpdater) {
+
+        super(
+                blockchain,
+                posFinalState.getBftFinalState(),
+                gossiper,
+                duplicateMessageTracker,
+                futureMessageBuffer,
+                synchronizerUpdater);
+
+        this.posBlockHeightManagerFactory = posBlockHeightManagerFactory;
+        this.blockchain = blockchain;
     }
-    switch (CODE_TO_MESSAGE.get(messageData.getCode())) {
-      case PosMessage.SELECT_LEADER:
-        consumeMessage(
-                message,
-                SelectLeaderMessageData.fromMessageData(messageData).decode(),
-                currentHeightManager::consumeSelectLeaderMessage);
-        break;
-      case PosMessage.PROPOSE:
-        consumeMessage(
-            message,
-            ProposalMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::consumeProposeMessage);
-        break;
 
-      case PosMessage.VOTE:
-        consumeMessage(
-            message,
-            VoteMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::consumeVoteMessage);
-        break;
+    @Override
+    protected void handleMessage(final Message message) {
+        final MessageData messageData = message.getData();
+        final PosMessage posMessage = CODE_TO_MESSAGE.get(messageData.getCode());
 
-      case PosMessage.COMMIT:
-        consumeMessage(
-            message,
-            CommitMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::consumeCommitMessage);
-        break;
+        if (posMessage == null) {
+            LOG.warn("Received message with unknown code: {}", messageData.getCode());
+            return;
+        }
 
-      case PosMessage.BLOCK_ANNOUNCE:
-        consumeMessage(
-                message,
-                BlockAnnounceMessageData.fromMessageData(messageData).decode(),
-                currentHeightManager::consumeBlockAnnounceMessage);
-        break;
+        LOG.trace("Received a message: {}", posMessage);
 
-      case PosMessage.VIEW_CHANGE:
-        consumeMessage(
-            message,
-            ViewChangeMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::handleViewChangePayload);
-        break;
+        // State check prevents processing messages inconsistent with current LCR phase
+        if (!currentHeightManager.checkValidState(messageData.getCode())){
+            LOG.trace("Received message code {} invalid for current state", messageData.getCode());
+            return;
+        }
 
-      default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Received message with messageCode=%d does not conform to any recognised POS message structure",
-                message.getData().getCode()));
+        try {
+            switch (posMessage) {
+                case PROPOSE:
+                    consumeMessage(
+                            message,
+                            ProposalMessageData.fromMessageData(messageData).decode(),
+                            currentHeightManager::consumeProposeMessage);
+                    break;
+
+                case VOTE:
+                    consumeMessage(
+                            message,
+                            VoteMessageData.fromMessageData(messageData).decode(),
+                            currentHeightManager::consumeVoteMessage);
+                    break;
+
+                default:
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Received message with messageCode=%d does not conform to any recognised POS message structure",
+                                    message.getData().getCode()));
+            }
+        } catch (final Exception e) {
+            LOG.warn("Error processing message {}: {} ,cause: {}", posMessage, e.getMessage(), e.getCause());
+
+        }
     }
-  }
 
-  @Override
-  protected void createNewHeightManager(final BlockHeader parentHeader) {
-    PosBlockHeader posBlockHeader = getPosBlockHeader(parentHeader);
-    currentHeightManager = posBlockHeightManagerFactory.create(posBlockHeader,blockchain);
-
-  }
-
-  @NotNull
-  private PosBlockHeader getPosBlockHeader(BlockHeader parentHeader) {
-    if(parentHeader.getNumber()<=0) {
-      return new PosBlockHeader(parentHeader,new ConsensusRoundIdentifier(0,0),null);
+    @Override
+    protected void createNewHeightManager(final BlockHeader parentHeader) {
+        currentHeightManager = posBlockHeightManagerFactory.create(parentHeader, blockchain);
     }
-    PosExtraData posExtraData = new PosExtraDataCodec().decodePosData(parentHeader.getExtraData());
-
-    ConsensusRoundIdentifier roundIdentifier=new ConsensusRoundIdentifier(0,posExtraData.getRound()); //TODO: sequense
-      return new PosBlockHeader(parentHeader,roundIdentifier,posExtraData.getProposer());
-  }
-
-  @Override
-  protected BaseBlockHeightManager getCurrentHeightManager() {
-    return currentHeightManager;
-  }
 
 
-  @Override
-  protected void stopCurrentHeightManager(final BlockHeader parentHeader) {
-    PosBlockHeader posBlockHeader = getPosBlockHeader(parentHeader);
-    currentHeightManager = posBlockHeightManagerFactory.createNoOpBlockHeightManager(posBlockHeader);
-  }
+
+    @Override
+    protected BaseBlockHeightManager getCurrentHeightManager() {
+        return currentHeightManager;
+    }
+
+    @Override
+    protected void stopCurrentHeightManager(final BlockHeader parentHeader) {
+        currentHeightManager = posBlockHeightManagerFactory.createNoOpBlockHeightManager(parentHeader);
+    }
 }
