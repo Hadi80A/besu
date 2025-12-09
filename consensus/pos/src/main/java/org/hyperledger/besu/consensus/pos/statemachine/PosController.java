@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.pos.core.PosFinalState;
 import org.hyperledger.besu.consensus.pos.messagedata.*;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ public class PosController extends BaseBftController {
     private BasePosBlockHeightManager currentHeightManager;
     private final PosBlockHeightManagerFactory posBlockHeightManagerFactory;
     private final Blockchain blockchain;
+    private final TransactionPool transactionPool;
 
     public PosController(
             final Blockchain blockchain,
@@ -59,7 +61,7 @@ public class PosController extends BaseBftController {
             final Gossiper gossiper,
             final MessageTracker duplicateMessageTracker,
             final FutureMessageBuffer futureMessageBuffer,
-            final SynchronizerUpdater synchronizerUpdater) {
+            final SynchronizerUpdater synchronizerUpdater, TransactionPool transactionPool) {
 
         super(
                 blockchain,
@@ -71,6 +73,7 @@ public class PosController extends BaseBftController {
 
         this.posBlockHeightManagerFactory = posBlockHeightManagerFactory;
         this.blockchain = blockchain;
+        this.transactionPool = transactionPool;
     }
 
     @Override
@@ -121,7 +124,7 @@ public class PosController extends BaseBftController {
 
     @Override
     protected void createNewHeightManager(final BlockHeader parentHeader) {
-        currentHeightManager = posBlockHeightManagerFactory.create(parentHeader, blockchain);
+        currentHeightManager = posBlockHeightManagerFactory.create(parentHeader, blockchain,transactionPool);
     }
 
 

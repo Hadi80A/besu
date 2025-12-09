@@ -16,7 +16,7 @@ package org.hyperledger.besu.consensus.pos.statemachine;
 
 import lombok.Getter;
 import org.hyperledger.besu.config.PosConfigOptions;
-import org.hyperledger.besu.consensus.common.bft.BftExtraData;
+import org.hyperledger.besu.consensus.pos.metrics.PosMetricCalculator;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.pos.messagedata.PosMessage;
 import org.hyperledger.besu.crypto.SECPSignature;
@@ -42,6 +42,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,8 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(PosBlockHeightManager.class);
 
+
+    private final PosMetricCalculator metricCalculator;
     private final PosRoundFactory roundFactory;
     private final BlockHeader parentHeader;
     private final Map<Integer, RoundState> futureRoundStateBuffer = Maps.newHashMap();
@@ -64,7 +67,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
     private final Blockchain blockchain;
     private final PosRoundFactory.MessageFactory messageFactory;
     private Optional<PosRound> currentRound = Optional.empty();
-
+    private final TransactionPool transactionPool;
     private final EthPeers ethPeers;
     private final SyncState syncState;
 
@@ -88,7 +91,9 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             PosConfigOptions posConfig,
             Blockchain blockchain,
             EthPeers ethPeers,
-            SyncState syncState) {
+            SyncState syncState,
+            TransactionPool transactionPool
+            ) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
         this.clock = clock;
@@ -96,7 +101,7 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         this.proposerSelector = proposerSelector;
         this.transmitter = transmitter;
         this.messageFactory = messageFactory;
-
+        this.transactionPool = transactionPool;
         roundStateCreator = (infoMap) ->
                 new RoundState(
                         new ConsensusRoundIdentifier(getChainHeight(), Math.toIntExact(infoMap.get("round"))),
@@ -105,7 +110,10 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         this.blockchain = blockchain;
         this.ethPeers = ethPeers;
         this.syncState = syncState;
-
+        this.metricCalculator=finalState.getMetricCalculator();
+        this.transactionPool.subscribePendingTransactions(
+                tx -> metricCalculator.recordTransactionCreated(tx)
+        );
         final long nextBlockHeight = getChainHeight();
 
         // Phase 3: Seed derivation from parent block hash (Deterministic FTS)
@@ -244,6 +252,10 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
         LOG.debug("Received a proposal message. round={}. author={}", msg.getRoundIdentifier(), msg.getAuthor());
 
         if (validateProposal(msg.getSignedPayload())) {
+            // METRIC 5 (Latency Start) & METRIC 3 (Memory update)
+            metricCalculator.recordProposalArrival(msg.getSignedPayload().getPayload().getProposedBlock()
+            );
+
             LOG.info("Valid proposal received from {}. Sending Vote...", msg.getAuthor());
             getRoundState().setProposeMessage(msg);
 
@@ -310,6 +322,11 @@ public class PosBlockHeightManager implements BasePosBlockHeightManager {
             if (success) {
                 blockImported = true;
                 LOG.info("Block imported successfully. Round complete.");
+
+
+                // CALCULATE ALL 5 METRICS NOW
+                Block committedBlock = proposal.getSignedPayload().getPayload().getProposedBlock();
+                metricCalculator.recordBlockCommit(committedBlock);
 
                 finalState.getBlockTimer().cancelTimer();
             } else {

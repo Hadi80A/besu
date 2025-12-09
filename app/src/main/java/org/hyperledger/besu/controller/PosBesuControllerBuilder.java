@@ -266,7 +266,9 @@ public class PosBesuControllerBuilder extends BesuControllerBuilder {
                         gossiper,
                         duplicateMessageTracker,
                         futureMessageBuffer,
-                        new EthSynchronizerUpdater(ethProtocolManager.ethContext().getEthPeers()));
+                        new EthSynchronizerUpdater(ethProtocolManager.ethContext().getEthPeers()),
+                        transactionPool
+                );
 
         final EventMultiplexer eventMultiplexer = new EventMultiplexer(posController);
         final BftProcessor bftProcessor = new BftProcessor(bftEventQueue, eventMultiplexer);

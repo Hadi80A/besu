@@ -105,7 +105,8 @@ def _strListCmdArg(name) {
 }
 
 // set the shell command to use according to os
-def shell = org.gradle.internal.os.OperatingSystem.current().isWindows() ? "${projectDir}\\wslsh.bat" : '/bin/bash'
+//def shell = org.gradle.internal.os.OperatingSystem.current().isWindows() ? "${projectDir}\\wslsh.bat" : '/bin/bash'
+def shell = org.gradle.internal.os.OperatingSystem.current().isWindows() ? ['wsl', 'bash'] : '/bin/bash'
 
 licenseReport {
   // This is for the allowed-licenses-file in checkLicense Task

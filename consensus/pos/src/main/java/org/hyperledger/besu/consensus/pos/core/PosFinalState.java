@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.pos.PosBlockCreatorFactory;
+import org.hyperledger.besu.consensus.pos.metrics.PosMetricCalculator;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -45,6 +46,7 @@ public class PosFinalState {
     private final RoundTimer roundTimer;
     private final BlockTimer blockTimer;
     private final PosBlockCreatorFactory blockCreatorFactory;
+    private final PosMetricCalculator metricCalculator = new PosMetricCalculator();
     private final Clock clock;
     private final BftFinalState bftFinalState;
 

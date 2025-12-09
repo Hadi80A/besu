@@ -23,6 +23,7 @@ import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,10 +79,10 @@ public class PosBlockHeightManagerFactory {
      * @param blockchain   the blockchain
      * @return the base pos block height manager
      */
-    public BasePosBlockHeightManager create(final BlockHeader parentHeader, Blockchain blockchain) {
+    public BasePosBlockHeightManager create(final BlockHeader parentHeader, Blockchain blockchain,TransactionPool transactionPool) {
         if (finalState.isLocalNodeValidator()) {
             LOG.debug("Local node is a validator");
-            return createFullBlockHeightManager(parentHeader, blockchain);
+            return createFullBlockHeightManager(parentHeader, blockchain,transactionPool);
         } else {
             LOG.debug("Local node is a non-validator");
             return createNoOpBlockHeightManager(parentHeader);
@@ -99,7 +100,7 @@ public class PosBlockHeightManagerFactory {
         return new NoOpBlockHeightManager(parentHeader);
     }
 
-    private BasePosBlockHeightManager createFullBlockHeightManager(final BlockHeader parentHeader, Blockchain blockchain) {
+    private BasePosBlockHeightManager createFullBlockHeightManager(final BlockHeader parentHeader, Blockchain blockchain, TransactionPool transactionPool) {
         return new PosBlockHeightManager(
                 parentHeader,
                 finalState,
@@ -111,7 +112,8 @@ public class PosBlockHeightManagerFactory {
                 posConfig,
                 blockchain,
                 ethPeers,
-                syncState
+                syncState,
+                transactionPool
                 // Removed BLS KeyPair injection
         );
     }
