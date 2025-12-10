@@ -25,6 +25,7 @@ import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.nexus.NexusBlockCreatorFactory;
 import org.hyperledger.besu.consensus.nexus.messagewrappers.ViewChange;
+import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -75,6 +76,7 @@ public class NexusFinalState {
      */
     @Getter
     private final NexusBlockCreatorFactory blockCreatorFactory;
+    private final NexusMetricCalculator nexusMetricCalculator;
     /**
      * -- GETTER --
      *  Gets clock.
@@ -106,9 +108,10 @@ public class NexusFinalState {
           final ValidatorMulticaster validatorMulticaster,
           final RoundTimer roundTimer,
           final BlockTimer blockTimer,
-          final NexusBlockCreatorFactory blockCreatorFactory,
+          final NexusBlockCreatorFactory blockCreatorFactory, NexusMetricCalculator nexusMetricCalculator,
           final Clock clock, BftFinalState bftFinalState) {
     this.validatorProvider = validatorProvider;
+      this.nexusMetricCalculator = nexusMetricCalculator;
       this.receivedMessages = new HashMap<>();
       this.nodeKey = nodeKey;
     this.localAddress = localAddress;

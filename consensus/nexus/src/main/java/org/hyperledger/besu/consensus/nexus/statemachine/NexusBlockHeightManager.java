@@ -22,6 +22,7 @@ import org.hyperledger.besu.config.NexusConfigOptions;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.nexus.bls.Bls;
 import org.hyperledger.besu.consensus.nexus.messagedata.NexusMessage;
+import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
@@ -78,6 +79,8 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
     private Optional<NexusRound> currentRound = Optional.empty();
     private boolean isEarlyRoundChangeEnabled = false;
 
+    private final NexusMetricCalculator nexusMetricCalculator;
+
     private final EthPeers ethPeers;
     private final SyncState syncState;
     private final RoundChangeManager roundChangeManager;
@@ -125,6 +128,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
                         infoMap.get("height"));
         this.posConfig = posConfig;
         this.blockchain = blockchain;
+        this.nexusMetricCalculator = finalState.getNexusMetricCalculator();
         this.ethPeers = ethPeers;
         this.syncState = syncState;
         this.roundChangeManager = roundChangeManager;
@@ -617,10 +621,13 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
         ProposePayload payload = msg.getSignedPayload().getPayload();
         final NexusBlock block = payload.getProposedBlock();
 
+        nexusMetricCalculator.recordProposalArrival(msg.getSignedPayload().getPayload().getProposedBlock().getBesuBlock());
+
         if (validateProposal(msg.getSignedPayload())) {
             proposerSelector.setCurrentLeader(Optional.of(msg.getAuthor()));
             LOG.debug("Valid a proposal message.");
             getRoundState().setProposeMessage(msg);
+
             sendVote(block);
         } else {
             LOG.debug("Invalid a proposal message.");
@@ -878,6 +885,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
                         msg.getSignedPayload().getPayload().getHeight());
                 boolean isSuccess= currentRound.get().importBlockToChain(qc,seed);
                 if(isSuccess) {
+                    nexusMetricCalculator.recordBlockCommit(currentRound.get().getPropose().getSignedPayload().getPayload().getProposedBlock().getBesuBlock());
                     getRoundState().setCurrentState(NexusMessage.SELECT_LEADER);
                     final long now = clock.millis() / 1000;
                     finalState.getBlockTimer().startTimer(roundIdentifier, () -> now);

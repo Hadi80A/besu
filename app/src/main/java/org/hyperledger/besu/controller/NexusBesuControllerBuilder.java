@@ -36,6 +36,7 @@ import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidator
 import org.hyperledger.besu.consensus.nexus.*;
 import org.hyperledger.besu.consensus.nexus.bls.Bls;
 import org.hyperledger.besu.consensus.nexus.core.*;
+import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.consensus.nexus.protocol.NexusSubProtocol;
 import org.hyperledger.besu.consensus.nexus.statemachine.*;
 import org.hyperledger.besu.consensus.nexus.validation.MessageValidatorFactory;
@@ -92,6 +93,7 @@ public class NexusBesuControllerBuilder extends BesuControllerBuilder {
   private BftBlockInterface bftBlockInterface;
   private Path dataDir;
 //  private Address localAddress;
+//    private final NexusMetricCalculator nexusMetricCalculator;
 
   /** Default Constructor */
   public NexusBesuControllerBuilder() {}
@@ -200,6 +202,7 @@ public class NexusBesuControllerBuilder extends BesuControllerBuilder {
                     bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
             blockCreatorFactory,
+            new NexusMetricCalculator(),
             clock,
             bftfinalState
 

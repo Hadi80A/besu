@@ -18,6 +18,7 @@ import org.hyperledger.besu.config.NexusConfigOptions;
 import org.hyperledger.besu.consensus.nexus.bls.Bls;
 import org.hyperledger.besu.consensus.nexus.core.NexusBlockHeader;
 import org.hyperledger.besu.consensus.nexus.core.NexusFinalState;
+import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.consensus.nexus.network.NexusMessageTransmitter;
 import org.hyperledger.besu.consensus.nexus.validation.MessageValidatorFactory;
 
