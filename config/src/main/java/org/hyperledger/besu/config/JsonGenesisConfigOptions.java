@@ -43,7 +43,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   private static final String IBFT2_CONFIG_KEY = "ibft2";
   private static final String QBFT_CONFIG_KEY = "qbft";
   private static final String CLIQUE_CONFIG_KEY = "clique";
-  private static final String POS_CONFIG_KEY = "pos";
+  private static final String POS_CONFIG_KEY = "nexus";
   private static final String EC_CURVE_CONFIG_KEY = "eccurve";
   private static final String TRANSITIONS_CONFIG_KEY = "transitions";
   private static final String DISCOVERY_CONFIG_KEY = "discovery";
@@ -195,7 +195,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
   }
 
   @Override
-  public PosConfigOptions getPosConfigOptions() {
+  public NexusConfigOptions getNexusConfigOptions() {
     return JsonUtil.getObjectNode(configRoot, POS_CONFIG_KEY)
         .map(JsonPosConfigOptions::new)
         .orElse(JsonPosConfigOptions.DEFAULT);
@@ -604,7 +604,7 @@ public class JsonGenesisConfigOptions implements GenesisConfigOptions {
       builder.put("qbft", getQbftConfigOptions().asMap());
     }
     if (isPos()) {
-      builder.put("pos", getPosConfigOptions().asMap());
+      builder.put("nexus", getNexusConfigOptions().asMap());
     }
 
     if (isZeroBaseFee()) {

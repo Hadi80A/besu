@@ -206,7 +206,7 @@ public class ByteCodeBuilder {
    * @param callType CALL, STATICCALL, DELEGATECALL
    * @param address contract's address
    * @param gasLimit gas limit for the nested call
-   * @param input input to the nested call, if null pulls from memory at pos 0
+   * @param input input to the nested call, if null pulls from memory at nexus 0
    * @return this
    */
   public ByteCodeBuilder callWithInput(

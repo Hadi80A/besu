@@ -161,14 +161,14 @@ public class EvmToolSpecTests {
       assertThat(baos.toString(UTF_8)).isEqualTo(stdoutNode.textValue());
     } else if (stdoutNode.isArray()) {
       ArrayNode arrayNode = (ArrayNode) specReader.createArrayNode();
-      int pos = 0;
+      int nexus = 0;
       byte[] output = baos.toByteArray();
-      while (pos < output.length) {
-        int next = pos;
+      while (nexus < output.length) {
+        int next = nexus;
         //noinspection StatementWithEmptyBody
         while (output[next++] != ((byte) '\n')) {}
         try {
-          JsonNode value = specReader.readTree(output, pos, next - pos);
+          JsonNode value = specReader.readTree(output, nexus, next - nexus);
           if (JsonNodeType.MISSING != value.getNodeType()) {
             arrayNode.add(value);
           }
@@ -176,7 +176,7 @@ public class EvmToolSpecTests {
           // Discard non-well-formed lines.
           // If those are needed for validation use the text node option.
         }
-        pos = next;
+        nexus = next;
       }
       assertThatIterable(arrayNode::elements).containsExactlyElementsOf(stdoutNode::elements);
     } else {

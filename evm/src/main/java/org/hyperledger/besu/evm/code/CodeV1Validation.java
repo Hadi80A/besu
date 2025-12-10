@@ -149,18 +149,18 @@ public class CodeV1Validation implements EOFValidator {
     final BitSet immediates = new BitSet(size);
     final byte[] rawCode = code.toArrayUnsafe();
     OpcodeInfo opcodeInfo = V1_OPCODES[0xfe];
-    int pos = 0;
+    int nexus = 0;
     EOFContainerMode eofContainerMode = eofLayout.containerMode().get();
     boolean hasReturningOpcode = false;
-    while (pos < size) {
-      final int operationNum = rawCode[pos] & 0xff;
+    while (nexus < size) {
+      final int operationNum = rawCode[nexus] & 0xff;
       opcodeInfo = V1_OPCODES[operationNum];
       if (!opcodeInfo.valid()) {
         // undefined instruction
         return format("undefined_instruction 0x%02x", operationNum);
       }
-      pos += 1;
-      int pcPostInstruction = pos;
+      nexus += 1;
+      int pcPostInstruction = nexus;
       switch (operationNum) {
         case StopOperation.OPCODE, ReturnOperation.OPCODE:
           if (eofContainerMode == null) {
@@ -209,11 +209,11 @@ public class CodeV1Validation implements EOFValidator {
           pcPostInstruction += multiByteDataLen;
           break;
         case DataLoadNOperation.OPCODE:
-          if (pos + 2 > size) {
+          if (nexus + 2 > size) {
             return "truncated_instruction DATALOADN";
           }
           pcPostInstruction += 2;
-          final int dataLoadOffset = readBigEndianU16(pos, rawCode);
+          final int dataLoadOffset = readBigEndianU16(nexus, rawCode);
           // only verfy the last byte of the load is within the minimum data
           if (dataLoadOffset > eofLayout.dataLength() - 32) {
             return "invalid_dataloadn_index %d + 32 > %d"
@@ -221,11 +221,11 @@ public class CodeV1Validation implements EOFValidator {
           }
           break;
         case RelativeJumpOperation.OPCODE, RelativeJumpIfOperation.OPCODE:
-          if (pos + 2 > size) {
+          if (nexus + 2 > size) {
             return "truncated_instruction RJUMP";
           }
           pcPostInstruction += 2;
-          final int offset = readBigEndianI16(pos, rawCode);
+          final int offset = readBigEndianI16(nexus, rawCode);
           final int rjumpdest = pcPostInstruction + offset;
           if (rjumpdest < 0 || rjumpdest >= size) {
             return "invalid_rjump_destination out of bounds";
@@ -238,7 +238,7 @@ public class CodeV1Validation implements EOFValidator {
             return "truncated_instruction RJUMPV";
           }
           int jumpBasis = pcPostInstruction;
-          final int jumpTableSize = RelativeJumpVectorOperation.getVectorSize(code, pos);
+          final int jumpTableSize = RelativeJumpVectorOperation.getVectorSize(code, nexus);
           pcPostInstruction += 2 * jumpTableSize;
           if (pcPostInstruction > size) {
             return "truncated_instruction RJUMPV";
@@ -253,10 +253,10 @@ public class CodeV1Validation implements EOFValidator {
           }
           break;
         case CallFOperation.OPCODE:
-          if (pos + 2 > size) {
+          if (nexus + 2 > size) {
             return "truncated_instruction CALLF";
           }
-          int section = readBigEndianU16(pos, rawCode);
+          int section = readBigEndianU16(nexus, rawCode);
           if (section >= eofLayout.getCodeSectionCount()) {
             return "invalid_code_section_index CALLF to " + Integer.toHexString(section);
           }
@@ -269,10 +269,10 @@ public class CodeV1Validation implements EOFValidator {
           hasReturningOpcode = true;
           break;
         case JumpFOperation.OPCODE:
-          if (pos + 2 > size) {
+          if (nexus + 2 > size) {
             return "truncated_instruction JUMPF";
           }
-          int targetSection = readBigEndianU16(pos, rawCode);
+          int targetSection = readBigEndianU16(nexus, rawCode);
           if (targetSection >= eofLayout.getCodeSectionCount()) {
             return "invalid_code_section_index JUMPF - " + Integer.toHexString(targetSection);
           }
@@ -288,16 +288,16 @@ public class CodeV1Validation implements EOFValidator {
           pcPostInstruction += 2;
           break;
         case EOFCreateOperation.OPCODE:
-          if (pos + 1 > size) {
+          if (nexus + 1 > size) {
             return format(
                 "truncated_instruction dangling immediate for %s at pc=%d",
-                opcodeInfo.name(), pos - opcodeInfo.pcAdvance());
+                opcodeInfo.name(), nexus - opcodeInfo.pcAdvance());
           }
-          int subcontainerNum = rawCode[pos] & 0xff;
+          int subcontainerNum = rawCode[nexus] & 0xff;
           if (subcontainerNum >= eofLayout.getSubcontainerCount()) {
             return format(
                 "invalid_container_section_index %s refers to non-existent subcontainer %d at pc=%d",
-                opcodeInfo.name(), subcontainerNum, pos - opcodeInfo.pcAdvance());
+                opcodeInfo.name(), subcontainerNum, nexus - opcodeInfo.pcAdvance());
           }
           EOFLayout subContainer = eofLayout.getSubcontainer(subcontainerNum);
           var subcontainerMode = subContainer.containerMode().get();
@@ -325,16 +325,16 @@ public class CodeV1Validation implements EOFValidator {
                 "incompatible_container_kind opcode %s is only valid for initcode",
                 opcodeInfo.name());
           }
-          if (pos + 1 > size) {
+          if (nexus + 1 > size) {
             return format(
                 "truncated_instruction dangling immediate for %s at pc=%d",
-                opcodeInfo.name(), pos - opcodeInfo.pcAdvance());
+                opcodeInfo.name(), nexus - opcodeInfo.pcAdvance());
           }
-          int returnedContractNum = rawCode[pos] & 0xff;
+          int returnedContractNum = rawCode[nexus] & 0xff;
           if (returnedContractNum >= eofLayout.getSubcontainerCount()) {
             return format(
                 "invalid_container_section_index %s refers to non-existent subcontainer %d at pc=%d",
-                opcodeInfo.name(), returnedContractNum, pos - opcodeInfo.pcAdvance());
+                opcodeInfo.name(), returnedContractNum, nexus - opcodeInfo.pcAdvance());
           }
           EOFLayout returnedContract = eofLayout.getSubcontainer(returnedContractNum);
           var returnedContractMode = returnedContract.containerMode().get();
@@ -354,13 +354,13 @@ public class CodeV1Validation implements EOFValidator {
             if (pcPostInstruction > size) {
               return format(
                   "truncated_instruction dangling immediate for %s at pc=%d",
-                  opcodeInfo.name(), pos - opcodeInfo.pcAdvance());
+                  opcodeInfo.name(), nexus - opcodeInfo.pcAdvance());
             }
           }
           break;
       }
-      immediates.set(pos, pcPostInstruction);
-      pos = pcPostInstruction;
+      immediates.set(nexus, pcPostInstruction);
+      nexus = pcPostInstruction;
     }
     if (thisCodeSection.isReturning() != hasReturningOpcode) {
       return thisCodeSection.isReturning()

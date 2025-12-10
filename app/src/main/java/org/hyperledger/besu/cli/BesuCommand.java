@@ -96,7 +96,7 @@ import org.hyperledger.besu.config.NetworkDefinition;
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeCoordinator;
 import org.hyperledger.besu.controller.BesuController;
 import org.hyperledger.besu.controller.BesuControllerBuilder;
-import org.hyperledger.besu.controller.PosBesuControllerBuilder;
+import org.hyperledger.besu.controller.NexusBesuControllerBuilder;
 import org.hyperledger.besu.crypto.Blake2bfMessageDigest;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.KeyPairUtil;
@@ -1603,8 +1603,8 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
           epochLength = genesisConfigOptions.getQbftConfigOptions().getEpochLength();
           consensusMechanism = "QBFT";
         } else if (genesisConfigOptions.isPos()) {
-          epochLength = genesisConfigOptions.getPosConfigOptions().getEpochLength();
-          consensusMechanism = "POS";
+          epochLength = genesisConfigOptions.getNexusConfigOptions().getEpochLength();
+          consensusMechanism = "NEXUS";
         } else if (genesisConfigOptions.isClique()) {
           epochLength = genesisConfigOptions.getCliqueConfigOptions().getEpochLength();
           consensusMechanism = "Clique";
@@ -1866,7 +1866,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
           subStorageConfiguration.getParallelTxProcessingEnabled());
     }
 
-    if(besuControllerBuilder instanceof PosBesuControllerBuilder posBesuControllerBuilder){
+    if(besuControllerBuilder instanceof NexusBesuControllerBuilder posBesuControllerBuilder){
         posBesuControllerBuilder.setDataDir(dataDir());
     }
     return besuControllerBuilder;
@@ -2114,7 +2114,7 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
     }
 
     if (genesisConfigOptions.isPos()) {
-      return OptionalInt.of(genesisConfigOptions.getPosConfigOptions().getBlockPeriodSeconds());
+      return OptionalInt.of(genesisConfigOptions.getNexusConfigOptions().getBlockPeriodSeconds());
     }
 
     return OptionalInt.empty();

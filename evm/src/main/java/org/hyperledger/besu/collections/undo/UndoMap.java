@@ -58,16 +58,16 @@ public class UndoMap<K, V> implements Map<K, V>, Undoable {
 
   @Override
   public void undo(final long mark) {
-    int pos = undoLog.size() - 1;
-    while (pos >= 0 && undoLog.get(pos).level > mark) {
-      final var entry = undoLog.get(pos);
-      undoLog.remove(pos);
+    int nexus = undoLog.size() - 1;
+    while (nexus >= 0 && undoLog.get(nexus).level > mark) {
+      final var entry = undoLog.get(nexus);
+      undoLog.remove(nexus);
       if (entry.value() == null) {
         delegate.remove(entry.key());
       } else {
         delegate.put(entry.key(), entry.value());
       }
-      pos--;
+      nexus--;
     }
   }
 

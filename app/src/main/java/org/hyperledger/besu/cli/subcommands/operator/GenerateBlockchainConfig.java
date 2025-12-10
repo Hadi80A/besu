@@ -26,8 +26,8 @@ import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.JsonGenesisConfigOptions;
 import org.hyperledger.besu.config.JsonUtil;
 import org.hyperledger.besu.consensus.ibft.IbftExtraDataCodec;
-import org.hyperledger.besu.consensus.pos.PosExtraDataCodec;
-import org.hyperledger.besu.consensus.pos.bls.Bls;
+import org.hyperledger.besu.consensus.nexus.NexusExtraDataCodec;
+import org.hyperledger.besu.consensus.nexus.bls.Bls;
 import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
 import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.crypto.SECPPrivateKey;
@@ -334,9 +334,9 @@ class GenerateBlockchainConfig implements Runnable {
           QbftExtraDataCodec.encodeFromAddresses(addressesForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     } else if (genesisConfigOptions.isPos()) {
-      LOG.info("Generating Pos extra data.");
+      LOG.info("Generating Nexus extra data.");
       final String extraData =
-          PosExtraDataCodec.encodeFromAddressesAndKeys(addressesForGenesisExtraData,pksForGenesisExtraData,blsPksForGenesisExtraData,popsForGenesisExtraData).toString();
+          NexusExtraDataCodec.encodeFromAddressesAndKeys(addressesForGenesisExtraData,pksForGenesisExtraData,blsPksForGenesisExtraData,popsForGenesisExtraData).toString();
       genesisConfig.put("extraData", extraData);
     }
   }
@@ -423,8 +423,8 @@ class GenerateBlockchainConfig implements Runnable {
   }
 
     /**
-     * Read pos.initialstake { address : stake } and write storage entries into genesis.alloc for the
-     * deployed StakeManager contract address found in genesis.config.pos.contractaddress
+     * Read nexus.initialstake { address : stake } and write storage entries into genesis.alloc for the
+     * deployed StakeManager contract address found in genesis.config.nexus.contractaddress
      */
     private void populateInitialStakesIntoAlloc() {
         try {
@@ -432,17 +432,17 @@ class GenerateBlockchainConfig implements Runnable {
                     JsonUtil.getObjectNode(genesisConfig, "config")
                             .orElseThrow(() -> new IllegalArgumentException("Missing config section in config file"));
             final ObjectNode posNode =
-                    JsonUtil.getObjectNode(configNode, "pos").orElse(JsonUtil.createEmptyObjectNode());
+                    JsonUtil.getObjectNode(configNode, "nexus").orElse(JsonUtil.createEmptyObjectNode());
             // contract address string (may have 0x). If absent, nothing to do.
             final String contractAddressRaw = JsonUtil.getString(posNode, "contractaddress", "");
             if (contractAddressRaw == null || contractAddressRaw.isEmpty()) {
-                LOG.info("No pos.contractaddress present; skipping initial stake population.");
+                LOG.info("No nexus.contractaddress present; skipping initial stake population.");
                 return;
             }
             final String contractAddressKey = normalizeAddressKey(contractAddressRaw);
             final Optional<ArrayNode> initialStakeArrayOpt = JsonUtil.getArrayNode(posNode, "initialstake");
             if (initialStakeArrayOpt.isEmpty()) {
-                LOG.info("No pos.initialstake array; nothing to populate.");
+                LOG.info("No nexus.initialstake array; nothing to populate.");
                 return;
             }
             final JsonNode initialStakeArray = initialStakeArrayOpt.get();
@@ -459,7 +459,7 @@ class GenerateBlockchainConfig implements Runnable {
             final int stakesCount = initialStakeArray.size();
             final int addressesCount = addressesForGenesisExtraData.size();
             if (stakesCount == 0) {
-                LOG.info("pos.initialstake array is empty; nothing to populate.");
+                LOG.info("nexus.initialstake array is empty; nothing to populate.");
                 return;
             }
             if (stakesCount != addressesCount) {

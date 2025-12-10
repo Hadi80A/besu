@@ -55,12 +55,12 @@ public class TransitionsConfigOptions {
   }
 
   /**
-   * Gets pos forks.
+   * Gets nexus forks.
    *
-   * @return the pos forks
+   * @return the nexus forks
    */
-  public List<PosFork> getPosForks() {
-    return getForks("pos", PosFork::new);
+  public List<NexusFork> getNexusForks() {
+    return getForks("nexus", NexusFork::new);
   }
 
   /**

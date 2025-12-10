@@ -134,7 +134,7 @@ public interface GenesisConfigOptions {
    */
   QbftConfigOptions getQbftConfigOptions();
 
-  PosConfigOptions getPosConfigOptions();
+  NexusConfigOptions getNexusConfigOptions();
 
   /**
    * Gets discovery options.

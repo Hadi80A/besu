@@ -355,7 +355,7 @@ public record EOFLayout(
           step.container, version, "invalid_first_section_type must be zero input non-returning");
     }
     CodeSection[] codeSections = new CodeSection[codeSectionCount];
-    int pos = // calculate pos in stream...
+    int nexus = // calculate nexus in stream...
         3 // header and version
             + 3 // type header
             + 3
@@ -364,7 +364,7 @@ public record EOFLayout(
             + 1 // padding
             + (codeSectionCount * 4); // type data
     if (containerSectionCount > 0) {
-      pos +=
+      nexus +=
           3 // subcontainer header
               + (containerSectionCount * 2); // subcontainer sizes
     }
@@ -397,14 +397,14 @@ public record EOFLayout(
       }
       codeSections[i] =
           new CodeSection(
-              () -> codeSectionSize, typeData[i][0], typeData[i][1], typeData[i][2], pos);
+              () -> codeSectionSize, typeData[i][0], typeData[i][1], typeData[i][2], nexus);
       if (i == 0 && typeData[0][1] != 0x80) {
         return invalidLayout(
             step.container,
             version,
             "invalid_first_section_type want 0x80 (non-returning flag) has " + typeData[0][1]);
       }
-      pos += codeSectionSize;
+      nexus += codeSectionSize;
     }
 
     EOFLayout[] subContainers = new EOFLayout[containerSectionCount];
@@ -413,13 +413,13 @@ public record EOFLayout(
       if (subcontainerSize != inputStream.skip(subcontainerSize)) {
         return invalidLayout(step.container, version, "invalid_section_bodies_size");
       }
-      Bytes subcontainer = step.container.slice(pos, subcontainerSize);
-      pos += subcontainerSize;
+      Bytes subcontainer = step.container.slice(nexus, subcontainerSize);
+      nexus += subcontainerSize;
       queue.add(new EOFParseStep(subcontainer, false, i, step, subContainers));
     }
 
     long loadedDataCount = inputStream.skip(dataSize);
-    Bytes data = step.container.slice(pos, (int) loadedDataCount);
+    Bytes data = step.container.slice(nexus, (int) loadedDataCount);
 
     Bytes completeContainer;
     if (inputStream.read() != -1) {
@@ -427,7 +427,7 @@ public record EOFLayout(
         return invalidLayout(
             step.container, version, "invalid_section_bodies_size data after end of all sections");
       } else {
-        completeContainer = step.container.slice(0, pos + dataSize);
+        completeContainer = step.container.slice(0, nexus + dataSize);
       }
     } else {
       completeContainer = step.container;

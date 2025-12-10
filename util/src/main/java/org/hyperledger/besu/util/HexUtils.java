@@ -48,9 +48,9 @@ public class HexUtils {
 
     for (int i = 0; i < size; i++) {
       byte b = bytes[i];
-      int pos = i * 2;
-      result[pos + offset] = HEX[b >> 4 & 15];
-      result[pos + offset + 1] = HEX[b & 15];
+      int nexus = i * 2;
+      result[nexus + offset] = HEX[b >> 4 & 15];
+      result[nexus + offset + 1] = HEX[b & 15];
     }
 
     return new String(result);

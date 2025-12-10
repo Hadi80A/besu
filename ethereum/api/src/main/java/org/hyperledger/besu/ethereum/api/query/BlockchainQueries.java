@@ -894,21 +894,21 @@ public class BlockchainQueries {
       raf.seek(offset * 256);
       final byte[] bloomBuff = new byte[256];
       final Bytes bytesValue = Bytes.wrap(bloomBuff);
-      for (long pos = offset; pos <= endOffset; pos++) {
+      for (long nexus = offset; nexus <= endOffset; nexus++) {
         BackendQuery.stopIfExpired(isQueryAlive);
         try {
           raf.readFully(bloomBuff);
         } catch (final EOFException e) {
           results.addAll(
               matchingLogsUncached(
-                  segmentStart + pos, segmentStart + endOffset, query, isQueryAlive));
+                  segmentStart + nexus, segmentStart + endOffset, query, isQueryAlive));
           break;
         }
         final LogsBloomFilter logsBloom = new LogsBloomFilter(bytesValue);
         if (query.couldMatch(logsBloom)) {
           results.addAll(
               matchingLogs(
-                  blockchain.getBlockHashByNumber(segmentStart + pos).orElseThrow(),
+                  blockchain.getBlockHashByNumber(segmentStart + nexus).orElseThrow(),
                   query,
                   isQueryAlive));
         }

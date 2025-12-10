@@ -43,11 +43,11 @@ public class ByteOperation extends AbstractFixedCostOperation {
     final int index = trimmedOffset.toInt();
 
     int size = seq.size();
-    int pos = index - 32 + size;
-    if (pos >= size || pos < 0) {
+    int nexus = index - 32 + size;
+    if (nexus >= size || nexus < 0) {
       return Bytes.EMPTY;
     } else {
-      final byte b = seq.get(pos);
+      final byte b = seq.get(nexus);
       return Bytes.of(b);
     }
   }

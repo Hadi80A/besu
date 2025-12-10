@@ -33,7 +33,6 @@ public enum RpcApis {
   CLIQUE,
   IBFT,
   ENGINE,
-  POS,
   NEXUS,
   QBFT;
 

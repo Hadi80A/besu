@@ -1,0 +1,91 @@
+/*
+ * Copyright ConsenSys AG.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package org.hyperledger.besu.consensus.nexus.payload;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.nexus.core.NexusBlock;
+import org.hyperledger.besu.consensus.nexus.messagedata.NexusMessage;
+import org.hyperledger.besu.consensus.nexus.vrf.VRF;
+import org.hyperledger.besu.ethereum.rlp.RLPInput;
+import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+
+import java.io.IOException;
+
+/** The Proposal payload. */
+//@AllArgsConstructor
+@Getter
+@SuperBuilder
+@EqualsAndHashCode(callSuper = false)
+public class ProposePayload extends NexusPayload {
+  private static final int TYPE = NexusMessage.PROPOSE.getCode();
+private NexusBlock proposedBlock;
+
+  private VRF.Proof proof;
+
+  protected ProposePayload(ConsensusRoundIdentifier roundIdentifier, long height, NexusBlock proposedBlock ,VRF.Proof proof) {
+    super(roundIdentifier, height);
+    this.proposedBlock = proposedBlock;
+    this.proof = proof;
+  }
+
+  public static ProposePayload readFrom(final RLPInput rlpInput) {
+    rlpInput.enterList();
+    final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
+    final long height = rlpInput.readLong();
+      final NexusBlock proposedBlock;
+      try {
+          proposedBlock = NexusBlock.readFrom(rlpInput);
+      } catch (IOException e) {
+          throw new RuntimeException(e);
+      }
+      Bytes proofBytes = rlpInput.readBytes();
+
+      final VRF.Proof proof=new VRF.Proof(proofBytes.toArray());
+      rlpInput.leaveList();
+
+      return new ProposePayload(roundIdentifier,height,proposedBlock,proof);
+  }
+
+
+  @Override
+  public void writeTo(final RLPOutput rlpOutput) {
+    rlpOutput.startList();
+    getRoundIdentifier().writeTo(rlpOutput);
+    rlpOutput.writeLong(getHeight());
+      try {
+          proposedBlock.writeTo(rlpOutput);
+      } catch (JsonProcessingException e) {
+          throw new RuntimeException(e);
+      }
+      rlpOutput.writeBytes(Bytes.wrap(proof.bytes()));
+      rlpOutput.endList();
+  }
+
+  /**
+   * Gets digest.
+   *
+   * @return the digest
+   */
+
+  @Override
+  public int getMessageType() {
+    return TYPE;
+  }
+
+}

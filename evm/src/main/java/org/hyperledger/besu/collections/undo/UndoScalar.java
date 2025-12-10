@@ -94,15 +94,15 @@ public class UndoScalar<T> implements Undoable {
     if (undoLog.isEmpty()) {
       return;
     }
-    int pos = undoLog.size() - 1;
-    while (pos >= 0) {
-      UndoEntry<T> entry = undoLog.get(pos);
+    int nexus = undoLog.size() - 1;
+    while (nexus >= 0) {
+      UndoEntry<T> entry = undoLog.get(nexus);
       if (entry.level <= mark) {
         return;
       }
       value = entry.value;
-      undoLog.remove(pos);
-      pos--;
+      undoLog.remove(nexus);
+      nexus--;
     }
   }
 

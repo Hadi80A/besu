@@ -84,16 +84,16 @@ public class RollingFileWriter implements Closeable {
     } else {
       finalBytes = bytes;
     }
-    int pos = currentSize;
+    int nexus = currentSize;
     currentSize += finalBytes.length;
     if (currentSize > MAX_FILE_SIZE) {
       out.close();
       out = new FileOutputStream(filenameGenerator.apply(++fileNumber, compressed).toFile());
       currentSize = finalBytes.length;
-      pos = 0;
+      nexus = 0;
     }
     index.writeShort(fileNumber);
-    index.writeInt(pos);
+    index.writeInt(nexus);
     out.write(finalBytes);
   }
 

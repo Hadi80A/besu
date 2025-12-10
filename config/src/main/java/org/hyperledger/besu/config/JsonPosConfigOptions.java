@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
 
 /** The Json QBFT config options. */
-public class JsonPosConfigOptions extends JsonBftConfigOptions implements PosConfigOptions {
+public class JsonPosConfigOptions extends JsonBftConfigOptions implements NexusConfigOptions {
   /** The constant DEFAULT. */
   public static final JsonPosConfigOptions DEFAULT =
       new JsonPosConfigOptions(JsonUtil.createEmptyObjectNode());

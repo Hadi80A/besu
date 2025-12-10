@@ -66,16 +66,16 @@ public class UndoSet<V> implements Set<V>, Undoable {
 
   @Override
   public void undo(final long mark) {
-    int pos = undoLog.size() - 1;
-    while (pos >= 0 && undoLog.get(pos).level > mark) {
-      final var entry = undoLog.get(pos);
+    int nexus = undoLog.size() - 1;
+    while (nexus >= 0 && undoLog.get(nexus).level > mark) {
+      final var entry = undoLog.get(nexus);
       if (entry.add) {
         delegate.remove(entry.value());
       } else {
         delegate.add(entry.value());
       }
-      undoLog.remove(pos);
-      pos--;
+      undoLog.remove(nexus);
+      nexus--;
     }
   }
 

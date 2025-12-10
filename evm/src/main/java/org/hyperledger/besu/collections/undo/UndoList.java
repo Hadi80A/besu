@@ -125,10 +125,10 @@ public class UndoList<V> implements List<V>, Undoable {
 
   @Override
   public void undo(final long mark) {
-    int pos = undoLog.size() - 1;
-    while (pos >= 0 && undoLog.get(pos).level > mark) {
-      final var entry = undoLog.get(pos);
-      undoLog.remove(pos);
+    int nexus = undoLog.size() - 1;
+    while (nexus >= 0 && undoLog.get(nexus).level > mark) {
+      final var entry = undoLog.get(nexus);
+      undoLog.remove(nexus);
       if (entry.value() == null) {
         delegate.remove(entry.index);
       } else if (entry.set) {
@@ -136,7 +136,7 @@ public class UndoList<V> implements List<V>, Undoable {
       } else {
         delegate.add(entry.index, entry.value);
       }
-      pos--;
+      nexus--;
     }
   }
 
@@ -179,9 +179,9 @@ public class UndoList<V> implements List<V>, Undoable {
 
   @Override
   public boolean addAll(final int index, final Collection<? extends V> c) {
-    int pos = index;
+    int nexus = index;
     for (V v : c) {
-      add(pos++, v);
+      add(nexus++, v);
     }
     return !c.isEmpty();
   }

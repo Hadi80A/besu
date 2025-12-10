@@ -74,16 +74,16 @@ public class UndoTable<R, C, V> implements Table<R, C, V>, Undoable {
 
   @Override
   public void undo(final long mark) {
-    int pos = undoLog.size() - 1;
-    while (pos >= 0 && undoLog.get(pos).level > mark) {
-      final var entry = undoLog.get(pos);
-      undoLog.remove(pos);
+    int nexus = undoLog.size() - 1;
+    while (nexus >= 0 && undoLog.get(nexus).level > mark) {
+      final var entry = undoLog.get(nexus);
+      undoLog.remove(nexus);
       if (entry.value() == null) {
         delegate.remove(entry.row(), entry.column());
       } else {
         delegate.put(entry.row(), entry.column(), entry.value());
       }
-      pos--;
+      nexus--;
     }
   }
 

@@ -148,8 +148,8 @@ public final class DisconnectMessage extends AbstractMessageData {
     SUBPROTOCOL_TRIGGERED_MISMATCHED_FORKID((byte) 0x10, "Mismatched fork id"),
     SUBPROTOCOL_TRIGGERED_MISMATCHED_GENESIS_HASH((byte) 0x10, "Mismatched genesis hash"),
     SUBPROTOCOL_TRIGGERED_UNPARSABLE_STATUS((byte) 0x10, "Unparsable status message"),
-    SUBPROTOCOL_TRIGGERED_POW_DIFFICULTY((byte) 0x10, "Peer has difficulty greater than POS TTD"),
-    SUBPROTOCOL_TRIGGERED_POW_BLOCKS((byte) 0x10, "Peer sent blocks after POS transition"),
+    SUBPROTOCOL_TRIGGERED_POW_DIFFICULTY((byte) 0x10, "Peer has difficulty greater than NEXUS TTD"),
+    SUBPROTOCOL_TRIGGERED_POW_BLOCKS((byte) 0x10, "Peer sent blocks after NEXUS transition"),
     SUBPROTOCOL_TRIGGERED_INVALID_STATUS_MESSAGE((byte) 0x10, "Peer sent invalid status message"),
     SUBPROTOCOL_TRIGGERED_INVALID_BLOCK_RANGE((byte) 0x10, "Invalid block range");
 
