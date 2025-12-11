@@ -120,7 +120,7 @@ public class NexusController extends BaseBftController {
         consumeMessage(
             message,
             ViewChangeMessageData.fromMessageData(messageData).decode(),
-            currentHeightManager::handleViewChangePayload);
+            currentHeightManager::handleRoundChangeMessage);
         break;
 
       default:

@@ -15,7 +15,6 @@
 package org.hyperledger.besu.consensus.nexus.core;
 
 import lombok.Getter;
-import org.hyperledger.besu.consensus.common.bft.BftHelpers;
 import org.hyperledger.besu.consensus.common.bft.BlockTimer;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
@@ -24,7 +23,7 @@ import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftFinalState;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.consensus.nexus.NexusBlockCreatorFactory;
-import org.hyperledger.besu.consensus.nexus.messagewrappers.ViewChange;
+import org.hyperledger.besu.consensus.nexus.messagewrappers.RoundChange;
 import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
@@ -37,7 +36,7 @@ import java.util.Map;
 public class NexusFinalState {
   private final ValidatorProvider validatorProvider;
 
-  final Map<Address, ViewChange> receivedMessages;
+  final Map<Address, RoundChange> receivedMessages;
     /**
      * -- GETTER --
      *  Gets node key.

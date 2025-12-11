@@ -17,7 +17,6 @@ package org.hyperledger.besu.consensus.nexus.statemachine;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.events.RoundExpiry;
 import org.hyperledger.besu.consensus.nexus.core.NexusBlockHeader;
-import org.hyperledger.besu.consensus.nexus.messagedata.NexusMessage;
 import org.hyperledger.besu.consensus.nexus.messagewrappers.*;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 
@@ -68,7 +67,7 @@ public class NoOpBlockHeightManager implements BaseNexusBlockHeightManager {
   }
 
   @Override
-  public void handleViewChangePayload(ViewChange message) {
+  public void handleRoundChangeMessage(RoundChange message) {
 
   }
 
@@ -98,7 +97,7 @@ public class NoOpBlockHeightManager implements BaseNexusBlockHeightManager {
   }
 
   @Override
-  public void consumeViewChangeMessage(ViewChange message) {
+  public void consumeRoundChangeMessage(RoundChange message) {
 
   }
 

@@ -16,10 +16,10 @@ package org.hyperledger.besu.consensus.nexus.messagedata;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.consensus.common.bft.messagedata.AbstractBftMessageData;
-import org.hyperledger.besu.consensus.nexus.messagewrappers.ViewChange;
+import org.hyperledger.besu.consensus.nexus.messagewrappers.RoundChange;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
 
-/** The ViewChange message data. */
+/** The RoundChange message data. */
 public class ViewChangeMessageData extends AbstractBftMessageData {
 
   private static final int MESSAGE_CODE = NexusMessage.VIEW_CHANGE.getCode();
@@ -32,7 +32,7 @@ public class ViewChangeMessageData extends AbstractBftMessageData {
    * Instantiate ViewChangeMessageData from message data.
    *
    * @param messageData the message data
-   * @return the ViewChange message data
+   * @return the RoundChange message data
    */
   public static ViewChangeMessageData fromMessageData(final MessageData messageData) {
     return fromMessageData(
@@ -42,19 +42,19 @@ public class ViewChangeMessageData extends AbstractBftMessageData {
   /**
    * Decode.
    *
-   * @return the ViewChange
+   * @return the RoundChange
    */
-  public ViewChange decode() {
-    return ViewChange.decode(data);
+  public RoundChange decode() {
+    return RoundChange.decode(data);
   }
 
   /**
-   * Create ViewChange message data.
+   * Create RoundChange message data.
    *
-   * @param viewChange the ViewChange
+   * @param viewChange the RoundChange
    * @return the vote message data
    */
-  public static ViewChangeMessageData create(final ViewChange viewChange) {
+  public static ViewChangeMessageData create(final RoundChange viewChange) {
     return new ViewChangeMessageData(viewChange.encode());
   }
 

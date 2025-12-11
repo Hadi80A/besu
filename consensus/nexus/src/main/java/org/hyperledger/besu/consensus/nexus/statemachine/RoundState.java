@@ -51,7 +51,7 @@ public class RoundState {
   private final Set<SelectLeader> selectLeaderMessages = Sets.newLinkedHashSet();
   private final Set<Commit> commitMessages = Sets.newLinkedHashSet();
   private final Set<BlockAnnounce> blockAnnounceMessages = Sets.newLinkedHashSet();
-  private final Set<ViewChange> viewChangeMessages = Sets.newLinkedHashSet();
+  private final Set<RoundChange> roundChangeMessages = Sets.newLinkedHashSet();
   private final Set<Bls.Signature>  blsSignaturesMessages = Sets.newLinkedHashSet();
   @Setter
   private NexusMessage currentState;
@@ -112,8 +112,8 @@ public class RoundState {
         LOG.trace("Round state added blsSignaturesMessages  ={}", msg);
     }
 
-  public void addViewChangeMessage(final ViewChange msg) {
-      viewChangeMessages.add(msg);
+  public void addRoundChangeMessage(final RoundChange msg) {
+      roundChangeMessages.add(msg);
       LOG.trace("Round state added viewChangeMessages message ={}", msg);
   }
 

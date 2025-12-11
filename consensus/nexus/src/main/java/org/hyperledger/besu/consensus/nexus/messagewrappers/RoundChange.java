@@ -17,7 +17,7 @@ package org.hyperledger.besu.consensus.nexus.messagewrappers;
 import lombok.Getter;
 import org.hyperledger.besu.consensus.common.bft.messagewrappers.BftMessage;
 import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
-import org.hyperledger.besu.consensus.nexus.payload.ViewChangePayload;
+import org.hyperledger.besu.consensus.nexus.payload.RoundChangePayload;
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
@@ -26,7 +26,7 @@ import org.apache.tuweni.bytes.Bytes;
 
 /** The Round change payload message. */
 @Getter
-public class ViewChange extends BftMessage<ViewChangePayload> {
+public class RoundChange extends BftMessage<RoundChangePayload> {
 
 
   /**
@@ -34,8 +34,8 @@ public class ViewChange extends BftMessage<ViewChangePayload> {
    *
    * @param payload the payload
    */
-  public ViewChange(
-      final SignedData<ViewChangePayload> payload) {
+  public RoundChange(
+      final SignedData<RoundChangePayload> payload) {
     super(payload);
   }
 
@@ -49,14 +49,14 @@ public class ViewChange extends BftMessage<ViewChangePayload> {
   }
 
 
-  public static ViewChange decode(final Bytes data) {
+  public static RoundChange decode(final Bytes data) {
 
     final RLPInput rlpIn = RLP.input(data);
     rlpIn.enterList();
-    final SignedData<ViewChangePayload> payload = readPayload(rlpIn, ViewChangePayload::readFrom);
+    final SignedData<RoundChangePayload> payload = readPayload(rlpIn, RoundChangePayload::readFrom);
 
     rlpIn.leaveList();
 
-    return new ViewChange(payload);
+    return new RoundChange(payload);
   }
 }

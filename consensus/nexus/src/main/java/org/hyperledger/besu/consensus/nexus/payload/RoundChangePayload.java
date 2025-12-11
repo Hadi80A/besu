@@ -23,10 +23,10 @@ import org.hyperledger.besu.ethereum.rlp.RLPOutput;
 
 @SuperBuilder
 @EqualsAndHashCode(callSuper = false)
-public class ViewChangePayload extends NexusPayload {
+public class RoundChangePayload extends NexusPayload {
   private static final int TYPE = NexusMessage.VIEW_CHANGE.getCode();
 
-  protected ViewChangePayload(ConsensusRoundIdentifier roundIdentifier, long height  ) {
+  protected RoundChangePayload(ConsensusRoundIdentifier roundIdentifier, long height  ) {
     super(roundIdentifier, height);
   }
 
@@ -45,13 +45,13 @@ public class ViewChangePayload extends NexusPayload {
    * @param rlpInput the rlp input
    * @return the round change payload
    */
-  public static ViewChangePayload readFrom(final RLPInput rlpInput) {
+  public static RoundChangePayload readFrom(final RLPInput rlpInput) {
     rlpInput.enterList();
     final ConsensusRoundIdentifier roundIdentifier = ConsensusRoundIdentifier.readFrom(rlpInput);
     final long height = rlpInput.readLong();
     rlpInput.leaveList();
 
-    return new ViewChangePayload(roundIdentifier,height);
+    return new RoundChangePayload(roundIdentifier,height);
   }
 
   @Override

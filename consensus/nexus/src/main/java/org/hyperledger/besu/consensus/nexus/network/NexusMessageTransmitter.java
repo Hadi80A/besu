@@ -22,7 +22,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 
 import java.util.Collections;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +100,7 @@ public class NexusMessageTransmitter {
 
 
 
-  public void multicastRoundChange(ViewChange viewChange) {
+  public void multicastRoundChange(RoundChange viewChange) {
     try {
 
       final ViewChangeMessageData message = ViewChangeMessageData.create(viewChange);

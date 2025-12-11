@@ -77,7 +77,7 @@ public class NexusSubProtocol implements SubProtocol {
       case PROPOSE -> "Proposal";
       case VOTE -> "Vote";
       case COMMIT -> "Commit";
-      case VIEW_CHANGE -> "ViewChange";
+      case VIEW_CHANGE -> "RoundChange";
       case SELECT_LEADER -> "SelectLeader";
       case BLOCK_ANNOUNCE -> "BlockAnnounce";
       default -> INVALID_MESSAGE_NAME;

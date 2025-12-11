@@ -31,7 +31,6 @@ import org.hyperledger.besu.consensus.nexus.payload.*;
 import org.hyperledger.besu.consensus.nexus.validation.MessageValidatorFactory;
 import org.hyperledger.besu.consensus.nexus.vrf.VRF;
 import org.hyperledger.besu.crypto.SECPPublicKey;
-import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.util.Subscribers;
 
@@ -157,8 +156,8 @@ public class NexusRoundFactory {
         public BlockAnnounce createBlockAnnounce(SignedData<BlockAnnouncePayload> payload) {
             return new BlockAnnounce(payload);
         }
-        public ViewChange createViewChange(SignedData<ViewChangePayload> payload) {
-            return new ViewChange(payload);
+        public RoundChange createViewChange(SignedData<RoundChangePayload> payload) {
+            return new RoundChange(payload);
         }
         public SelectLeader createSelectLeader(SignedData<SelectLeaderPayload> payload) {
             return new SelectLeader(payload);
@@ -193,9 +192,9 @@ public class NexusRoundFactory {
                     .build();
         }
 
-        public ViewChangePayload createViewChangePayload(ConsensusRoundIdentifier roundIdentifier,long height) {
+        public RoundChangePayload createViewChangePayload(ConsensusRoundIdentifier roundIdentifier, long height) {
             log.debug("createViewChangePayload roundIdentifier={} height={}", roundIdentifier, height);
-            return ViewChangePayload.builder()
+            return RoundChangePayload.builder()
                     .roundIdentifier(roundIdentifier)
                     .height(height)
                     .build();

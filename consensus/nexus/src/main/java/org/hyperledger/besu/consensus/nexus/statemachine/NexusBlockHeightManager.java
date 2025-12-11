@@ -83,7 +83,6 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
 
     private final EthPeers ethPeers;
     private final SyncState syncState;
-    private final RoundChangeManager roundChangeManager;
     private final Bls.KeyPair blsKeyPair;
     @Getter
     private boolean isFirstRoundStarted = false;
@@ -93,7 +92,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
     private byte[] voteMessage ;
     // Store only 1 round change per round per validator
 //    @VisibleForTesting
-//    final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
+//    final Map<Address, RoundChange> receivedMessages = Maps.newLinkedHashMap();
 
     private int retryCounter =10;
     /**
@@ -111,7 +110,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
             final NexusFinalState finalState,
             final NexusRoundFactory posRoundFactory,
             final Clock clock,
-            final NexusRoundFactory.MessageFactory messageFactory, NexusProposerSelector proposerSelector, NexusMessageTransmitter transmitter, NexusConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState, RoundChangeManager roundChangeManager,
+            final NexusRoundFactory.MessageFactory messageFactory, NexusProposerSelector proposerSelector, NexusMessageTransmitter transmitter, NexusConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState,
             Bls.KeyPair blsKeyPair) {
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
@@ -131,7 +130,6 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
         this.nexusMetricCalculator = finalState.getNexusMetricCalculator();
         this.ethPeers = ethPeers;
         this.syncState = syncState;
-        this.roundChangeManager = roundChangeManager;
         this.blsKeyPair = blsKeyPair;
 
         final long nextBlockHeight = getChainHeight();
@@ -287,42 +285,6 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
         return  currentStateCode ==msgCode || msgCode==NexusMessage.VIEW_CHANGE.getCode();
     }
 
-    public void handleViewChangePayload(final ViewChange message) {
-        final ConsensusRoundIdentifier targetRound = message.getRoundIdentifier();
-
-        LOG.debug(
-                "Round change from {}: block {}, round {}",
-                message.getAuthor(),
-                message.getRoundIdentifier().getSequenceNumber(),
-                message.getRoundIdentifier().getRoundNumber());
-
-
-        final MessageAge messageAge =
-                determineAgeOfPayload(message.getRoundIdentifier().getRoundNumber());
-        if (messageAge == MessageAge.PRIOR_ROUND) {
-            LOG.debug("Received RoundChange Payload for a prior round. targetRound={}", targetRound);
-            return;
-        }
-        Optional<Collection<ViewChange>> result = roundChangeManager.appendRoundChangeMessage(message);
-//    finalState.getReceivedMessages().put(message.getAuthor(),message);
-
-//        LOG.debug("finalState.getReceivedMessages().size() {}", finalState.getReceivedMessages().size());
-//        LOG.debug("finalState.getQuorum() {}",finalState.getQuorum());
-
-        if (!isEarlyRoundChangeEnabled) {
-            if (result.isPresent()) {
-                LOG.debug(
-                        "Received sufficient RoundChange messages to change round to targetRound={}", targetRound);
-                if (messageAge == MessageAge.FUTURE_ROUND) {
-                    startNewRound(targetRound);
-
-                }else
-                    startNewRound(targetRound);
-                LOG.debug("startNewRound with round{} ", targetRound.getRoundNumber());
-            }
-        }
-    }
-
     private void startNewRound(ConsensusRoundIdentifier targetRound) {
         finalState.getBlockTimer().cancelTimer();
         long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
@@ -351,29 +313,19 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
                 "Round has expired or changing based on RC quorum,current round={} ,new round{}",
                 currentRound.get().getRoundIdentifier(),newRoundNumber);
 
-//    startNewRound(newRoundNumber);
-//    refreshRound(newRoundNumber);
-//    if (currentRound.isEmpty()) {
-//      LOG.info("Failed to start round ");
-//      return;
-//    }
         NexusRound posRoundNew = currentRound.get();
         var newRoundIdentifier = new ConsensusRoundIdentifier(currentRound.get().getRoundIdentifier().getSequenceNumber(), newRoundNumber);
         try {
-            ViewChangePayload unsigned = messageFactory.createViewChangePayload(newRoundIdentifier, posRoundNew.getRoundState().getHeight());
-            SignedData<ViewChangePayload> signedData = currentRound.get().createSignedData(unsigned);
-            final ViewChange localViewChangeMessage = messageFactory.createViewChange(signedData);
+            RoundChangePayload unsigned = messageFactory.createViewChangePayload(newRoundIdentifier, posRoundNew.getRoundState().getHeight());
+            SignedData<RoundChangePayload> signedData = currentRound.get().createSignedData(unsigned);
+            final RoundChange localViewChangeMessage = messageFactory.createViewChange(signedData);
 
-//      handleViewChangePayload(localViewChangeMessage);
-            Optional<Collection<ViewChange>> result = roundChangeManager.appendRoundChangeMessage(localViewChangeMessage);
+            // Add local message to RoundState logic (merged from RoundChangeManager)
+            // We treat our own message just like an incoming one to trigger state change if quorum is met
+            handleRoundChangeMessage(localViewChangeMessage);
+
             transmitter.multicastRoundChange(localViewChangeMessage);
 
-                if (result.isPresent()) {
-                    LOG.debug(
-                            "Received sufficient RoundChange messages to change round to newRoundIdentifier={}", newRoundIdentifier);
-                    startNewRound(newRoundIdentifier);
-                    LOG.debug("startNewRound with Newround{} ", newRoundIdentifier.getRoundNumber());
-                }
         } catch (final SecurityModuleException e) {
             LOG.warn("Failed to create signed RoundChange message.", e);
         }
@@ -415,12 +367,59 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
                 RoundState::addBlockAnnounceMessage);
     }
 
-    public void consumeViewChangeMessage(final ViewChange msg){
-//        actionOrBufferMessage(
-//                msg,
-//                currentRound.isPresent() ? this::handleViewChangePayload : (ignore) -> {},
-//                RoundState::addViewChangeMessage);
+    public void consumeRoundChangeMessage(final RoundChange msg){
+        // Direct call to the merged handler which handles buffering internally for RoundChange
+        // to support jumping to future rounds upon Quorum.
+        handleRoundChangeMessage(msg);
     }
+
+
+    public void handleRoundChangeMessage(final RoundChange message) {
+        final ConsensusRoundIdentifier targetRound = message.getRoundIdentifier();
+
+        LOG.debug(
+                "Processing RoundChange from {}: block {}, round {}",
+                message.getAuthor(),
+                message.getRoundIdentifier().getSequenceNumber(),
+                message.getRoundIdentifier().getRoundNumber());
+
+        final MessageAge messageAge = determineAgeOfPayload(message.getRoundIdentifier().getRoundNumber());
+
+        if (messageAge == MessageAge.PRIOR_ROUND) {
+            LOG.debug("Received RoundChange Payload for a prior round. targetRound={}", targetRound);
+            return;
+        }
+
+        // Determine which RoundState to add this message to (Current or Future Buffer)
+        RoundState targetState;
+        if (messageAge == MessageAge.CURRENT_ROUND && currentRound.isPresent()) {
+            targetState = getRoundState();
+        } else {
+            // It's a future round, create or get from buffer
+            Map<String, Long> info = Map.of(
+                    "round", (long) targetRound.getRoundNumber() ,
+                    "height", message.getSignedPayload().getPayload().getHeight()
+            );
+            targetState = futureRoundStateBuffer.computeIfAbsent(
+                    targetRound.getRoundNumber()-1, k -> roundStateCreator.apply(info)
+            );
+        }
+
+        // Add message to the specific state
+        targetState.addRoundChangeMessage(message);
+
+        // Check if we have enough messages for this specific round to switch
+        // Note: We use false for isVote, assuming checkThreshold handles RoundChange sets correctly based on size/weight
+        if (!isEarlyRoundChangeEnabled) {
+            if (checkThreshold(targetState.getRoundChangeMessages(), false)) {
+                LOG.debug(
+                        "Received sufficient RoundChange messages to change round to targetRound={}", targetRound);
+                startNewRound(targetRound);
+                LOG.debug("startNewRound with round{} ", targetRound.getRoundNumber());
+            }
+        }
+    }
+
 
     public void handleSelectLeaderMessage(final SelectLeader msg){
         handleSelectLeaderMessage(msg,true);
@@ -885,7 +884,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
                         msg.getSignedPayload().getPayload().getHeight());
                 boolean isSuccess= currentRound.get().importBlockToChain(qc,seed);
                 if(isSuccess) {
-                    nexusMetricCalculator.recordBlockCommit(currentRound.get().getPropose().getSignedPayload().getPayload().getProposedBlock().getBesuBlock());
+                    nexusMetricCalculator.recordBlockCommit(getRoundState().getProposedBlock().getBesuBlock());
                     getRoundState().setCurrentState(NexusMessage.SELECT_LEADER);
                     final long now = clock.millis() / 1000;
                     finalState.getBlockTimer().startTimer(roundIdentifier, () -> now);
@@ -932,6 +931,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
         // validate the current round
 
         if (futureRoundStateBuffer.containsKey(roundNumber)) {
+            LOG.debug("Round state {} has been added to future round state buffer",roundNumber);
             currentRound = Optional.of(
                             roundFactory.createNewRoundWithState(parentHeader, futureRoundStateBuffer.get(roundNumber)));
             checkMessages();
@@ -963,8 +963,8 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
             for (BlockAnnounce blockAnnounceMessage : currentRound.get().getRoundState().getBlockAnnounceMessages()) {
                 handleBlockAnnounceMessage(blockAnnounceMessage);
             }
-            for (ViewChange viewChangeMessage : currentRound.get().getRoundState().getViewChangeMessages()) {
-                handleViewChangePayload(viewChangeMessage);
+            for (RoundChange viewChangeMessage : currentRound.get().getRoundState().getRoundChangeMessages()) {
+                handleRoundChangeMessage(viewChangeMessage);
             }
         }
     }

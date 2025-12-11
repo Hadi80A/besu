@@ -93,11 +93,11 @@ public class PayloadDeserializers {
    * @param rlpInput the rlp input
    * @return the signed data
    */
-  public static SignedData<ViewChangePayload> readSignedViewChangePayloadFrom(
+  public static SignedData<RoundChangePayload> readSignedViewChangePayloadFrom(
       final RLPInput rlpInput) {
 
     rlpInput.enterList();
-    final ViewChangePayload unsignedMessageData = ViewChangePayload.readFrom(rlpInput);
+    final RoundChangePayload unsignedMessageData = RoundChangePayload.readFrom(rlpInput);
     final SECPSignature signature = readSignature(rlpInput);
     rlpInput.leaveList();
 

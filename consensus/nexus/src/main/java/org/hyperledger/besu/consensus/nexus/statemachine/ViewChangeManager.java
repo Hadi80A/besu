@@ -15,7 +15,7 @@
 package org.hyperledger.besu.consensus.nexus.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
-import org.hyperledger.besu.consensus.nexus.messagewrappers.ViewChange;
+import org.hyperledger.besu.consensus.nexus.messagewrappers.RoundChange;
 import org.hyperledger.besu.datatypes.Address;
 
 import java.util.Collection;
@@ -46,7 +46,7 @@ public class ViewChangeManager {
 
     /** The Received messages. */
     // Store only 1 round change per round per validator
-    @VisibleForTesting final Map<Address, ViewChange> receivedMessages = Maps.newLinkedHashMap();
+    @VisibleForTesting final Map<Address, RoundChange> receivedMessages = Maps.newLinkedHashMap();
 
     private boolean actioned = false;
 
@@ -64,7 +64,7 @@ public class ViewChangeManager {
      *
      * @param msg the msg
      */
-    public void addMessage(final ViewChange msg) {
+    public void addMessage(final RoundChange msg) {
       if (!actioned) {
         receivedMessages.putIfAbsent(msg.getAuthor(), msg);
       }
@@ -84,7 +84,7 @@ public class ViewChangeManager {
      *
      * @return the collection
      */
-    public Collection<ViewChange> createRoundChangeCertificate() {
+    public Collection<RoundChange> createRoundChangeCertificate() {
       if (roundChangeQuorumReceived()) {
         actioned = true;
         return receivedMessages.values();
@@ -141,7 +141,7 @@ public class ViewChangeManager {
    *
    * @param message the round-change message that has just been received
    */
-  public void storeAndLogRoundChangeSummary(final ViewChange message) {
+  public void storeAndLogRoundChangeSummary(final RoundChange message) {
 //    if (!isMessageValid(message)) {
 //      LOG.info("RoundChange message is invalid .");
 //      return;
@@ -203,7 +203,7 @@ public class ViewChangeManager {
    * @return Empty if the round change threshold hasn't been hit, otherwise a round change
    *     certificate
    */
-  public Optional<Collection<ViewChange>> appendRoundChangeMessage(final ViewChange msg) {
+  public Optional<Collection<RoundChange>> appendRoundChangeMessage(final RoundChange msg) {
 
 //    if (!isMessageValid(msg)) {
 //      LOG.info("RoundChange message was invalid.");
@@ -219,11 +219,11 @@ public class ViewChangeManager {
     return Optional.empty();
   }
 
-//  private boolean isMessageValid(final ViewChange msg) {
+//  private boolean isMessageValid(final RoundChange msg) {
 //    return roundChangeMessageValidator.validate(msg);
 //  }
 
-  private RoundChangeStatus storeRoundChangeMessage(final ViewChange msg) {
+  private RoundChangeStatus storeRoundChangeMessage(final RoundChange msg) {
     final ConsensusRoundIdentifier msgTargetRound = msg.getRoundIdentifier();
 
     final RoundChangeStatus roundChangeStatus =

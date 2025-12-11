@@ -15,7 +15,6 @@
 package org.hyperledger.besu.consensus.nexus.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.statemachine.BaseBlockHeightManager;
-import org.hyperledger.besu.consensus.nexus.messagedata.NexusMessage;
 import org.hyperledger.besu.consensus.nexus.messagewrappers.*;
 
 /** The interface Base nexus block height manager. */
@@ -24,14 +23,14 @@ public interface BaseNexusBlockHeightManager extends BaseBlockHeightManager {
   void handleProposalMessage(final Propose msg);
   void handleVoteMessage(final Vote msg);
   void handleCommitMessage(final Commit msg);
-  void handleViewChangePayload(final ViewChange message);
+  void handleRoundChangeMessage(final RoundChange message);
   void handleSelectLeaderMessage(final SelectLeader message);
   void consumeProposeMessage(final Propose msg);
   void consumeVoteMessage(final Vote msg);
   void consumeCommitMessage(final Commit msg);
   void consumeBlockAnnounceMessage(final BlockAnnounce msg);
 
-  void consumeViewChangeMessage(final ViewChange message);
+  void consumeRoundChangeMessage(final RoundChange message);
   void consumeSelectLeaderMessage(final SelectLeader message);
 
   boolean checkValidState(int msgCode);

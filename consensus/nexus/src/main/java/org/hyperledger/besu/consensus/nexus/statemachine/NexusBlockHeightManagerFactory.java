@@ -107,7 +107,6 @@ public class NexusBlockHeightManagerFactory {
                 blockchain,
                 ethPeers,
                 syncState,
-                new RoundChangeManager(finalState.getQuorum(), finalState.getLocalAddress()),
                 blsKeyPair
                 );
     }
