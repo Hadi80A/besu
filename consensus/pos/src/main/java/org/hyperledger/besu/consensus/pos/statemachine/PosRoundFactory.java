@@ -131,7 +131,8 @@ public class PosRoundFactory {
                 contractCaller,
                 nodeSet,
                 proposerSelector,
-                finalState
+                finalState,
+                finalState.getMetricCalculator()
         );
     }
 

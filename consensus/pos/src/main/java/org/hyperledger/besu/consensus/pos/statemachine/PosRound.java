@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.pos.*;
 import org.hyperledger.besu.consensus.pos.core.*;
 import org.hyperledger.besu.consensus.pos.messagewrappers.Propose;
+import org.hyperledger.besu.consensus.pos.metrics.PosMetricCalculator;
 import org.hyperledger.besu.consensus.pos.network.PosMessageTransmitter;
 import org.hyperledger.besu.consensus.pos.payload.PosPayload;
 import org.hyperledger.besu.consensus.pos.payload.ProposePayload;
@@ -73,7 +74,7 @@ public class PosRound {
     private final PosMessageTransmitter transmitter;
     private final PosExtraDataCodec posExtraDataCodec;
     private final BlockHeader parentHeader;
-
+    private final PosMetricCalculator metricCalculator;
     private final PosProposerSelector posProposerSelector;
     private final PosFinalState posFinalState;
     private final Address localAddress;
@@ -104,7 +105,8 @@ public class PosRound {
             final ContractCaller contractCaller,
             NodeSet nodeSet,
             PosProposerSelector posProposerSelector,
-            PosFinalState posFinalState
+            PosFinalState posFinalState,
+            PosMetricCalculator metricCalculator
     ) {
         this.roundState = roundState;
         this.blockCreator = blockCreator;
@@ -120,6 +122,7 @@ public class PosRound {
         this.contractCaller = contractCaller;
         this.nodeSet = nodeSet;
         this.localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
+        this.metricCalculator = metricCalculator;
         this.posProposerSelector = posProposerSelector;
         this.posFinalState = posFinalState;
     }
@@ -175,7 +178,7 @@ public class PosRound {
                     Propose proposal = messageFactory.createPropose(proposePayload);
                     transmitter.multicastProposal(proposal);
                     roundState.setProposeMessage(proposal);
-
+                    metricCalculator.recordProposalArrival(posBlock);
                 } else {
                     // Handle Empty Block logic if configured...
                     LOG.trace("Empty block created (skipped broadcast or handled otherwise)");
