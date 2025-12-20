@@ -28,7 +28,7 @@ import java.util.Optional;
 @Getter
 public class NexusProposerSelector {
 
-    private static final double LAMBDA =1.0; // tune so ≈1 leader is expected per round
+    private static final double LAMBDA =3.0; // tune so ≈1 leader is expected per round
     private static final long EPS = 1L;
     private final Map<Address, BigDecimal> allScore;
     private final NodeSet nodeSet;     // all validators
@@ -57,7 +57,9 @@ public class NexusProposerSelector {
         allScore = new HashMap<>();
 //        this.selfPublicKey = nodeKey.getPublicKey();
     }
-
+    public void clearScores() {
+        allScore.clear();
+    }
     /** Run VRF and check if self is elected leader. */
     public Optional<VRF.Result> calculateVrf(final long round, final Bytes32 prevBlockHash, final Long height ,final Bytes32 previousSeed) {
         // Compute seed for VRF
@@ -137,6 +139,9 @@ public class NexusProposerSelector {
                         lastSeed == null ? Bytes32.ZERO : lastSeed,
                         prevBlockHash == null ? Bytes32.ZERO : prevBlockHash
                 ));
+        if(round>3 && seedMap.containsKey(round-4)) {
+            seedMap.remove(round - 4);
+        }
         seedMap.put(round,result);
         return result;
     }

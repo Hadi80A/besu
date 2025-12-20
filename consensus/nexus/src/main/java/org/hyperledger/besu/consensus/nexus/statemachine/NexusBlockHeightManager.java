@@ -974,6 +974,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
         if(currentRound.isEmpty()) {
             setCurrentRound(roundNumber);
         }
+        proposerSelector.clearScores();
         currentRound.get().updateRound(blockchain.getChainHeadBlock(), clock, roundNumber);
 
     }

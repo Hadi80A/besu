@@ -26,13 +26,7 @@ import org.slf4j.LoggerFactory;
 import lombok.Getter;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.slf4j.LoggerFactory;
-import supranational.blst.P1;
-import supranational.blst.P1_Affine;
-import supranational.blst.P2;
-import supranational.blst.P2_Affine;
-import supranational.blst.Pairing;
-import supranational.blst.blst;
-import supranational.blst.Scalar;
+import supranational.blst.*;
 
 public final class Bls {
 
@@ -467,7 +461,6 @@ public final class Bls {
         return new Signature(sigPoint.to_affine());
     }
 
-    /** Verify PoP for a public key. */
     public static boolean verifyPop(final PublicKey pk, final Signature pop) {
         Objects.requireNonNull(pk);
         Objects.requireNonNull(pop);
@@ -484,9 +477,8 @@ public final class Bls {
             final P2_Affine hashPkAffine = hashPk.to_affine();
 
             // e(pk, hash_pk)
-            invokePairingMethod(pairing, "raw_aggregate",
-                    new Class<?>[]{P2_Affine.class, P1_Affine.class},
-                    new Object[]{hashPkAffine, pk.pk});
+            // Direct call replacing reflection
+            pairing.raw_aggregate(hashPkAffine, pk.pk);
 
             // Negate pop signature
             P2 negPopSigPoint = new P2(pop.sig);
@@ -497,29 +489,17 @@ public final class Bls {
             final P1_Affine g1Affine = blst.G1().to_affine();
 
             // e(g1, -pop_sig)
-            invokePairingMethod(pairing, "raw_aggregate",
-                    new Class<?>[]{P2_Affine.class, P1_Affine.class},
-                    new Object[]{negPopSigAffine, g1Affine});
+            // Direct call replacing reflection
+            pairing.raw_aggregate(negPopSigAffine, g1Affine);
 
-            // commit and finalverify
-            invokePairingMethod(pairing, "commit", new Class<?>[0], new Object[0]);
+            // commit
+            // Direct call replacing reflection
+            pairing.commit();
 
-            // finalverify(): no args for product==1 check
-            try {
-                Method fv = pairing.getClass().getMethod("finalverify");
-                Object result = fv.invoke(pairing);
-                if (result instanceof Boolean) {
-                    return (Boolean) result;
-                } else if (result instanceof Integer) {
-                    return ((Integer) result) == 0;
-                } else {
-                    // unexpected return type; assume success if no exception
-                    return true;
-                }
-            } catch (NoSuchMethodException e) {
-                logger.warn("Pairing.finalverify method not found", e);
-                throw new RuntimeException("Pairing.finalverify method not found", e);
-            }
+            // finalverify
+            // Direct call replacing reflection
+            return pairing.finalverify();
+
         } catch (RuntimeException e) {
             logger.info("verifyPop runtime failure", e);
             return false;
@@ -528,6 +508,7 @@ public final class Bls {
             return false;
         }
     }
+
 
     public static boolean registerProofOfNexussession(final PublicKey pk, final Signature pop) {
         Objects.requireNonNull(pk);
@@ -565,19 +546,21 @@ public final class Bls {
 
         try {
             final Pairing pairing = new Pairing(true, DST_SIG_STRING);
-            // Use pairing.aggregate(pk, sig, message) but do it via reflective wrapper for error handling.
-            invokePairingMethod(pairing, "aggregate",
-                    new Class<?>[]{P1_Affine.class, P2_Affine.class, byte[].class},
-                    new Object[]{pk.pk, sig.sig, message});
 
-            invokePairingMethod(pairing, "commit", new Class<?>[0], new Object[0]);
+            // Direct call: aggregate
+            // Matches signature: aggregate(P1_Affine pk, P2_Affine sig, byte[] msg)
+            BLST_ERROR err = pairing.aggregate(pk.pk, sig.sig, message);
 
-            // finalverify
-            Method fv = pairing.getClass().getMethod("finalverify");
-            Object result = fv.invoke(pairing);
-            if (result instanceof Boolean) return (Boolean) result;
-            if (result instanceof Integer) return ((Integer) result) == 0;
-            return true;
+            if (err != BLST_ERROR.BLST_SUCCESS) {
+                throw new RuntimeException("Pairing.aggregate returned error code: " + err);
+            }
+
+            // Direct call: commit
+            pairing.commit();
+
+            // Direct call: finalverify
+            return pairing.finalverify();
+
         } catch (RuntimeException e) {
             logger.info("verify runtime failure", e);
             return false;
@@ -625,13 +608,13 @@ public final class Bls {
         Objects.requireNonNull(message);
         Objects.requireNonNull(aggSignatureCompressed);
 
-        String logCommiters="agg publicbls keys:";
-        for (final PublicKey pubkey : pubkeys) {
-            logCommiters+= pubkey.toHexString()+" ,";
-        }
-        logger.info(logCommiters);
-        logger.info("agg msg: {}", new String(message, StandardCharsets.UTF_8));
-        logger.info("agg sig: {}", new String(aggSignatureCompressed, StandardCharsets.UTF_8));
+//        String logCommiters="agg publicbls keys:";
+//        for (final PublicKey pubkey : pubkeys) {
+//            logCommiters+= pubkey.toHexString()+" ,";
+//        }
+//        logger.info(logCommiters);
+//        logger.info("agg msg: {}", new String(message, StandardCharsets.UTF_8));
+//        logger.info("agg sig: {}", new String(aggSignatureCompressed, StandardCharsets.UTF_8));
         if (pubkeys.isEmpty()) return false;
 
         final Signature aggSig;
@@ -642,6 +625,8 @@ public final class Bls {
             return false; // Invalid signature format
         }
 
+        // Aggregate Public Keys in G1
+        P1 pkAggregate = new P1(); // Starts as identity
         // Validate all public keys and ensure PoP registration (if required)
         // Also ensure uniqueness to prevent duplicate-pubkey attacks.
         final Set<String> pkSet = new HashSet<>();
@@ -659,34 +644,37 @@ public final class Bls {
                 logger.warn("fastAggregateVerify: duplicate public key detected");
                 return false; // duplicate pk -> reject
             }
-        }
-
-        // Aggregate Public Keys in G1
-        P1 pkAggregate = new P1(); // Starts as identity
-
-        for (PublicKey pk : pubkeys) {
             pkAggregate.add(pk.pk); // P1.add(P1_Affine)
         }
+
         final P1_Affine pkAggAffine = pkAggregate.to_affine();
 
         try {
             // Verify pairing: e(agg_pk, hash_msg) == e(g1, agg_sig)
             final Pairing pairing = new Pairing(true, DST_SIG_STRING);
-            invokePairingMethod(pairing, "aggregate",
-                    new Class<?>[]{P1_Affine.class, P2_Affine.class, byte[].class},
-                    new Object[]{pkAggAffine, aggSig.sig, message});
-            invokePairingMethod(pairing, "commit", new Class<?>[0], new Object[0]);
 
-            Method fv = pairing.getClass().getMethod("finalverify");
-            Object result = fv.invoke(pairing);
-            if (result instanceof Boolean) {
-                logger.info("fastAggregateVerify: boolean result: {}", result);
-                return (Boolean) result;
+            // 1. Direct call: aggregate
+            // Replaces: invokePairingMethod(pairing, "aggregate", ...)
+            BLST_ERROR aggResult = pairing.aggregate(pkAggAffine, aggSig.sig, message);
+
+            // Check against the success enum constant (equivalent to the integer 0 check in reflection)
+            if (aggResult != BLST_ERROR.BLST_SUCCESS) {
+                throw new RuntimeException("Pairing.aggregate returned error code: " + aggResult);
             }
-            if (result instanceof Integer){
-                logger.info("fastAggregateVerify: integer result: {}", result);
-                return ((Integer) result) == 0;}
-            return true;
+
+            // 2. Direct call: commit
+            // Replaces: invokePairingMethod(pairing, "commit", ...)
+            // The method definition is 'public void commit()', so no return value check is needed.
+            pairing.commit();
+
+            // 3. Direct call: finalverify
+            // Replaces: fv.invoke(pairing)
+            // The method definition is 'public boolean finalverify()'.
+            boolean result = pairing.finalverify();
+
+            logger.info("fastAggregateVerify: boolean result: {}", result);
+            return result;
+
         } catch (RuntimeException e) {
             logger.warn("fastAggregateVerify runtime failure", e);
             return false;
