@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.nexus.*;
 import org.hyperledger.besu.consensus.nexus.core.*;
 import org.hyperledger.besu.consensus.nexus.messagewrappers.Propose;
 import org.hyperledger.besu.consensus.nexus.messagewrappers.SelectLeader;
+import org.hyperledger.besu.consensus.nexus.metrics.NexusMetricCalculator;
 import org.hyperledger.besu.consensus.nexus.network.NexusMessageTransmitter;
 import org.hyperledger.besu.consensus.nexus.payload.NexusPayload;
 import org.hyperledger.besu.consensus.nexus.payload.ProposePayload;
@@ -71,7 +72,7 @@ public class NexusRound {
   private final Subscribers<NexusMinedBlockObserver> observers;
   private final RoundState roundState;
   private final NexusBlockCreator blockCreator;
-  private final NexusConfigOptions posConfigOptions;
+  private final NexusConfigOptions nexusConfigOptions;
 
   /** The protocol context. */
   protected final ProtocolContext protocolContext;
@@ -83,11 +84,11 @@ public class NexusRound {
   private final NodeKey nodeKey;
   private final NexusRoundFactory.MessageFactory messageFactory; // used only to create stored local msgs
   private final NexusMessageTransmitter transmitter;
-  private final NexusExtraDataCodec posExtraDataCodec;
+  private final NexusExtraDataCodec nexusExtraDataCodec;
   private final NexusBlockHeader parentHeader;
   private Propose propose;
-  private final NexusProposerSelector posProposerSelector;
-  private final NexusFinalState posFinalState;
+  private final NexusProposerSelector nexusProposerSelector;
+  private final NexusFinalState nexusFinalState;
   private final Address localAddress;
   private boolean isIgnoreSelectLeaderMessages;
   private boolean validCommit=false;
@@ -117,7 +118,7 @@ public class NexusRound {
    * @param messageFactory the message factory
 //   * @param transmitter the transmitter
    * @param roundTimer the round timer
-   * @param posExtraDataCodec the bft extra data codec
+   * @param nexusExtraDataCodec the bft extra data codec
    * @param parentHeader the parent header
    */
   public NexusRound(
@@ -130,11 +131,11 @@ public class NexusRound {
           final NexusRoundFactory.MessageFactory messageFactory,
           final NexusMessageTransmitter transmitter,
           final RoundTimer roundTimer,
-          NexusConfigOptions posConfigOptions,
-          final NexusExtraDataCodec posExtraDataCodec,
+          NexusConfigOptions nexusConfigOptions,
+          final NexusExtraDataCodec nexusExtraDataCodec,
           final NexusBlockHeader parentHeader,
           final ContractCaller contractCaller, NodeSet nodeSet,
-          NexusProposerSelector posProposerSelector, NexusFinalState posFinalState
+          NexusProposerSelector nexusProposerSelector, NexusFinalState nexusFinalState
   ) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
@@ -144,14 +145,14 @@ public class NexusRound {
     this.nodeKey = nodeKey;
     this.messageFactory = messageFactory;
     this.transmitter = transmitter;
-    this.posConfigOptions = posConfigOptions;
-    this.posExtraDataCodec = posExtraDataCodec;
+    this.nexusConfigOptions = nexusConfigOptions;
+    this.nexusExtraDataCodec = nexusExtraDataCodec;
     this.parentHeader = parentHeader;
     this.contractCaller = contractCaller;
     this.nodeSet = nodeSet;
     this.localAddress=Util.publicKeyToAddress(nodeKey.getPublicKey());
-      this.posProposerSelector = posProposerSelector;
-      this.posFinalState = posFinalState;
+      this.nexusProposerSelector = nexusProposerSelector;
+      this.nexusFinalState = nexusFinalState;
 //      roundTimer.startTimer(getRoundIdentifier());
   }
 
@@ -188,10 +189,7 @@ public class NexusRound {
     final Block block =
             blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader,Util.publicKeyToAddress(nodeKey.getPublicKey())).getBesuBlock();
     LOG.debug("created block ");
-//    final NexusExtraData extraData = posExtraDataCodec.decodeNexus(block.getHeader());
-//
-//    LOG.debug(
-//            "Creating proposed block with extraData={} blockHeader", extraData);
+
       return new NexusBlock(block,roundState.getRoundIdentifier(),localAddress);
   }
 
@@ -285,18 +283,7 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
 
 
   protected void createProposalAndTransmit(Clock clock,VRF.Proof proof) {
-//      long headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
-//      LOG.debug("headerTimeStampSeconds: {}, parentHeader time:{}", headerTimeStampSeconds,parentHeader.getTimestamp());
-//      long diff= headerTimeStampSeconds- parentHeader.getTimestamp();
-//      if(diff<posConfigOptions.getBlockPeriodSeconds()/5){
-//        Thread.sleep(((posConfigOptions.getBlockPeriodSeconds()/5) -diff)*1000);
-//        LOG.debug("(posConfigOptions.getBlockPeriodSeconds()/5):{}",(posConfigOptions.getBlockPeriodSeconds()/5));
-//        LOG.debug("diff:{}",diff);
-//        LOG.debug("posConfigOptions.getBlockPeriodSeconds()/5) -diff):{}",((posConfigOptions.getBlockPeriodSeconds()/5) -diff));
-//        headerTimeStampSeconds = Math.round(clock.millis() / 1000D);
-//        LOG.debug("headerTimeStampSeconds{}",headerTimeStampSeconds);
-//      }
-      long MIN_GAP_SECONDS=posConfigOptions.getBlockPeriodSeconds()/5;
+      long MIN_GAP_SECONDS= nexusConfigOptions.getBlockPeriodSeconds()/5;
       long delayMs = Math.max(0L, (parentHeader.getTimestamp() + MIN_GAP_SECONDS) * 1000L - clock.millis());
       LOG.debug("createProposalAndTransmit");
       executor.schedule(() -> {
@@ -313,8 +300,8 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
 
           } else {
             // handle the block times period
-            final long currentTimeInMillis = posFinalState.getClock().millis();
-            boolean emptyBlockExpired = posFinalState
+            final long currentTimeInMillis = nexusFinalState.getClock().millis();
+            boolean emptyBlockExpired = nexusFinalState
                     .getBlockTimer()
                     .checkEmptyBlockExpired(parentHeader::getTimestamp, currentTimeInMillis);
             if (emptyBlockExpired) {
@@ -327,7 +314,7 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
               LOG.trace(
                       "Block has no transactions but emptyBlockPeriodSeconds did not expired yet: "
                               + roundIdentifier);
-              posFinalState
+              nexusFinalState
                       .getBlockTimer()
                       .resetTimerForEmptyBlock(
                               roundIdentifier, parentHeader::getTimestamp, currentTimeInMillis);
@@ -338,6 +325,8 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
           if (proposal != null) {
             transmitter.multicastProposal(proposal);
             roundState.setProposeMessage(proposal);
+              NexusMetricCalculator nexusMetricCalculator = nexusFinalState.getNexusMetricCalculator();
+              nexusMetricCalculator.recordProposalArrival(nexusBlock.getBesuBlock());
           }
 
         } catch (final SecurityModuleException e) {
@@ -347,7 +336,7 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
   }
 
   public boolean importBlockToChain(QuorumCertificate quorumCertificate, Bytes32 seed) {
-    if (posProposerSelector.getCurrentProposer().isEmpty()){
+    if (nexusProposerSelector.getCurrentProposer().isEmpty()){
       LOG.warn("No proposer selected for importBlockToChain");
       return false;
     }
@@ -356,7 +345,7 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
                     roundState.getProposedBlock(),
                     roundState.getRoundIdentifier().getRoundNumber(),
                     roundState.getCommitSeals(),
-                    posProposerSelector.getCurrentProposer().get(),
+                    nexusProposerSelector.getCurrentProposer().get(),
                     quorumCertificate,
                     seed
             );
@@ -441,9 +430,9 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
 
   private SECPSignature createCommitSeal(final Block block) {
     final BlockHeader proposedHeader = block.getHeader();
-    final BftExtraData extraData = posExtraDataCodec.decodeNexus(proposedHeader);
+    final BftExtraData extraData = nexusExtraDataCodec.decodeNexus(proposedHeader);
     final Hash commitHash =
-            new BftBlockHashing(posExtraDataCodec).calculateDataHashForCommittedSeal(proposedHeader, extraData);
+            new BftBlockHashing(nexusExtraDataCodec).calculateDataHashForCommittedSeal(proposedHeader, extraData);
     return nodeKey.sign(commitHash);
   }
 
@@ -484,12 +473,12 @@ private SignedData<ProposePayload> createProposePayload(NexusBlock block, VRF.Pr
             "(block.getHeader().getNumber())-1{},posProposerSelector.getSeedAtRound(roundNumber-1){}",
             roundNumber, Bytes32.wrap(block.getHash().toArray()),
             block.getHeader().getNumber()+1,
-            posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()));
-    var maybeLeaderVRF= posProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()),
-            block.getHeader().getNumber()+1,posProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()) );
+            nexusProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()));
+    var maybeLeaderVRF= nexusProposerSelector.calculateVrf(roundNumber, Bytes32.wrap(block.getHash().toArray()),
+            block.getHeader().getNumber()+1, nexusProposerSelector.getSeedAtRound(roundNumber-1,block.getHash(),block.getHeader().getNumber()) );
     if(maybeLeaderVRF.isPresent()) {
-      var seed =posProposerSelector.getSeedAtRound(roundNumber, block.getHash(), block.getHeader().getNumber()+1);
-      boolean isCandidate = posProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress,nodeKey.getPublicKey());
+      var seed = nexusProposerSelector.getSeedAtRound(roundNumber, block.getHash(), block.getHeader().getNumber()+1);
+      boolean isCandidate = nexusProposerSelector.canLeader(maybeLeaderVRF.get().proof(), seed, localAddress,nodeKey.getPublicKey());
       sendSelectLeader(maybeLeaderVRF.get().proof(), isCandidate);
     }
   }
