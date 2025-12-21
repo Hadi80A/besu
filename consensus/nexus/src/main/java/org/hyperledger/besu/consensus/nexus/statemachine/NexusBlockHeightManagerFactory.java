@@ -25,6 +25,7 @@ import org.hyperledger.besu.consensus.nexus.validation.MessageValidatorFactory;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.eth.manager.EthPeers;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,7 @@ public class NexusBlockHeightManagerFactory {
     private static final Logger LOG = LoggerFactory.getLogger(NexusBlockHeightManagerFactory.class);
 
     private final NexusRoundFactory roundFactory;
+    private final TransactionPool transactionPool;
     private final NexusFinalState finalState;
     private final MessageValidatorFactory messageValidatorFactory;
     private final NexusConfigOptions posConfig;
@@ -53,11 +55,12 @@ public class NexusBlockHeightManagerFactory {
      */
     public NexusBlockHeightManagerFactory(
             final NexusFinalState finalState,
-            final NexusRoundFactory roundFactory,
+            final NexusRoundFactory roundFactory, TransactionPool transactionPool,
             final MessageValidatorFactory messageValidatorFactory, NexusConfigOptions posConfig,
             final NexusRoundFactory.MessageFactory messageFactory, NexusProposerSelector posProposerSelector, EthPeers ethPeers, SyncState syncState, Bls.KeyPair blsKeyPair) {
         this.roundFactory = roundFactory;
         this.finalState = finalState;
+        this.transactionPool = transactionPool;
         this.messageValidatorFactory = messageValidatorFactory;
         this.posConfig = posConfig;
         this.messageFactory = messageFactory;
@@ -96,6 +99,7 @@ public class NexusBlockHeightManagerFactory {
 
     private BaseNexusBlockHeightManager createFullBlockHeightManager(final NexusBlockHeader parentHeader,Blockchain blockchain) {
         return new NexusBlockHeightManager(
+                transactionPool,
                 parentHeader,
                 finalState,
                 roundFactory,

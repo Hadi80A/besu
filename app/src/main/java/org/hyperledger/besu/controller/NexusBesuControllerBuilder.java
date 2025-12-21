@@ -264,6 +264,7 @@ public class NexusBesuControllerBuilder extends BesuControllerBuilder {
                     nodeSet,
                     posProposerSelector
                 ),
+                transactionPool,
                 messageValidatorFactory,
                     posConfig,
                 messageFactory,

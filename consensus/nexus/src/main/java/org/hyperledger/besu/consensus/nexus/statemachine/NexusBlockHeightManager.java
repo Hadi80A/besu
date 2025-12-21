@@ -51,6 +51,7 @@ import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Util;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,7 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
     private static final Logger LOG = LoggerFactory.getLogger(NexusBlockHeightManager.class);
 
     private final NexusRoundFactory roundFactory;
+    private final TransactionPool transactionPool;
     private final NexusBlockHeader parentHeader;
     private final NexusRoundFactory.MessageFactory messageFactory;
     private final Map<Integer, RoundState> futureRoundStateBuffer = Maps.newHashMap();
@@ -106,12 +108,13 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
      * @param blsKeyPair
      */
     public NexusBlockHeightManager(
-            final NexusBlockHeader parentHeader,
+            TransactionPool transactionPool, final NexusBlockHeader parentHeader,
             final NexusFinalState finalState,
             final NexusRoundFactory posRoundFactory,
             final Clock clock,
             final NexusRoundFactory.MessageFactory messageFactory, NexusProposerSelector proposerSelector, NexusMessageTransmitter transmitter, NexusConfigOptions posConfig, Blockchain blockchain, EthPeers ethPeers, SyncState syncState,
             Bls.KeyPair blsKeyPair) {
+        this.transactionPool = transactionPool;
         this.parentHeader = parentHeader;
         this.roundFactory = posRoundFactory;
         this.messageFactory = messageFactory;
@@ -147,6 +150,10 @@ public class NexusBlockHeightManager implements BaseNexusBlockHeightManager {
             getRoundState().setCurrentState(NexusMessage.SELECT_LEADER);
         }else
             startNewRound(roundIdentifier);
+
+        this.transactionPool.subscribePendingTransactions(
+                nexusMetricCalculator::recordTransactionCreated
+        );
     }
 
 
