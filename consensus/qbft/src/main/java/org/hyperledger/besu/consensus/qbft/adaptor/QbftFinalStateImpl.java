@@ -55,15 +55,15 @@ public class QbftFinalStateImpl implements QbftFinalState {
    * @param clock the clock
    */
   public QbftFinalStateImpl(
-      final ValidatorProvider validatorProvider,
-      final NodeKey nodeKey,
-      final Address localAddress,
-      final ProposerSelector proposerSelector,
-      final ValidatorMulticaster validatorMulticaster,
-      final RoundTimer roundTimer,
-      final BlockTimer blockTimer,
-      final QbftBlockCreatorFactory blockCreatorFactory,
-      final Clock clock) {
+          final ValidatorProvider validatorProvider,
+          final NodeKey nodeKey,
+          final Address localAddress,
+          final ProposerSelector proposerSelector,
+          final ValidatorMulticaster validatorMulticaster,
+          final RoundTimer roundTimer,
+          final BlockTimer blockTimer,
+          final QbftBlockCreatorFactory blockCreatorFactory,
+          final Clock clock) {
     this.validatorProvider = validatorProvider;
     this.nodeKey = nodeKey;
     this.localAddress = localAddress;
@@ -166,7 +166,7 @@ public class QbftFinalStateImpl implements QbftFinalState {
     return getProposerForRound(roundIdentifier).equals(localAddress);
   }
 
-  /**
+    /**
    * Gets proposer for round.
    *
    * @param roundIdentifier the round identifier

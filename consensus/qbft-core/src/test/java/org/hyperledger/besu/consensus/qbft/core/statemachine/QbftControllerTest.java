@@ -42,6 +42,7 @@ import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockchain;
@@ -101,12 +102,14 @@ public class QbftControllerTest {
   @Mock private FutureMessageBuffer<QbftMessage> futureMessageBuffer;
   @Mock private QbftBlockCodec blockEncoder;
   private QbftController qbftController;
+    private QbftMetricCalculator qbftMetricCalculator;
 
-  @BeforeEach
+    @BeforeEach
   public void setup() {
+        qbftMetricCalculator=new QbftMetricCalculator();
     when(blockChain.getChainHeadHeader()).thenReturn(chainHeadBlockHeader);
     when(blockChain.getChainHeadBlockNumber()).thenReturn(3L);
-    when(blockHeightManagerFactory.create(any())).thenReturn(blockHeightManager);
+    when(blockHeightManagerFactory.create(any(), qbftMetricCalculator)).thenReturn(blockHeightManager);
     when(qbftFinalState.getValidators()).thenReturn(ImmutableList.of(validator));
 
     when(chainHeadBlockHeader.getNumber()).thenReturn(3L);
@@ -130,17 +133,18 @@ public class QbftControllerTest {
             qbftGossiper,
             messageTracker,
             futureMessageBuffer,
-            blockEncoder);
+            blockEncoder,
+            qbftMetricCalculator);
   }
 
   @Test
   public void createsNewBlockHeightManagerWhenStarted() {
     constructQbftController();
-    verify(blockHeightManagerFactory, never()).create(chainHeadBlockHeader);
+    verify(blockHeightManagerFactory, never()).create(chainHeadBlockHeader, qbftMetricCalculator);
     qbftController.start();
 
     verify(futureMessageBuffer, never()).addMessage(anyLong(), any());
-    verify(blockHeightManagerFactory).create(chainHeadBlockHeader);
+    verify(blockHeightManagerFactory).create(chainHeadBlockHeader, qbftMetricCalculator);
   }
 
   @Test
@@ -161,7 +165,7 @@ public class QbftControllerTest {
 
     verify(futureMessageBuffer).retrieveMessagesForHeight(5L);
     verify(futureMessageBuffer, never()).retrieveMessagesForHeight(6L);
-    verify(blockHeightManagerFactory).create(chainHeadBlockHeader);
+    verify(blockHeightManagerFactory).create(chainHeadBlockHeader, qbftMetricCalculator);
     verify(blockHeightManager, atLeastOnce()).getChainHeight();
     verify(blockHeightManager, never()).handleProposalPayload(proposal);
     verify(blockHeightManager).handlePreparePayload(prepare);
@@ -190,7 +194,7 @@ public class QbftControllerTest {
     final QbftNewChainHead newChainHead = new QbftNewChainHead(nextBlock);
     qbftController.handleNewBlockEvent(newChainHead);
 
-    verify(blockHeightManagerFactory).create(nextBlock);
+    verify(blockHeightManagerFactory).create(nextBlock, qbftMetricCalculator);
     verify(blockHeightManager, atLeastOnce()).getChainHeight();
     verify(futureMessageBuffer, times(2)).retrieveMessagesForHeight(5L);
     verify(blockHeightManager).handleProposalPayload(proposal);
@@ -216,7 +220,7 @@ public class QbftControllerTest {
     when(nextBlock.getNumber()).thenReturn(chainHeadHeight - 1);
     final QbftNewChainHead priorBlock = new QbftNewChainHead(nextBlock);
     qbftController.handleNewBlockEvent(priorBlock);
-    verify(blockHeightManagerFactory, times(2)).create(any()); // 2 blocks created
+    verify(blockHeightManagerFactory, times(2)).create(any(), qbftMetricCalculator); // 2 blocks created
   }
 
   @Test
@@ -419,7 +423,7 @@ public class QbftControllerTest {
 
     when(blockChain.getChainHeadHeader()).thenReturn(chainHeadBlockHeader);
     when(blockChain.getChainHeadBlockNumber()).thenReturn(blockchainLength);
-    when(blockHeightManagerFactory.create(any())).thenReturn(blockHeightManager);
+    when(blockHeightManagerFactory.create(any(), qbftMetricCalculator)).thenReturn(blockHeightManager);
     when(blockHeightManager.getChainHeight()).thenReturn(blockHeightManagerTargettingBlock);
 
     constructQbftController();

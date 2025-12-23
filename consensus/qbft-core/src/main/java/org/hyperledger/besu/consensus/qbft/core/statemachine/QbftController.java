@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.QbftMessageDecoder;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockchain;
@@ -63,7 +64,7 @@ public class QbftController implements QbftEventHandler {
   private final QbftMessageDecoder messageDecoder = new QbftMessageDecoder();
   private BaseQbftBlockHeightManager currentHeightManager;
   private final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory;
-
+    private final QbftMetricCalculator  qbftMetricCalculator;
   /**
    * Instantiates a new Qbft controller.
    *
@@ -76,13 +77,13 @@ public class QbftController implements QbftEventHandler {
    * @param blockEncoder the block encoder
    */
   public QbftController(
-      final QbftBlockchain blockchain,
-      final QbftFinalState finalState,
-      final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
-      final QbftGossiper gossiper,
-      final MessageTracker duplicateMessageTracker,
-      final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
-      final QbftBlockCodec blockEncoder) {
+          final QbftBlockchain blockchain,
+          final QbftFinalState finalState,
+          final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
+          final QbftGossiper gossiper,
+          final MessageTracker duplicateMessageTracker,
+          final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
+          final QbftBlockCodec blockEncoder, QbftMetricCalculator qbftMetricCalculator) {
 
     this.blockchain = blockchain;
     this.finalState = finalState;
@@ -91,6 +92,7 @@ public class QbftController implements QbftEventHandler {
     this.duplicateMessageTracker = duplicateMessageTracker;
     this.qbftBlockHeightManagerFactory = qbftBlockHeightManagerFactory;
     this.blockEncoder = blockEncoder;
+      this.qbftMetricCalculator = qbftMetricCalculator;
   }
 
   private void handleMessage(final QbftMessage message, final boolean isReplayed) {
@@ -115,7 +117,7 @@ public class QbftController implements QbftEventHandler {
   }
 
   private void createNewHeightManager(final QbftBlockHeader parentHeader) {
-    currentHeightManager = qbftBlockHeightManagerFactory.create(parentHeader);
+    currentHeightManager = qbftBlockHeightManagerFactory.create(parentHeader,qbftMetricCalculator);
   }
 
   private BaseQbftBlockHeightManager getCurrentHeightManager() {

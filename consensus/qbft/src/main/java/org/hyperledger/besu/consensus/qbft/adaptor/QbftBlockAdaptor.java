@@ -18,7 +18,9 @@ import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.Transaction;
 
+import java.util.List;
 import java.util.Objects;
 
 /** Adaptor class to allow a {@link Block} to be used as a {@link QbftBlock}. */
@@ -62,6 +64,11 @@ public class QbftBlockAdaptor implements QbftBlock {
     if (!(o instanceof QbftBlockAdaptor qbftBlock)) return false;
     return Objects.equals(besuBlock, qbftBlock.besuBlock)
         && Objects.equals(qbftBlockHeader, qbftBlock.qbftBlockHeader);
+  }
+
+  @Override
+  public List<Transaction> getTransactions() {
+      return getBesuBlock().getBody().getTransactions();
   }
 
   @Override

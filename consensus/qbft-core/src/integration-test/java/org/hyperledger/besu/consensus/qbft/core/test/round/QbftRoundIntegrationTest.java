@@ -31,6 +31,7 @@ import org.hyperledger.besu.consensus.common.bft.inttest.StubValidatorMulticaste
 import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftBlockAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftBlockInterfaceAdaptor;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.network.QbftMessageTransmitter;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.statemachine.QbftRound;
@@ -146,6 +147,7 @@ public class QbftRoundIntegrationTest {
             throwingMessageFactory,
             transmitter,
             roundTimer,
+            new QbftMetricCalculator(),
             parentHeader);
 
     round.handleProposalMessage(
@@ -184,6 +186,7 @@ public class QbftRoundIntegrationTest {
             throwingMessageFactory,
             transmitter,
             roundTimer,
+            new QbftMetricCalculator(),
             parentHeader);
 
     // inject a block first, then a prepare on it.

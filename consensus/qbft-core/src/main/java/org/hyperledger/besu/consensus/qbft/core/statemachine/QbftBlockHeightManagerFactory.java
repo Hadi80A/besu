@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.BftHelpers;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftFinalState;
@@ -66,15 +67,16 @@ public class QbftBlockHeightManagerFactory {
   /**
    * Create base qbft block height manager.
    *
-   * @param parentHeader the parent header
+   * @param parentHeader         the parent header
+   * @param qbftMetricCalculator
    * @return the base qbft block height manager
    */
-  public BaseQbftBlockHeightManager create(final QbftBlockHeader parentHeader) {
+  public BaseQbftBlockHeightManager create(final QbftBlockHeader parentHeader, QbftMetricCalculator qbftMetricCalculator) {
     validatorModeTransitionLogger.logTransitionChange(parentHeader);
 
     if (finalState.isLocalNodeValidator()) {
       LOG.debug("Local node is a validator");
-      return createFullBlockHeightManager(parentHeader);
+      return createFullBlockHeightManager(parentHeader,qbftMetricCalculator);
     } else {
       LOG.debug("Local node is a non-validator");
       return createNoOpBlockHeightManager(parentHeader);
@@ -102,7 +104,7 @@ public class QbftBlockHeightManagerFactory {
   }
 
   private BaseQbftBlockHeightManager createFullBlockHeightManager(
-      final QbftBlockHeader parentHeader) {
+          final QbftBlockHeader parentHeader, QbftMetricCalculator qbftMetricCalculator) {
 
     QbftBlockHeightManager qbftBlockHeightManager;
     RoundChangeManager roundChangeManager;
@@ -125,7 +127,8 @@ public class QbftBlockHeightManagerFactory {
               messageValidatorFactory,
               messageFactory,
               validatorProvider,
-              true);
+              true,
+                  qbftMetricCalculator);
     } else {
       roundChangeManager =
           new RoundChangeManager(
@@ -142,7 +145,8 @@ public class QbftBlockHeightManagerFactory {
               finalState.getClock(),
               messageValidatorFactory,
               messageFactory,
-              validatorProvider);
+              validatorProvider,
+                  qbftMetricCalculator);
     }
 
     return qbftBlockHeightManager;

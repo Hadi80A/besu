@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.qbft.core.statemachine;
 
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.network.QbftMessageTransmitter;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCreator;
@@ -37,7 +38,7 @@ public class QbftRoundFactory {
   private final Subscribers<QbftMinedBlockObserver> minedBlockObservers;
   private final MessageValidatorFactory messageValidatorFactory;
   private final MessageFactory messageFactory;
-
+  private final QbftMetricCalculator metricCalculator;
   /**
    * Instantiates a new Qbft round factory.
    *
@@ -49,12 +50,13 @@ public class QbftRoundFactory {
    * @param messageFactory the message factory
    */
   public QbftRoundFactory(
-      final QbftFinalState finalState,
-      final QbftBlockInterface blockInterface,
-      final QbftProtocolSchedule protocolSchedule,
-      final Subscribers<QbftMinedBlockObserver> minedBlockObservers,
-      final MessageValidatorFactory messageValidatorFactory,
-      final MessageFactory messageFactory) {
+          final QbftFinalState finalState,
+          final QbftBlockInterface blockInterface,
+          final QbftProtocolSchedule protocolSchedule,
+          final Subscribers<QbftMinedBlockObserver> minedBlockObservers,
+          final MessageValidatorFactory messageValidatorFactory,
+          final MessageFactory messageFactory,
+          final  QbftMetricCalculator metricCalculator) {
     this.finalState = finalState;
     this.blockCreatorFactory = finalState.getBlockCreatorFactory();
     this.blockInterface = blockInterface;
@@ -62,6 +64,7 @@ public class QbftRoundFactory {
     this.minedBlockObservers = minedBlockObservers;
     this.messageValidatorFactory = messageValidatorFactory;
     this.messageFactory = messageFactory;
+    this.metricCalculator = metricCalculator;
   }
 
   /**
@@ -112,6 +115,7 @@ public class QbftRoundFactory {
         messageFactory,
         messageTransmitter,
         finalState.getRoundTimer(),
+        metricCalculator,
         parentHeader);
   }
 }

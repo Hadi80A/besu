@@ -18,6 +18,7 @@ import org.hyperledger.besu.consensus.common.bft.BlockTimer;
 import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 
@@ -104,4 +105,5 @@ public interface QbftFinalState {
    * @return true if the local node is the proposer for the given round, false otherwise
    */
   boolean isLocalNodeProposerForRound(ConsensusRoundIdentifier roundIdentifier);
+
 }

@@ -60,6 +60,7 @@ import org.hyperledger.besu.consensus.qbft.adaptor.QbftProtocolScheduleAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftValidatorModeTransitionLoggerAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftValidatorProviderAdaptor;
 import org.hyperledger.besu.consensus.qbft.blockcreation.QbftBlockCreatorFactory;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.statemachine.QbftBlockHeightManagerFactory;
 import org.hyperledger.besu.consensus.qbft.core.statemachine.QbftController;
@@ -283,6 +284,10 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
         new MessageTracker(qbftConfig.getDuplicateMessageLimit());
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey, blockEncoder);
+      QbftMetricCalculator qbftMetricCalculator=new QbftMetricCalculator();
+      transactionPool.subscribePendingTransactions(
+              qbftMetricCalculator::recordTransactionCreated
+      );
 
     QbftRoundFactory qbftRoundFactory =
         new QbftRoundFactory(
@@ -291,7 +296,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             qbftProtocolSchedule,
             minedBlockObservers,
             messageValidatorFactory,
-            messageFactory);
+            messageFactory,qbftMetricCalculator);
     QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory =
         new QbftBlockHeightManagerFactory(
             finalState,
@@ -312,8 +317,11 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             gossiper,
             duplicateMessageTracker,
             futureMessageBuffer,
-            blockEncoder);
+            blockEncoder,
+                qbftMetricCalculator);
     final BftEventHandler bftEventHandler = new BftEventHandlerAdaptor(qbftController);
+
+
 
     final EventMultiplexer eventMultiplexer = new EventMultiplexer(bftEventHandler);
     final BftProcessor bftProcessor = new BftProcessor(bftEventQueue, eventMultiplexer);

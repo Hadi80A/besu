@@ -22,6 +22,7 @@ import org.hyperledger.besu.consensus.common.bft.payload.SignedData;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.network.QbftMessageTransmitter;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
@@ -69,7 +70,7 @@ public class QbftRound {
   private final Address localAddress;
   private final MessageFactory messageFactory; // used only to create stored local msgs
   private final QbftMessageTransmitter transmitter;
-
+  private final QbftMetricCalculator metricCalculator;
   private final QbftBlockHeader parentHeader;
 
   /**
@@ -88,17 +89,17 @@ public class QbftRound {
    * @param parentHeader the parent header
    */
   public QbftRound(
-      final RoundState roundState,
-      final QbftBlockCreator blockCreator,
-      final QbftBlockInterface blockInterface,
-      final QbftProtocolSchedule protocolSchedule,
-      final Subscribers<QbftMinedBlockObserver> observers,
-      final NodeKey nodeKey,
-      final Address localAddress,
-      final MessageFactory messageFactory,
-      final QbftMessageTransmitter transmitter,
-      final RoundTimer roundTimer,
-      final QbftBlockHeader parentHeader) {
+          final RoundState roundState,
+          final QbftBlockCreator blockCreator,
+          final QbftBlockInterface blockInterface,
+          final QbftProtocolSchedule protocolSchedule,
+          final Subscribers<QbftMinedBlockObserver> observers,
+          final NodeKey nodeKey,
+          final Address localAddress,
+          final MessageFactory messageFactory,
+          final QbftMessageTransmitter transmitter,
+          final RoundTimer roundTimer, QbftMetricCalculator metricCalculator,
+          final QbftBlockHeader parentHeader) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
     this.blockInterface = blockInterface;
@@ -108,7 +109,8 @@ public class QbftRound {
     this.localAddress = localAddress;
     this.messageFactory = messageFactory;
     this.transmitter = transmitter;
-    this.parentHeader = parentHeader;
+      this.metricCalculator = metricCalculator;
+      this.parentHeader = parentHeader;
     roundTimer.startTimer(getRoundIdentifier());
   }
 
@@ -206,6 +208,7 @@ public class QbftRound {
         proposal.getSignedPayload().getPayload().getProposedBlock(),
         roundChanges,
         prepares);
+    metricCalculator.recordProposalArrival(proposal.getBlock());
     if (updateStateWithProposedBlock(proposal)) {
       sendPrepare(block);
     }
@@ -372,6 +375,7 @@ public class QbftRound {
           blockNumber,
           blockToImport.getHeader());
     } else {
+        metricCalculator.recordBlockCommit(blockToImport);
       notifyNewBlockListeners(blockToImport);
     }
   }

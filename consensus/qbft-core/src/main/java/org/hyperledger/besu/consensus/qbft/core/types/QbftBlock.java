@@ -15,6 +15,9 @@
 package org.hyperledger.besu.consensus.qbft.core.types;
 
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.core.Transaction;
+
+import java.util.List;
 
 /** Represents a block in the context of the QBFT consensus mechanism. */
 public interface QbftBlock {
@@ -33,6 +36,7 @@ public interface QbftBlock {
    */
   boolean isEmpty();
 
+  List<Transaction> getTransactions();
   /**
    * Returns the hash of the header. A convenience method to avoid having to call
    * getHeader().getHash().
@@ -42,4 +46,5 @@ public interface QbftBlock {
   default Hash getHash() {
     return getHeader().getHash();
   }
+
 }

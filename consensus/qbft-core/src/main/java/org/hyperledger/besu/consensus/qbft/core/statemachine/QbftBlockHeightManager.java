@@ -22,6 +22,7 @@ import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.metric.QbftMetricCalculator;
 import org.hyperledger.besu.consensus.qbft.core.network.QbftMessageTransmitter;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
@@ -45,6 +46,7 @@ import java.util.function.Function;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.web3j.tx.TransactionManager;
 
 /**
  * Responsible for starting/clearing Consensus rounds at a given block height. One of these is
@@ -67,13 +69,13 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
   private final Clock clock;
   private final Function<ConsensusRoundIdentifier, RoundState> roundStateCreator;
   private final QbftFinalState finalState;
-
+  private final QbftMetricCalculator metricCalculator;
   private Optional<PreparedCertificate> latestPreparedCertificate = Optional.empty();
   private Optional<QbftRound> currentRound = Optional.empty();
   private boolean isEarlyRoundChangeEnabled = false;
 
   /**
-   * Instantiates a new Qbft block height manager.
+   * Instantiates a new Qbft block height mana
    *
    * @param parentHeader the parent header
    * @param finalState the final state
@@ -92,7 +94,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
       final Clock clock,
       final MessageValidatorFactory messageValidatorFactory,
       final MessageFactory messageFactory,
-      final QbftValidatorProvider validatorProvider) {
+      final QbftValidatorProvider validatorProvider,
+      final QbftMetricCalculator qbftMetricCalculator) {
     this.parentHeader = parentHeader;
     this.roundFactory = qbftRoundFactory;
     this.validatorProvider = validatorProvider;
@@ -117,8 +120,10 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
     final long nextBlockHeight = parentHeader.getNumber() + 1;
     final ConsensusRoundIdentifier roundIdentifier =
         new ConsensusRoundIdentifier(nextBlockHeight, 0);
-
+    this.metricCalculator=qbftMetricCalculator;
     finalState.getBlockTimer().startTimer(roundIdentifier, parentHeader::getTimestamp);
+
+
   }
 
   /**
@@ -144,7 +149,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
       final MessageValidatorFactory messageValidatorFactory,
       final MessageFactory messageFactory,
       final QbftValidatorProvider validatorProvider,
-      final boolean isEarlyRoundChangeEnabled) {
+      final boolean isEarlyRoundChangeEnabled,
+      final QbftMetricCalculator metricCalculator) {
     this(
         parentHeader,
         finalState,
@@ -153,7 +159,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
         clock,
         messageValidatorFactory,
         messageFactory,
-        validatorProvider);
+        validatorProvider,
+            metricCalculator);
     this.isEarlyRoundChangeEnabled = isEarlyRoundChangeEnabled;
   }
 
@@ -325,6 +332,7 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
           LOG.info("Received future Proposal which is illegal, no round change triggered.");
           return;
         }
+        metricCalculator.recordProposalArrival(proposal.getBlock());
         startNewRound(proposal.getRoundIdentifier().getRoundNumber());
       }
       currentRound.ifPresent(r -> r.handleProposalMessage(proposal));
