@@ -61,6 +61,7 @@ import org.hyperledger.besu.consensus.ibft.IbftExtraDataCodec;
 import org.hyperledger.besu.consensus.ibft.IbftForksSchedulesFactory;
 import org.hyperledger.besu.consensus.ibft.IbftGossip;
 import org.hyperledger.besu.consensus.ibft.IbftProtocolScheduleBuilder;
+import org.hyperledger.besu.consensus.ibft.metric.IbftMetricCalculator;
 import org.hyperledger.besu.consensus.ibft.payload.MessageFactory;
 import org.hyperledger.besu.consensus.ibft.statemachine.IbftBlockHeightManagerFactory;
 import org.hyperledger.besu.consensus.ibft.statemachine.IbftController;
@@ -415,7 +416,7 @@ public class TestContextBuilder {
                 bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, TestClock.fixed()),
             blockCreatorFactory,
-            clock);
+            clock,transactionPool);
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey);
 
@@ -445,7 +446,7 @@ public class TestContextBuilder {
                     minedBlockObservers,
                     messageValidatorFactory,
                     messageFactory,
-                    IBFT_EXTRA_DATA_ENCODER),
+                    IBFT_EXTRA_DATA_ENCODER, new IbftMetricCalculator()),
                 messageValidatorFactory,
                 messageFactory),
             gossiper,

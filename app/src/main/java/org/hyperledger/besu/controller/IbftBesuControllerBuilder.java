@@ -48,6 +48,7 @@ import org.hyperledger.besu.consensus.ibft.IbftForksSchedulesFactory;
 import org.hyperledger.besu.consensus.ibft.IbftGossip;
 import org.hyperledger.besu.consensus.ibft.IbftProtocolScheduleBuilder;
 import org.hyperledger.besu.consensus.ibft.jsonrpc.IbftJsonRpcMethods;
+import org.hyperledger.besu.consensus.ibft.metric.IbftMetricCalculator;
 import org.hyperledger.besu.consensus.ibft.payload.MessageFactory;
 import org.hyperledger.besu.consensus.ibft.protocol.IbftSubProtocol;
 import org.hyperledger.besu.consensus.ibft.statemachine.IbftBlockHeightManagerFactory;
@@ -190,7 +191,9 @@ public class IbftBesuControllerBuilder extends BesuControllerBuilder {
                 bftExecutors),
             new BlockTimer(bftEventQueue, forksSchedule, bftExecutors, clock),
             blockCreatorFactory,
-            clock);
+            clock,
+                transactionPool
+        );
 
     final MessageValidatorFactory messageValidatorFactory =
         new MessageValidatorFactory(
@@ -210,6 +213,7 @@ public class IbftBesuControllerBuilder extends BesuControllerBuilder {
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey);
 
+    final IbftMetricCalculator ibftMetricCalculator= new IbftMetricCalculator();
     final BftEventHandler ibftController =
         new IbftController(
             blockchain,
@@ -223,7 +227,8 @@ public class IbftBesuControllerBuilder extends BesuControllerBuilder {
                     minedBlockObservers,
                     messageValidatorFactory,
                     messageFactory,
-                    bftExtraDataCodec),
+                    bftExtraDataCodec,
+                        ibftMetricCalculator),
                 messageValidatorFactory,
                 messageFactory),
             gossiper,

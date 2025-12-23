@@ -24,6 +24,7 @@ import org.hyperledger.besu.consensus.common.bft.network.ValidatorMulticaster;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 
 import java.time.Clock;
 import java.util.Collection;
@@ -40,8 +41,13 @@ public class BftFinalState {
   private final BftBlockCreatorFactory<?> blockCreatorFactory;
   private final Clock clock;
   private final ValidatorMulticaster validatorMulticaster;
+  private final TransactionPool  transactionPool;
 
-  /**
+    public TransactionPool getTransactionPool() {
+        return transactionPool;
+    }
+
+    /**
    * Instantiates a new Bft final state.
    *
    * @param validatorProvider the validator provider
@@ -55,15 +61,15 @@ public class BftFinalState {
    * @param clock the clock
    */
   public BftFinalState(
-      final ValidatorProvider validatorProvider,
-      final NodeKey nodeKey,
-      final Address localAddress,
-      final ProposerSelector proposerSelector,
-      final ValidatorMulticaster validatorMulticaster,
-      final RoundTimer roundTimer,
-      final BlockTimer blockTimer,
-      final BftBlockCreatorFactory<?> blockCreatorFactory,
-      final Clock clock) {
+          final ValidatorProvider validatorProvider,
+          final NodeKey nodeKey,
+          final Address localAddress,
+          final ProposerSelector proposerSelector,
+          final ValidatorMulticaster validatorMulticaster,
+          final RoundTimer roundTimer,
+          final BlockTimer blockTimer,
+          final BftBlockCreatorFactory<?> blockCreatorFactory,
+          final Clock clock, TransactionPool transactionPool) {
     this.validatorProvider = validatorProvider;
     this.nodeKey = nodeKey;
     this.localAddress = localAddress;
@@ -73,6 +79,7 @@ public class BftFinalState {
     this.blockCreatorFactory = blockCreatorFactory;
     this.clock = clock;
     this.validatorMulticaster = validatorMulticaster;
+      this.transactionPool = transactionPool;
   }
 
   /**

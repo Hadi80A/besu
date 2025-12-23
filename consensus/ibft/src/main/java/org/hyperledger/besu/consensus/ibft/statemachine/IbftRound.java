@@ -26,6 +26,7 @@ import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.ibft.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.ibft.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.ibft.messagewrappers.Proposal;
+import org.hyperledger.besu.consensus.ibft.metric.IbftMetricCalculator;
 import org.hyperledger.besu.consensus.ibft.network.IbftMessageTransmitter;
 import org.hyperledger.besu.consensus.ibft.payload.MessageFactory;
 import org.hyperledger.besu.consensus.ibft.payload.RoundChangeCertificate;
@@ -38,6 +39,7 @@ import org.hyperledger.besu.ethereum.chain.MinedBlockObserver;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
@@ -61,12 +63,14 @@ public class IbftRound {
   /** The protocol context. */
   protected final ProtocolContext protocolContext;
 
+  private final IbftMetricCalculator ibftMetricCalculator;
   private final ProtocolSchedule protocolSchedule;
   private final NodeKey nodeKey;
   private final MessageFactory messageFactory; // used only to create stored local msgs
   private final IbftMessageTransmitter transmitter;
   private final BftExtraDataCodec bftExtraDataCodec;
   private final BlockHeader parentHeader;
+  private final TransactionPool transactionPool;
 
   /**
    * Instantiates a new Ibft round.
@@ -84,28 +88,34 @@ public class IbftRound {
    * @param parentHeader the parent header
    */
   public IbftRound(
-      final RoundState roundState,
-      final BlockCreator blockCreator,
-      final ProtocolContext protocolContext,
-      final ProtocolSchedule protocolSchedule,
-      final Subscribers<MinedBlockObserver> observers,
-      final NodeKey nodeKey,
-      final MessageFactory messageFactory,
-      final IbftMessageTransmitter transmitter,
-      final RoundTimer roundTimer,
-      final BftExtraDataCodec bftExtraDataCodec,
-      final BlockHeader parentHeader) {
+          final RoundState roundState,
+          final BlockCreator blockCreator,
+          final ProtocolContext protocolContext,
+          final ProtocolSchedule protocolSchedule,
+          final Subscribers<MinedBlockObserver> observers, IbftMetricCalculator ibftMetricCalculator,
+          final NodeKey nodeKey,
+          final MessageFactory messageFactory,
+          final IbftMessageTransmitter transmitter,
+          final RoundTimer roundTimer,
+          final BftExtraDataCodec bftExtraDataCodec,
+          final BlockHeader parentHeader, TransactionPool transactionPool) {
     this.roundState = roundState;
     this.blockCreator = blockCreator;
     this.protocolContext = protocolContext;
     this.protocolSchedule = protocolSchedule;
     this.observers = observers;
-    this.nodeKey = nodeKey;
+      this.ibftMetricCalculator = ibftMetricCalculator;
+      this.nodeKey = nodeKey;
     this.messageFactory = messageFactory;
     this.transmitter = transmitter;
     this.bftExtraDataCodec = bftExtraDataCodec;
     this.parentHeader = parentHeader;
-    roundTimer.startTimer(getRoundIdentifier());
+      this.transactionPool = transactionPool;
+      roundTimer.startTimer(getRoundIdentifier());
+
+      this.transactionPool.subscribePendingTransactions(
+              ibftMetricCalculator::recordTransactionCreated
+      );
   }
 
   /**
@@ -239,6 +249,7 @@ public class IbftRound {
     if (blockAccepted) {
       final Block block = roundState.getProposedBlock().get();
 
+        ibftMetricCalculator.recordProposalArrival(block);
       final SECPSignature commitSeal;
       try {
         commitSeal = createCommitSeal(block);
@@ -309,6 +320,9 @@ public class IbftRound {
 
     final long blockNumber = blockToImport.getHeader().getNumber();
     final BftExtraData extraData = bftExtraDataCodec.decode(blockToImport.getHeader());
+
+      ibftMetricCalculator.recordBlockCommit(blockToImport);
+
     if (getRoundIdentifier().getRoundNumber() > 0) {
       LOG.info(
           "Importing block to chain. round={}, hash={}",

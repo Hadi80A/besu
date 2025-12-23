@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ibftMetricCalculator {
+public class IbftMetricCalculator {
 
     private static final Logger LOG = LoggerFactory.getLogger("BesuMetrics");
 
@@ -39,7 +39,7 @@ public class ibftMetricCalculator {
     private final OperatingSystemMXBean osBean;
     private final ThreadMXBean threadBean;
 
-    public ibftMetricCalculator() {
+    public IbftMetricCalculator() {
         this.simulationStartTime = System.currentTimeMillis();
         this.threadBean = ManagementFactory.getThreadMXBean();
         this.memoryBean = ManagementFactory.getMemoryMXBean();

@@ -30,6 +30,7 @@ import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreator;
 import org.hyperledger.besu.consensus.common.bft.inttest.StubValidatorMulticaster;
 import org.hyperledger.besu.consensus.ibft.IbftExtraDataCodec;
+import org.hyperledger.besu.consensus.ibft.metric.IbftMetricCalculator;
 import org.hyperledger.besu.consensus.ibft.network.IbftMessageTransmitter;
 import org.hyperledger.besu.consensus.ibft.payload.MessageFactory;
 import org.hyperledger.besu.consensus.ibft.statemachine.IbftRound;
@@ -142,12 +143,13 @@ public class IbftRoundIntegrationTest {
             protocolContext,
             protocolSchedule,
             subscribers,
+            new IbftMetricCalculator(),
             nodeKey,
             throwingMessageFactory,
             transmitter,
             roundTimer,
             bftExtraDataEncoder,
-            parentHeader);
+            parentHeader,null);
 
     round.handleProposalMessage(
         peerMessageFactory.createProposal(roundIdentifier, proposedBlock, Optional.empty()));
@@ -170,12 +172,13 @@ public class IbftRoundIntegrationTest {
             protocolContext,
             protocolSchedule,
             subscribers,
+            new IbftMetricCalculator(),
             nodeKey,
             throwingMessageFactory,
             transmitter,
             roundTimer,
             bftExtraDataEncoder,
-            parentHeader);
+            parentHeader,null);
 
     // inject a block first, then a prepare on it.
     round.handleProposalMessage(
