@@ -5,11 +5,33 @@
     </Properties>
 
     <Appenders>
+        <!-- Standard Console Output -->
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSSZZZ} | %t | %-5level | %c{1} | %msgc%n" />
+            <!-- Fixed typo in pattern: %msgc%n -> %msg%n -->
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSSZZZ} | %t | %-5level | %c{1} | %msg%n" />
         </Console>
+
+        <!-- Metric File Output -->
+        <!-- This writes to /opt/besu/logs/besu-metrics.log inside the container -->
+        <RollingFile name="MetricsFile" fileName="logs/besu-metrics.log"
+                     filePattern="logs/besu-metrics-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %msg%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+            </Policies>
+        </RollingFile>
     </Appenders>
+
     <Loggers>
+        <!-- Specific Logger for Metrics -->
+        <!-- additivity="false" prevents these logs from going to the Console -->
+        <Logger name="BesuMetrics" level="INFO" additivity="false">
+            <AppenderRef ref="MetricsFile"/>
+        </Logger>
+
+        <!-- Root Logger for everything else -->
         <Root level="${sys:root.log.level}">
             <AppenderRef ref="Console" />
         </Root>

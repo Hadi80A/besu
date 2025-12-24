@@ -34,6 +34,7 @@ import org.hyperledger.besu.ethereum.chain.BlockAddedEvent;
 import org.hyperledger.besu.ethereum.chain.BlockAddedObserver;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.CliqueMetricCalculator;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.encoding.EncodingContext;
 import org.hyperledger.besu.ethereum.core.kzg.BlobProofBundle;
@@ -224,6 +225,8 @@ public class TransactionPool implements BlockAddedObserver {
           .addArgument(baseTransaction::toTraceLog)
           .log();
       // We already have this transaction, don't even validate it.
+//      org.hyperledger.besu.ethereum.core.CliqueMetricCalculator.INSTANCE.recordTransactionCreated(transaction);
+      CliqueMetricCalculator.INSTANCE.recordTransactionCreated(baseTransaction);
       metrics.incrementRejected(isLocal, hasPriority, TRANSACTION_ALREADY_KNOWN, "txpool");
       return ValidationResult.invalid(TRANSACTION_ALREADY_KNOWN);
     }

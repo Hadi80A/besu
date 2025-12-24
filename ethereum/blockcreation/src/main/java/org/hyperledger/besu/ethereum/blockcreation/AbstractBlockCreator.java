@@ -349,6 +349,7 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
               transactionResults.getSelectedTransactions(), ommers, withdrawals, blockAccessList);
       final Block block = new Block(blockHeader, blockBody);
 
+      org.hyperledger.besu.ethereum.core.CliqueMetricCalculator.INSTANCE.recordProposalArrival(block);
       operationTracer.traceEndBlock(blockHeader, blockBody);
       timings.register("blockAssembled");
       return new BlockCreationResult(block, transactionResults, timings);

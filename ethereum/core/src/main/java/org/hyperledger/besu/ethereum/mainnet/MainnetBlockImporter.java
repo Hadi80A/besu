@@ -68,6 +68,8 @@ public class MainnetBlockImporter implements BlockImporter {
                             .withShouldWorldStateUpdateHead(true)
                             .build());
               });
+
+      org.hyperledger.besu.ethereum.core.CliqueMetricCalculator.INSTANCE.recordBlockCommit(block);
     }
 
     return new BlockImportResult(result.isSuccessful());
